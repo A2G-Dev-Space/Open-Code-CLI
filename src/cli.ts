@@ -9,7 +9,9 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
+import ora from 'ora';
 import { configManager } from './core/config-manager';
+import { createLLMClient } from './core/llm-client';
 
 const program = new Command();
 
@@ -57,12 +59,17 @@ program
     console.log(chalk.white('  a2g              대화형 모드 시작'));
     console.log(chalk.white('  a2g help         도움말 표시'));
     console.log(chalk.white('  a2g version      버전 정보 표시'));
-    console.log(chalk.white('  a2g config       설정 관리\n'));
+    console.log(chalk.white('  a2g config       설정 관리'));
+    console.log(chalk.white('  a2g chat         LLM과 대화 (테스트용)\n'));
 
     console.log(chalk.yellow('설정 명령어:'));
     console.log(chalk.white('  a2g config init  A2G-CLI 초기화'));
     console.log(chalk.white('  a2g config show  현재 설정 표시'));
     console.log(chalk.white('  a2g config reset 설정 초기화\n'));
+
+    console.log(chalk.yellow('대화 명령어:'));
+    console.log(chalk.white('  a2g chat "메시지"      일반 응답'));
+    console.log(chalk.white('  a2g chat "메시지" -s   스트리밍 응답\n'));
 
     console.log(chalk.dim('더 자세한 정보는 문서를 참조하세요.'));
     console.log(chalk.dim('https://github.com/your-repo/a2g-cli\n'));
@@ -220,6 +227,75 @@ configCommand
       if (error instanceof Error) {
         console.error(chalk.red(error.message));
       }
+      process.exit(1);
+    }
+  });
+
+/**
+ * chat 명령어 - 간단한 대화 테스트
+ */
+program
+  .command('chat <message>')
+  .description('LLM과 간단한 대화 (테스트용)')
+  .option('-s, --stream', '스트리밍 응답 사용')
+  .option('--system <prompt>', '시스템 프롬프트')
+  .action(async (message: string, options: { stream?: boolean; system?: string }) => {
+    try {
+      // ConfigManager 초기화 확인
+      const isInitialized = await configManager.isInitialized();
+      if (!isInitialized) {
+        console.log(chalk.yellow('\n⚠️  A2G-CLI가 초기화되지 않았습니다.'));
+        console.log(chalk.white('초기화: a2g config init\n'));
+        return;
+      }
+
+      await configManager.initialize();
+
+      // LLMClient 생성
+      const llmClient = createLLMClient();
+      const modelInfo = llmClient.getModelInfo();
+
+      console.log(chalk.cyan('\n💬 A2G-CLI Chat\n'));
+      console.log(chalk.dim(`모델: ${modelInfo.model}`));
+      console.log(chalk.dim(`엔드포인트: ${modelInfo.endpoint}\n`));
+
+      if (options.stream) {
+        // 스트리밍 응답
+        console.log(chalk.green('🤖 Assistant: '));
+
+        const spinner = ora('응답 생성 중...').start();
+        let isFirstChunk = true;
+
+        try {
+          for await (const chunk of llmClient.sendMessageStream(message, options.system)) {
+            if (isFirstChunk) {
+              spinner.stop();
+              isFirstChunk = false;
+            }
+            process.stdout.write(chalk.white(chunk));
+          }
+          console.log('\n');
+        } catch (error) {
+          spinner.stop();
+          throw error;
+        }
+      } else {
+        // 일반 응답
+        const spinner = ora('응답 생성 중...').start();
+
+        const response = await llmClient.sendMessage(message, options.system);
+
+        spinner.succeed('응답 완료');
+        console.log(chalk.green('\n🤖 Assistant:'));
+        console.log(chalk.white(response));
+        console.log();
+      }
+    } catch (error) {
+      console.error(chalk.red('\n❌ 에러 발생:'));
+      if (error instanceof Error) {
+        console.error(chalk.red(error.message));
+      }
+      console.log();
       process.exit(1);
     }
   });
