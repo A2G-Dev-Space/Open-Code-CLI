@@ -62,7 +62,8 @@ program
     console.log(chalk.white('  open help         도움말 표시'));
     console.log(chalk.white('  open version      버전 정보 표시'));
     console.log(chalk.white('  open config       설정 관리'));
-    console.log(chalk.white('  open chat         LLM과 대화 (테스트용)\n'));
+    console.log(chalk.white('  open chat         LLM과 대화'));
+    console.log(chalk.white('  open tools        File Tools와 함께 대화\n'));
 
     console.log(chalk.yellow('설정 명령어:'));
     console.log(chalk.white('  open config init  OPEN-CLI 초기화'));
@@ -70,8 +71,12 @@ program
     console.log(chalk.white('  open config reset 설정 초기화\n'));
 
     console.log(chalk.yellow('대화 명령어:'));
-    console.log(chalk.white('  open chat "메시지"      일반 응답'));
-    console.log(chalk.white('  open chat "메시지" -s   스트리밍 응답\n'));
+    console.log(chalk.white('  open chat "메시지"       일반 응답'));
+    console.log(chalk.white('  open chat "메시지" -s    스트리밍 응답\n'));
+
+    console.log(chalk.yellow('도구 명령어:'));
+    console.log(chalk.white('  open tools "메시지"      파일 시스템 도구 사용'));
+    console.log(chalk.dim('    사용 가능: read_file, write_file, list_files, find_files\n'));
 
     console.log(chalk.dim('더 자세한 정보는 문서를 참조하세요.'));
     console.log(chalk.dim('https://github.com/HanSyngha/open-cli\n'));
@@ -402,6 +407,71 @@ program
         console.log(chalk.white(response));
         console.log();
       }
+    } catch (error) {
+      console.error(chalk.red('\n❌ 에러 발생:'));
+      if (error instanceof Error) {
+        console.error(chalk.red(error.message));
+      }
+      console.log();
+      process.exit(1);
+    }
+  });
+
+/**
+ * tools 명령어 - File Tools를 사용한 대화
+ */
+program
+  .command('tools <message>')
+  .description('File Tools를 사용하여 LLM과 대화 (파일 읽기/쓰기/검색 가능)')
+  .option('--system <prompt>', '시스템 프롬프트')
+  .action(async (message: string, options: { system?: string }) => {
+    try {
+      // ConfigManager 초기화 확인
+      const isInitialized = await configManager.isInitialized();
+      if (!isInitialized) {
+        console.log(chalk.yellow('\n⚠️  OPEN-CLI가 초기화되지 않았습니다.'));
+        console.log(chalk.white('초기화: open config init\n'));
+        return;
+      }
+
+      await configManager.initialize();
+
+      // LLMClient 생성
+      const llmClient = createLLMClient();
+      const modelInfo = llmClient.getModelInfo();
+
+      // File Tools import
+      const { FILE_TOOLS } = await import('./tools/file-tools');
+
+      console.log(chalk.cyan('\n🛠️  OPEN-CLI Tools Mode\n'));
+      console.log(chalk.dim(`모델: ${modelInfo.model}`));
+      console.log(chalk.dim(`엔드포인트: ${modelInfo.endpoint}`));
+      console.log(chalk.dim(`사용 가능한 도구: read_file, write_file, list_files, find_files\n`));
+
+      const spinner = ora('LLM 작업 중...').start();
+
+      const result = await llmClient.sendMessageWithTools(
+        message,
+        FILE_TOOLS,
+        options.system
+      );
+
+      spinner.succeed('작업 완료');
+
+      // Tool 사용 내역 표시
+      if (result.toolCalls.length > 0) {
+        console.log(chalk.yellow('\n🔧 사용된 도구:\n'));
+        result.toolCalls.forEach((call, index) => {
+          console.log(chalk.white(`  ${index + 1}. ${call.tool}`));
+          console.log(chalk.dim(`     Args: ${JSON.stringify(call.args)}`));
+          console.log(chalk.dim(`     Result: ${call.result.substring(0, 100)}${call.result.length > 100 ? '...' : ''}\n`));
+        });
+      }
+
+      // 최종 응답
+      console.log(chalk.green('🤖 Assistant:'));
+      console.log(chalk.white(result.response));
+      console.log();
     } catch (error) {
       console.error(chalk.red('\n❌ 에러 발생:'));
       if (error instanceof Error) {

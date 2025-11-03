@@ -209,6 +209,90 @@ export class LLMClient {
   }
 
   /**
+   * Tools를 사용한 메시지 전송 (반복적으로 tool call 처리)
+   */
+  async sendMessageWithTools(
+    userMessage: string,
+    tools: import('../types').ToolDefinition[],
+    systemPrompt?: string,
+    maxIterations: number = 5
+  ): Promise<{ response: string; toolCalls: Array<{ tool: string; args: unknown; result: string }> }> {
+    const messages: Message[] = [];
+
+    if (systemPrompt) {
+      messages.push({
+        role: 'system',
+        content: systemPrompt,
+      });
+    }
+
+    messages.push({
+      role: 'user',
+      content: userMessage,
+    });
+
+    const toolCallHistory: Array<{ tool: string; args: unknown; result: string }> = [];
+    let iterations = 0;
+
+    while (iterations < maxIterations) {
+      iterations++;
+
+      // LLM 호출 (tools 포함)
+      const response = await this.chatCompletion({
+        messages,
+        tools,
+      });
+
+      const choice = response.choices[0];
+      if (!choice) {
+        throw new Error('응답에서 choice를 찾을 수 없습니다.');
+      }
+
+      const message = choice.message;
+      messages.push(message);
+
+      // Tool calls 확인
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        // Tool calls 실행
+        for (const toolCall of message.tool_calls) {
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
+
+          // Tool 실행 (외부에서 주입받아야 함 - 여기서는 import)
+          const { executeFileTool } = await import('../tools/file-tools');
+          const result = await executeFileTool(toolName, toolArgs);
+
+          // 결과를 메시지에 추가
+          messages.push({
+            role: 'tool',
+            content: result.success ? result.result || '' : `Error: ${result.error}`,
+            tool_call_id: toolCall.id,
+          });
+
+          // 히스토리에 추가
+          toolCallHistory.push({
+            tool: toolName,
+            args: toolArgs,
+            result: result.success ? result.result || '' : `Error: ${result.error}`,
+          });
+        }
+      } else {
+        // Tool call 없음 - 최종 응답
+        return {
+          response: message.content || '',
+          toolCalls: toolCallHistory,
+        };
+      }
+    }
+
+    // Max iterations 도달
+    return {
+      response: '최대 반복 횟수에 도달했습니다. Tool 실행이 완료되지 않았을 수 있습니다.',
+      toolCalls: toolCallHistory,
+    };
+  }
+
+  /**
    * 현재 모델 정보 가져오기
    */
   getModelInfo(): { model: string; endpoint: string } {

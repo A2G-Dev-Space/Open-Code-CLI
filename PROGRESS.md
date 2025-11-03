@@ -42,13 +42,13 @@
 
 ---
 
-## 📅 Phase 1: 기초 구축 (3-6개월)
+## 📅 Phase 1: 기초 구축 (3-6개월) - 진행률: 80%
 
 ### 목표
 - ✅ 기본 CLI 프레임워크 구축
 - ✅ 설정 파일 시스템 구축
 - ✅ 로컬 모델 엔드포인트 연결 (OpenAI Compatible API 클라이언트)
-- ⬜ 파일 시스템 도구 (LLM Tools)
+- ✅ 파일 시스템 도구 (LLM Tools)
 - ⬜ 기본 명령어 시스템 (대화형 모드)
 
 ---
@@ -60,6 +60,294 @@
 ---
 
 ## 📊 완료된 작업
+
+### [COMPLETED] 2025-11-03 19:00: 파일 시스템 도구 (LLM Tools) 구현
+
+**작업 내용**:
+1. File Tools 구현 (read_file, write_file, list_files, find_files)
+2. LLMClient에 Tool Calling 지원 추가
+3. `open tools` 명령어 추가
+4. OpenAI Function Calling 패턴 구현
+5. 반복적 tool call 처리 (최대 5회)
+
+**상태**: 완료됨 (COMPLETED) ✅
+
+**체크리스트**:
+- [x] src/tools/ 디렉토리 생성
+- [x] file-tools.ts 구현 (4가지 도구)
+- [x] ToolDefinition 타입 정의 (JSON Schema)
+- [x] Tool 실행 함수 구현
+- [x] LLMClient.sendMessageWithTools() 추가
+- [x] Tool call 루프 구현
+- [x] CLI tools 명령어 추가
+- [x] Help 메시지 업데이트
+- [x] 빌드 테스트 (tsc 컴파일 성공)
+
+**구현 세부사항**:
+
+#### 1. 파일 도구 4가지
+
+**read_file**:
+```typescript
+// 파일 내용 읽기
+{
+  name: 'read_file',
+  parameters: {
+    file_path: string  // 절대/상대 경로
+  }
+}
+```
+
+**write_file**:
+```typescript
+// 파일 쓰기 (덮어쓰기)
+{
+  name: 'write_file',
+  parameters: {
+    file_path: string,
+    content: string
+  }
+}
+```
+
+**list_files**:
+```typescript
+// 디렉토리 목록
+{
+  name: 'list_files',
+  parameters: {
+    directory_path?: string,  // 기본값: '.'
+    recursive?: boolean       // 기본값: false
+  }
+}
+```
+
+**find_files**:
+```typescript
+// 파일 검색 (glob 패턴)
+{
+  name: 'find_files',
+  parameters: {
+    pattern: string,           // 예: *.ts, package.json
+    directory_path?: string    // 기본값: '.'
+  }
+}
+```
+
+#### 2. Tool Calling 구현
+
+**LLMClient.sendMessageWithTools()**:
+```typescript
+async sendMessageWithTools(
+  userMessage: string,
+  tools: ToolDefinition[],
+  systemPrompt?: string,
+  maxIterations: number = 5
+): Promise<{
+  response: string;
+  toolCalls: Array<{
+    tool: string;
+    args: unknown;
+    result: string;
+  }>;
+}>
+```
+
+**동작 흐름**:
+1. 사용자 메시지 + tools를 LLM에 전달
+2. LLM이 tool_calls 반환
+3. Tool 실행 (executeFileTool)
+4. 결과를 role='tool'로 LLM에 전달
+5. LLM이 추가 tool_calls 또는 최종 응답 반환
+6. 최대 5회 반복
+
+**예시**:
+```
+User: "현재 디렉토리의 TypeScript 파일 목록을 알려줘"
+  ↓
+LLM: tool_call(find_files, { pattern: "*.ts" })
+  ↓
+Tool: [파일 목록]
+  ↓
+LLM: "현재 디렉토리에 다음 TypeScript 파일이 있습니다: ..."
+```
+
+#### 3. CLI tools 명령어
+
+**사용법**:
+```bash
+# 파일 도구 사용
+$ node dist/cli.js tools "현재 디렉토리에 어떤 파일이 있어?"
+
+🛠️  OPEN-CLI Tools Mode
+
+모델: gemini-2.0-flash
+엔드포인트: https://...
+사용 가능한 도구: read_file, write_file, list_files, find_files
+
+⠋ LLM 작업 중...
+
+🔧 사용된 도구:
+
+  1. list_files
+     Args: {"directory_path":".","recursive":false}
+     Result: [...]
+
+🤖 Assistant:
+현재 디렉토리에는 다음 파일들이 있습니다:
+- package.json
+- tsconfig.json
+- src/
+- dist/
+...
+```
+
+#### 4. 에러 처리
+
+**파일 도구 에러**:
+```typescript
+export interface ToolExecutionResult {
+  success: boolean;
+  result?: string;
+  error?: string;
+}
+```
+
+**에러 타입**:
+- `ENOENT`: 파일/디렉토리를 찾을 수 없음
+- `EACCES`: 권한 없음
+- 기타: 일반 에러 메시지
+
+**에러 전달**:
+```typescript
+// Tool 실행 실패 시
+messages.push({
+  role: 'tool',
+  content: `Error: ${result.error}`,
+  tool_call_id: toolCall.id,
+});
+```
+
+#### 5. 파일 구조
+
+```
+src/
+├── tools/
+│   ├── index.ts           # Export all
+│   └── file-tools.ts      # File system tools
+│       ├── READ_FILE_TOOL
+│       ├── WRITE_FILE_TOOL
+│       ├── LIST_FILES_TOOL
+│       ├── FIND_FILES_TOOL
+│       ├── executeReadFile()
+│       ├── executeWriteFile()
+│       ├── executeListFiles()
+│       ├── executeFindFiles()
+│       └── executeFileTool()  # Router
+```
+
+#### 6. 기술적 결정 사항
+
+1. **OpenAI Function Calling 패턴 준수**:
+   - ToolDefinition (JSON Schema)
+   - tool_calls 배열
+   - role='tool' 메시지
+
+2. **재귀적 tool call**:
+   - LLM이 여러 도구를 연속으로 사용 가능
+   - 최대 5회 제한 (무한 루프 방지)
+
+3. **Glob 패턴 지원**:
+   - `*.ts` → `.*\.ts`
+   - `**/*.json` → 재귀 검색
+
+4. **자동 디렉토리 생성**:
+   - write_file 시 부모 디렉토리 자동 생성
+   - `mkdir -p` 동작
+
+5. **상대 경로 지원**:
+   - `path.resolve()`로 절대 경로 변환
+   - 현재 작업 디렉토리 기준
+
+#### 7. 테스트 결과
+
+**빌드 테스트**:
+```bash
+$ npm run build
+✅ 성공 (에러 없음)
+```
+
+**Help 출력**:
+```bash
+$ node dist/cli.js help
+...
+도구 명령어:
+  open tools "메시지"      파일 시스템 도구 사용
+    사용 가능: read_file, write_file, list_files, find_files
+✅ 정상 표시
+```
+
+#### 8. 사용 예시
+
+**예시 1: 파일 읽기**
+```bash
+$ open tools "package.json 파일의 내용을 요약해줘"
+# LLM이 read_file(package.json) → 내용 요약
+```
+
+**예시 2: 파일 검색**
+```bash
+$ open tools "src 디렉토리에서 TypeScript 파일을 찾아줘"
+# LLM이 find_files("*.ts", "src") → 파일 목록
+```
+
+**예시 3: 파일 쓰기**
+```bash
+$ open tools "test.txt 파일에 'Hello World'를 써줘"
+# LLM이 write_file("test.txt", "Hello World")
+```
+
+**예시 4: 복합 작업**
+```bash
+$ open tools "현재 디렉토리의 모든 .ts 파일 목록을 files.txt에 저장해줘"
+# LLM이:
+# 1. find_files("*.ts")
+# 2. write_file("files.txt", [목록])
+```
+
+#### 9. 제한사항
+
+1. **텍스트 파일만 지원**:
+   - 바이너리 파일은 읽기 불가
+   - UTF-8 인코딩 가정
+
+2. **권한 제한**:
+   - 사용자 권한에 따라 제한
+   - 시스템 파일 접근 불가
+
+3. **도구 반복 횟수**:
+   - 최대 5회 tool call
+   - 복잡한 작업은 나눠서 수행 필요
+
+4. **Glob 패턴**:
+   - 간단한 패턴만 지원 (*,?)
+   - 복잡한 정규식은 미지원
+
+**이슈 및 해결 방법**: 없음
+
+**학습 내용**:
+- OpenAI Function Calling: LLM이 외부 도구 사용 가능
+- Tool Calling Loop: 반복적으로 도구 호출하여 복잡한 작업 수행
+- Dynamic Import: 순환 의존성 방지를 위해 동적 import 사용
+- JSON Schema: Tool 파라미터를 명확히 정의
+- Error Propagation: Tool 에러를 LLM에 전달하여 대응 가능
+
+**다음 단계**:
+- 추가 도구 구현 (네트워크, 데이터베이스 등)
+- 도구 권한 시스템 (사용자 승인)
+- 도구 사용 내역 로깅
+
+---
 
 ### [COMPLETED] 2025-11-03 18:00: 보안 개선 - Interactive Init & Health Check
 
