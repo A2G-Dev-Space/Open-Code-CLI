@@ -1,5 +1,5 @@
 /**
- * A2G-CLI Type Definitions
+ * OPEN-CLI Type Definitions
  *
  * 프로젝트 전체에서 사용되는 TypeScript 타입 정의
  */
@@ -106,7 +106,7 @@ export interface SessionMemory {
 /**
  * 설정 파일 구조
  */
-export interface A2GConfig {
+export interface OpenConfig {
   version: string;
   currentEndpoint?: string;
   currentModel?: string;

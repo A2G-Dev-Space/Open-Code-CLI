@@ -1,5 +1,5 @@
 /**
- * A2G-CLI Constants
+ * OPEN-CLI Constants
  *
  * 프로젝트 전역 상수 정의
  */
@@ -8,46 +8,46 @@ import * as path from 'path';
 import * as os from 'os';
 
 /**
- * A2G-CLI 홈 디렉토리
- * ~/.a2g-cli/
+ * OPEN-CLI 홈 디렉토리
+ * ~/.open-cli/
  */
-export const A2G_HOME_DIR = path.join(os.homedir(), '.a2g-cli');
+export const OPEN_HOME_DIR = path.join(os.homedir(), '.open-cli');
 
 /**
  * 설정 파일 경로
- * ~/.a2g-cli/config.json
+ * ~/.open-cli/config.json
  */
-export const CONFIG_FILE_PATH = path.join(A2G_HOME_DIR, 'config.json');
+export const CONFIG_FILE_PATH = path.join(OPEN_HOME_DIR, 'config.json');
 
 /**
  * 엔드포인트 설정 파일 경로
- * ~/.a2g-cli/endpoints.json
+ * ~/.open-cli/endpoints.json
  */
-export const ENDPOINTS_FILE_PATH = path.join(A2G_HOME_DIR, 'endpoints.json');
+export const ENDPOINTS_FILE_PATH = path.join(OPEN_HOME_DIR, 'endpoints.json');
 
 /**
  * 세션 저장 디렉토리
- * ~/.a2g-cli/sessions/
+ * ~/.open-cli/sessions/
  */
-export const SESSIONS_DIR = path.join(A2G_HOME_DIR, 'sessions');
+export const SESSIONS_DIR = path.join(OPEN_HOME_DIR, 'sessions');
 
 /**
  * 문서 디렉토리
- * ~/.a2g-cli/docs/
+ * ~/.open-cli/docs/
  */
-export const DOCS_DIR = path.join(A2G_HOME_DIR, 'docs');
+export const DOCS_DIR = path.join(OPEN_HOME_DIR, 'docs');
 
 /**
  * 백업 디렉토리
- * ~/.a2g-cli/backups/
+ * ~/.open-cli/backups/
  */
-export const BACKUPS_DIR = path.join(A2G_HOME_DIR, 'backups');
+export const BACKUPS_DIR = path.join(OPEN_HOME_DIR, 'backups');
 
 /**
  * 로그 디렉토리
- * ~/.a2g-cli/logs/
+ * ~/.open-cli/logs/
  */
-export const LOGS_DIR = path.join(A2G_HOME_DIR, 'logs');
+export const LOGS_DIR = path.join(OPEN_HOME_DIR, 'logs');
 
 /**
  * 기본 엔드포인트 ID
@@ -98,4 +98,4 @@ export const APP_VERSION = '0.1.0';
 /**
  * 앱 이름
  */
-export const APP_NAME = 'A2G-CLI';
+export const APP_NAME = 'OPEN-CLI';

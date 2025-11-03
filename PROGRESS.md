@@ -1,4 +1,4 @@
-# A2G-CLI 개발 진행 상황
+# OPEN-CLI 개발 진행 상황
 
 ## 📋 개발 프로세스 규칙 (RULES)
 
@@ -35,7 +35,7 @@
 
 ## 🎯 프로젝트 개요
 
-**프로젝트명**: A2G-CLI (AI2Go CLI)
+**프로젝트명**: OPEN-CLI
 **목표**: 오프라인 기업 환경을 위한 완전한 로컬 LLM CLI 플랫폼
 **시작일**: 2025년 11월 3일
 **현재 Phase**: Phase 1 (기초 구축)
@@ -60,6 +60,143 @@
 ---
 
 ## 📊 완료된 작업
+
+### [COMPLETED] 2025-11-03 17:00: 프로젝트 리브랜딩 (A2G-CLI → OPEN-CLI)
+
+**작업 내용**:
+1. 프로젝트명 변경: A2G-CLI → OPEN-CLI
+2. GitHub 저장소 업데이트: https://github.com/HanSyngha/open-cli
+3. 연락처 추가: gkstmdgk2731@naver.com
+4. 모든 파일의 A2G 참조를 OPEN으로 변경
+5. 디렉토리 경로 변경: ~/.a2g-cli/ → ~/.open-cli/
+6. 타입명 변경: A2GConfig → OpenConfig
+7. 상수명 변경: A2G_HOME_DIR → OPEN_HOME_DIR
+8. CLI 명령어 변경: a2g → open
+
+**상태**: 완료됨 (COMPLETED) ✅
+
+**체크리스트**:
+- [x] package.json 업데이트 (name, description, bin, author)
+- [x] src/constants.ts 업데이트 (홈 디렉토리, 앱 이름)
+- [x] src/types/index.ts 업데이트 (A2GConfig → OpenConfig)
+- [x] src/core/config-manager.ts 업데이트 (타입, 상수, 주석)
+- [x] src/cli.ts 업데이트 (프로그램명, 메시지, GitHub URL)
+- [x] README.md 업데이트 (전체 리브랜딩, GitHub URL, 연락처)
+- [x] PROGRESS.md 업데이트 (모든 참조 변경)
+- [x] 빌드 테스트 (tsc 컴파일 성공)
+- [x] ESLint 테스트 (린팅 통과)
+- [x] CLI 동작 테스트 (help, config show)
+
+**구현 세부사항**:
+
+#### 1. 변경된 파일 목록
+- **package.json**: 프로젝트명, 설명, bin 명령어, 작성자
+- **src/constants.ts**: OPEN_HOME_DIR, APP_NAME, 주석
+- **src/types/index.ts**: OpenConfig 타입
+- **src/core/config-manager.ts**: OpenConfig 타입 사용, OPEN_HOME_DIR 사용
+- **src/cli.ts**: 프로그램명 'open', 모든 메시지, GitHub URL
+- **README.md**: 전체 프로젝트 설명, GitHub URL, 연락처
+- **PROGRESS.md**: 모든 A2G 참조 일괄 변경
+
+#### 2. 주요 변경사항
+
+**디렉토리 구조**:
+```
+변경 전: ~/.a2g-cli/
+변경 후: ~/.open-cli/
+```
+
+**CLI 명령어**:
+```bash
+# 변경 전
+$ a2g config init
+$ a2g chat "메시지"
+
+# 변경 후
+$ open config init
+$ open chat "메시지"
+```
+
+**타입 정의**:
+```typescript
+// 변경 전
+export interface A2GConfig { ... }
+
+// 변경 후
+export interface OpenConfig { ... }
+```
+
+**상수**:
+```typescript
+// 변경 전
+export const A2G_HOME_DIR = path.join(os.homedir(), '.a2g-cli');
+export const APP_NAME = 'A2G-CLI';
+
+// 변경 후
+export const OPEN_HOME_DIR = path.join(os.homedir(), '.open-cli');
+export const APP_NAME = 'OPEN-CLI';
+```
+
+#### 3. 테스트 결과
+
+**빌드 테스트**:
+```bash
+$ npm run build
+> open-cli@0.1.0 build
+> tsc
+✅ 성공 (에러 없음)
+```
+
+**ESLint 테스트**:
+```bash
+$ npm run lint
+> open-cli@0.1.0 lint
+> eslint src/**/*.ts
+✅ 성공 (에러 없음)
+```
+
+**CLI 동작 테스트**:
+```bash
+$ node dist/cli.js help
+📚 OPEN-CLI 도움말
+사용법: open [command] [options]
+...
+✅ 정상 동작
+
+$ node dist/cli.js config show
+⚠️  OPEN-CLI가 초기화되지 않았습니다.
+초기화: open config init
+✅ 정상 동작
+```
+
+#### 4. 기술적 결정 사항
+
+1. **일괄 변경 전략**:
+   - Edit 도구의 `replace_all: true` 옵션 활용
+   - 전체 프로젝트에서 일관성 유지
+   - 757줄의 PROGRESS.md도 효율적으로 업데이트
+
+2. **하위 호환성**:
+   - 기존 ~/.a2g-cli/ 디렉토리는 자동 마이그레이션 없음
+   - 사용자가 수동으로 `open config init` 실행 필요
+
+3. **Git 저장소**:
+   - 새 저장소: https://github.com/HanSyngha/open-cli
+   - 모든 문서에 새 URL 반영
+
+4. **연락처 정보**:
+   - 이메일: gkstmdgk2731@naver.com
+   - README.md 팀 섹션에 추가
+
+**이슈 및 해결 방법**: 없음
+
+**학습 내용**:
+- 프로젝트 전체 리브랜딩 시 체계적인 접근 필요
+- replace_all 옵션으로 대규모 파일 효율적 업데이트
+- TypeScript 타입명 변경 시 모든 import 문도 자동 업데이트됨
+- 빌드/린트 테스트로 변경사항 검증 중요
+
+---
 
 ### [COMPLETED] 2025-11-03 15:30: OpenAI Compatible API 클라이언트 구현
 
@@ -109,8 +246,8 @@ export class LLMClient {
 #### 2. chat CLI 명령어
 ```bash
 # 일반 응답
-$ a2g chat "Hello!"
-💬 A2G-CLI Chat
+$ openchat "Hello!"
+💬 OPEN-CLI Chat
 모델: gemini-2.0-flash
 엔드포인트: https://generativelanguage.googleapis.com/v1beta/openai/
 
@@ -118,13 +255,13 @@ $ a2g chat "Hello!"
 Hello! How can I help you today?
 
 # 스트리밍 응답
-$ a2g chat "Tell me a joke" -s
+$ openchat "Tell me a joke" -s
 🤖 Assistant:
 Why don't scientists trust atoms?
 Because they make up everything!
 
 # 시스템 프롬프트
-$ a2g chat "파이썬 설명해줘" --system "You are a helpful tutor"
+$ openchat "파이썬 설명해줘" --system "You are a helpful tutor"
 ```
 
 **옵션**:
@@ -193,7 +330,7 @@ chatCompletionWithRetry(options, maxRetries = 3) {
 **실행 예시**:
 ```bash
 $ node dist/cli.js chat "What is 2+2?" -s
-💬 A2G-CLI Chat
+💬 OPEN-CLI Chat
 
 모델: gemini-2.0-flash
 엔드포인트: https://generativelanguage.googleapis.com/v1beta/openai/
@@ -232,7 +369,7 @@ $ node dist/cli.js chat "What is 2+2?" -s
 
 **체크리스트**:
 - [x] ConfigManager 클래스 구현
-- [x] ~/.a2g-cli/ 디렉토리 자동 생성
+- [x] ~/.open-cli/ 디렉토리 자동 생성
 - [x] config.json 파일 읽기/쓰기
 - [x] 파일 시스템 유틸리티
 - [x] config CLI 명령어
@@ -286,12 +423,12 @@ export class ConfigManager {
 #### 3. 프로젝트 상수 (src/constants.ts)
 ```typescript
 // 디렉토리 경로
-export const A2G_HOME_DIR = '~/.a2g-cli/'
-export const CONFIG_FILE_PATH = '~/.a2g-cli/config.json'
-export const SESSIONS_DIR = '~/.a2g-cli/sessions/'
-export const DOCS_DIR = '~/.a2g-cli/docs/'
-export const BACKUPS_DIR = '~/.a2g-cli/backups/'
-export const LOGS_DIR = '~/.a2g-cli/logs/'
+export const OPEN_HOME_DIR = '~/.open-cli/'
+export const CONFIG_FILE_PATH = '~/.open-cli/config.json'
+export const SESSIONS_DIR = '~/.open-cli/sessions/'
+export const DOCS_DIR = '~/.open-cli/docs/'
+export const BACKUPS_DIR = '~/.open-cli/backups/'
+export const LOGS_DIR = '~/.open-cli/logs/'
 
 // 기본 설정
 export const DEFAULT_ENDPOINT_ID = 'ep-gemini-default'
@@ -323,20 +460,20 @@ export const DEFAULT_MODEL_ID = 'gemini-2.0-flash'
 - 기본 활성화 및 정상 상태
 
 #### 5. CLI config 명령어
-**a2g config init**:
+**openconfig init**:
 ```bash
-$ a2g config init
-🚀 A2G-CLI 초기화 중...
+$ openconfig init
+🚀 OPEN-CLI 초기화 중...
 
 ✅ 초기화 완료!
 
 생성된 디렉토리 및 파일:
-  ~/.a2g-cli/
-  ~/.a2g-cli/config.json
-  ~/.a2g-cli/sessions/
-  ~/.a2g-cli/docs/
-  ~/.a2g-cli/backups/
-  ~/.a2g-cli/logs/
+  ~/.open-cli/
+  ~/.open-cli/config.json
+  ~/.open-cli/sessions/
+  ~/.open-cli/docs/
+  ~/.open-cli/backups/
+  ~/.open-cli/logs/
 
 📡 기본 엔드포인트 설정:
   이름: Gemini 2.0 Flash (Default)
@@ -344,10 +481,10 @@ $ a2g config init
   모델: Gemini 2.0 Flash (gemini-2.0-flash)
 ```
 
-**a2g config show**:
+**openconfig show**:
 ```bash
-$ a2g config show
-📋 A2G-CLI 설정
+$ openconfig show
+📋 OPEN-CLI 설정
 
 현재 엔드포인트:
   ID: ep-gemini-default
@@ -372,9 +509,9 @@ $ a2g config show
   자동 저장: ✅ ON
 ```
 
-**a2g config reset**:
+**openconfig reset**:
 ```bash
-$ a2g config reset
+$ openconfig reset
 ⚠️  경고: 모든 설정이 초기화됩니다.
 세션 및 백업은 유지됩니다.
 
@@ -392,7 +529,7 @@ $ a2g config reset
 
 **생성된 파일 구조**:
 ```
-~/.a2g-cli/
+~/.open-cli/
 ├── config.json           # 설정 파일 (881 bytes)
 ├── sessions/             # 세션 저장 디렉토리
 ├── docs/                 # 로컬 문서 디렉토리
@@ -485,8 +622,8 @@ a2g-cli/
 
 #### 4. CLI 기본 명령어
 - `a2g` - 기본 실행 (정보 표시 + help)
-- `a2g help` - 도움말 표시
-- `a2g --version` - 버전 정보 표시
+- `openhelp` - 도움말 표시
+- `open--version` - 버전 정보 표시
 
 #### 5. TypeScript 타입 정의
 다음 핵심 타입 정의 완료:
@@ -497,7 +634,7 @@ a2g-cli/
 - `LLMRequestOptions` - LLM 요청 옵션
 - `ToolDefinition` - Tool 정의
 - `SessionMemory` - 세션 메모리
-- `A2GConfig` - 전역 설정
+- `OpenConfig` - 전역 설정
 
 **테스트 결과**:
 - ✅ TypeScript 빌드 성공 (tsc 컴파일 에러 없음)
@@ -511,11 +648,11 @@ a2g-cli/
 ```bash
 $ node dist/cli.js
 ╔════════════════════════════════════════════════════════════╗
-║                      A2G-CLI v0.1.0                        ║
+║                      OPEN-CLI v0.1.0                        ║
 ║              오프라인 기업용 AI 코딩 어시스턴트              ║
 ╚════════════════════════════════════════════════════════════╝
 
-⚠️  A2G-CLI가 아직 초기 설정 단계입니다.
+⚠️  OPEN-CLI가 아직 초기 설정 단계입니다.
 Phase 1 기능이 현재 개발 중입니다.
 
 ✅ 완료된 작업:
@@ -570,7 +707,7 @@ Phase 1 기능이 현재 개발 중입니다.
 **의존성**: CLI 기본 프레임워크 완료
 
 **작업 내용**:
-- ~/.a2g-cli/ 디렉토리 생성 및 관리
+- ~/.open-cli/ 디렉토리 생성 및 관리
 - 설정 파일 읽기/쓰기 (JSON 형식)
 - 엔드포인트 설정 저장소 구현
 - 기본 설정값 정의

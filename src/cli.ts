@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * A2G-CLI (AI2Go CLI)
+ * OPEN-CLI
  * 오프라인 기업 환경을 위한 완전한 로컬 LLM CLI 플랫폼
  *
  * Entry Point: CLI 애플리케이션의 진입점
@@ -18,18 +18,18 @@ const program = new Command();
 /**
  * CLI 프로그램 설정
  */
-program.name('a2g').description('A2G-CLI - 오프라인 기업용 AI 코딩 어시스턴트').version('0.1.0');
+program.name('open').description('OPEN-CLI - 오프라인 기업용 AI 코딩 어시스턴트').version('0.1.0');
 
 /**
  * 기본 명령어: 대화형 모드 시작
  */
 program.action(() => {
   console.log(chalk.cyan.bold('\n╔════════════════════════════════════════════════════════════╗'));
-  console.log(chalk.cyan.bold('║                      A2G-CLI v0.1.0                        ║'));
+  console.log(chalk.cyan.bold('║                     OPEN-CLI v0.1.0                        ║'));
   console.log(chalk.cyan.bold('║              오프라인 기업용 AI 코딩 어시스턴트              ║'));
   console.log(chalk.cyan.bold('╚════════════════════════════════════════════════════════════╝\n'));
 
-  console.log(chalk.yellow('⚠️  A2G-CLI가 아직 초기 설정 단계입니다.'));
+  console.log(chalk.yellow('⚠️  OPEN-CLI가 아직 초기 설정 단계입니다.'));
   console.log(chalk.white('Phase 1 기능이 현재 개발 중입니다.\n'));
 
   console.log(chalk.green('✅ 완료된 작업:'));
@@ -52,27 +52,27 @@ program
   .command('help')
   .description('도움말 표시')
   .action(() => {
-    console.log(chalk.cyan.bold('\n📚 A2G-CLI 도움말\n'));
-    console.log(chalk.white('사용법: a2g [command] [options]\n'));
+    console.log(chalk.cyan.bold('\n📚 OPEN-CLI 도움말\n'));
+    console.log(chalk.white('사용법: open [command] [options]\n'));
 
     console.log(chalk.yellow('주요 명령어:'));
-    console.log(chalk.white('  a2g              대화형 모드 시작'));
-    console.log(chalk.white('  a2g help         도움말 표시'));
-    console.log(chalk.white('  a2g version      버전 정보 표시'));
-    console.log(chalk.white('  a2g config       설정 관리'));
-    console.log(chalk.white('  a2g chat         LLM과 대화 (테스트용)\n'));
+    console.log(chalk.white('  open              대화형 모드 시작'));
+    console.log(chalk.white('  open help         도움말 표시'));
+    console.log(chalk.white('  open version      버전 정보 표시'));
+    console.log(chalk.white('  open config       설정 관리'));
+    console.log(chalk.white('  open chat         LLM과 대화 (테스트용)\n'));
 
     console.log(chalk.yellow('설정 명령어:'));
-    console.log(chalk.white('  a2g config init  A2G-CLI 초기화'));
-    console.log(chalk.white('  a2g config show  현재 설정 표시'));
-    console.log(chalk.white('  a2g config reset 설정 초기화\n'));
+    console.log(chalk.white('  open config init  OPEN-CLI 초기화'));
+    console.log(chalk.white('  open config show  현재 설정 표시'));
+    console.log(chalk.white('  open config reset 설정 초기화\n'));
 
     console.log(chalk.yellow('대화 명령어:'));
-    console.log(chalk.white('  a2g chat "메시지"      일반 응답'));
-    console.log(chalk.white('  a2g chat "메시지" -s   스트리밍 응답\n'));
+    console.log(chalk.white('  open chat "메시지"      일반 응답'));
+    console.log(chalk.white('  open chat "메시지" -s   스트리밍 응답\n'));
 
     console.log(chalk.dim('더 자세한 정보는 문서를 참조하세요.'));
-    console.log(chalk.dim('https://github.com/your-repo/a2g-cli\n'));
+    console.log(chalk.dim('https://github.com/HanSyngha/open-cli\n'));
   });
 
 /**
@@ -81,20 +81,20 @@ program
 const configCommand = program.command('config').description('설정 관리');
 
 /**
- * config init - A2G-CLI 초기화
+ * config init - OPEN-CLI 초기화
  */
 configCommand
   .command('init')
-  .description('A2G-CLI 초기화 (디렉토리 및 설정 파일 생성)')
+  .description('OPEN-CLI 초기화 (디렉토리 및 설정 파일 생성)')
   .action(async () => {
     try {
-      console.log(chalk.cyan('\n🚀 A2G-CLI 초기화 중...\n'));
+      console.log(chalk.cyan('\n🚀 OPEN-CLI 초기화 중...\n'));
 
       const isInitialized = await configManager.isInitialized();
 
       if (isInitialized) {
         console.log(chalk.yellow('⚠️  이미 초기화되어 있습니다.'));
-        console.log(chalk.white('설정을 초기화하려면: a2g config reset\n'));
+        console.log(chalk.white('설정을 초기화하려면: open config reset\n'));
         return;
       }
 
@@ -103,12 +103,12 @@ configCommand
       console.log(chalk.green('✅ 초기화 완료!\n'));
 
       console.log(chalk.white('생성된 디렉토리 및 파일:'));
-      console.log(chalk.dim('  ~/.a2g-cli/'));
-      console.log(chalk.dim('  ~/.a2g-cli/config.json'));
-      console.log(chalk.dim('  ~/.a2g-cli/sessions/'));
-      console.log(chalk.dim('  ~/.a2g-cli/docs/'));
-      console.log(chalk.dim('  ~/.a2g-cli/backups/'));
-      console.log(chalk.dim('  ~/.a2g-cli/logs/\n'));
+      console.log(chalk.dim('  ~/.open-cli/'));
+      console.log(chalk.dim('  ~/.open-cli/config.json'));
+      console.log(chalk.dim('  ~/.open-cli/sessions/'));
+      console.log(chalk.dim('  ~/.open-cli/docs/'));
+      console.log(chalk.dim('  ~/.open-cli/backups/'));
+      console.log(chalk.dim('  ~/.open-cli/logs/\n'));
 
       const endpoint = configManager.getCurrentEndpoint();
       const model = configManager.getCurrentModel();
@@ -119,8 +119,8 @@ configCommand
       console.log(chalk.white(`  모델: ${model?.name} (${model?.id})\n`));
 
       console.log(chalk.cyan('다음 단계:'));
-      console.log(chalk.white('  a2g config show  - 현재 설정 확인'));
-      console.log(chalk.white('  a2g              - 대화형 모드 시작\n'));
+      console.log(chalk.white('  open config show  - 현재 설정 확인'));
+      console.log(chalk.white('  open              - 대화형 모드 시작\n'));
     } catch (error) {
       console.error(chalk.red('❌ 초기화 실패:'));
       if (error instanceof Error) {
@@ -141,8 +141,8 @@ configCommand
       const isInitialized = await configManager.isInitialized();
 
       if (!isInitialized) {
-        console.log(chalk.yellow('\n⚠️  A2G-CLI가 초기화되지 않았습니다.'));
-        console.log(chalk.white('초기화: a2g config init\n'));
+        console.log(chalk.yellow('\n⚠️  OPEN-CLI가 초기화되지 않았습니다.'));
+        console.log(chalk.white('초기화: open config init\n'));
         return;
       }
 
@@ -152,7 +152,7 @@ configCommand
       const endpoint = configManager.getCurrentEndpoint();
       const model = configManager.getCurrentModel();
 
-      console.log(chalk.cyan.bold('\n📋 A2G-CLI 설정\n'));
+      console.log(chalk.cyan.bold('\n📋 OPEN-CLI 설정\n'));
 
       console.log(chalk.yellow('현재 엔드포인트:'));
       if (endpoint) {
@@ -209,8 +209,8 @@ configCommand
       const isInitialized = await configManager.isInitialized();
 
       if (!isInitialized) {
-        console.log(chalk.yellow('\n⚠️  A2G-CLI가 초기화되지 않았습니다.'));
-        console.log(chalk.white('초기화: a2g config init\n'));
+        console.log(chalk.yellow('\n⚠️  OPEN-CLI가 초기화되지 않았습니다.'));
+        console.log(chalk.white('초기화: open config init\n'));
         return;
       }
 
@@ -244,8 +244,8 @@ program
       // ConfigManager 초기화 확인
       const isInitialized = await configManager.isInitialized();
       if (!isInitialized) {
-        console.log(chalk.yellow('\n⚠️  A2G-CLI가 초기화되지 않았습니다.'));
-        console.log(chalk.white('초기화: a2g config init\n'));
+        console.log(chalk.yellow('\n⚠️  OPEN-CLI가 초기화되지 않았습니다.'));
+        console.log(chalk.white('초기화: open config init\n'));
         return;
       }
 
@@ -255,7 +255,7 @@ program
       const llmClient = createLLMClient();
       const modelInfo = llmClient.getModelInfo();
 
-      console.log(chalk.cyan('\n💬 A2G-CLI Chat\n'));
+      console.log(chalk.cyan('\n💬 OPEN-CLI Chat\n'));
       console.log(chalk.dim(`모델: ${modelInfo.model}`));
       console.log(chalk.dim(`엔드포인트: ${modelInfo.endpoint}\n`));
 
@@ -305,7 +305,7 @@ program
  */
 program.on('command:*', () => {
   console.error(chalk.red('⚠️  알 수 없는 명령어입니다.'));
-  console.log(chalk.white('도움말: a2g help\n'));
+  console.log(chalk.white('도움말: open help\n'));
   process.exit(1);
 });
 

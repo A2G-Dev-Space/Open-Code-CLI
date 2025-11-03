@@ -1,15 +1,15 @@
-# A2G-CLI (AI2Go CLI)
+# OPEN-CLI
 
 **오프라인 기업 환경을 위한 완전한 로컬 LLM CLI 플랫폼**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/your-repo/a2g-cli)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/HanSyngha/open-cli)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 ---
 
 ## 📋 프로젝트 개요
 
-A2G-CLI는 **Gemini CLI의 개념을 기업 환경에 맞춰 완전히 재구축**한 프로젝트입니다. 인터넷 연결이 없는 회사 네트워크 환경에서 로컬 OpenAI Compatible 모델들을 활용하여 코드 작성, 분석, 문제 해결을 지원하는 **엔터프라이즈급 CLI 도구**입니다.
+OPEN-CLI는 **Gemini CLI의 개념을 기업 환경에 맞춰 완전히 재구축**한 프로젝트입니다. 인터넷 연결이 없는 회사 네트워크 환경에서 로컬 OpenAI Compatible 모델들을 활용하여 코드 작성, 분석, 문제 해결을 지원하는 **엔터프라이즈급 CLI 도구**입니다.
 
 ### 핵심 가치 제안
 - ✅ **완전 오프라인 운영**: 인터넷 없이 독립적으로 작동
@@ -31,8 +31,8 @@ A2G-CLI는 **Gemini CLI의 개념을 기업 환경에 맞춰 완전히 재구축
 
 ```bash
 # 저장소 클론
-git clone https://github.com/your-repo/a2g-cli.git
-cd a2g-cli
+git clone https://github.com/HanSyngha/open-cli.git
+cd open-cli
 
 # 의존성 설치 (220개 패키지)
 npm install
@@ -43,26 +43,26 @@ npm run build
 
 ### 2. 초기 설정
 
-A2G-CLI를 처음 사용하기 전에 초기화가 필요합니다:
+OPEN-CLI를 처음 사용하기 전에 초기화가 필요합니다:
 
 ```bash
-# A2G-CLI 초기화 (디렉토리 및 설정 파일 생성)
+# OPEN-CLI 초기화 (디렉토리 및 설정 파일 생성)
 node dist/cli.js config init
 ```
 
 실행 결과:
 ```
-🚀 A2G-CLI 초기화 중...
+🚀 OPEN-CLI 초기화 중...
 
 ✅ 초기화 완료!
 
 생성된 디렉토리 및 파일:
-  ~/.a2g-cli/
-  ~/.a2g-cli/config.json
-  ~/.a2g-cli/sessions/
-  ~/.a2g-cli/docs/
-  ~/.a2g-cli/backups/
-  ~/.a2g-cli/logs/
+  ~/.open-cli/
+  ~/.open-cli/config.json
+  ~/.open-cli/sessions/
+  ~/.open-cli/docs/
+  ~/.open-cli/backups/
+  ~/.open-cli/logs/
 
 📡 기본 엔드포인트 설정:
   이름: Gemini 2.0 Flash (Default)
@@ -143,7 +143,7 @@ npm run watch
 ```bash
 $ node dist/cli.js chat "JavaScript의 async/await는 어떻게 동작하나요?" -s
 
-💬 A2G-CLI Chat
+💬 OPEN-CLI Chat
 
 모델: gemini-2.0-flash
 엔드포인트: https://generativelanguage.googleapis.com/v1beta/openai/
@@ -165,7 +165,7 @@ React Hooks는 함수형 컴포넌트에서 상태와 생명주기 기능을...
 ```bash
 $ node dist/cli.js config show
 
-📋 A2G-CLI 설정
+📋 OPEN-CLI 설정
 
 현재 엔드포인트:
   ID: ep-gemini-default
@@ -198,7 +198,7 @@ $ node dist/cli.js config show
 ## 📦 프로젝트 구조
 
 ```
-a2g-cli/
+open-cli/
 ├── src/                    # 소스 코드
 │   ├── cli.ts             # CLI Entry Point (Commander.js)
 │   ├── index.ts           # Main Export
@@ -215,7 +215,7 @@ a2g-cli/
 ├── tests/                 # 테스트 파일
 ├── docs/                  # 문서
 ├── dist/                  # 빌드 출력 (tsc)
-├── ~/.a2g-cli/           # 사용자 설정 디렉토리
+├── ~/.open-cli/          # 사용자 설정 디렉토리
 │   ├── config.json       # 설정 파일
 │   ├── sessions/         # 세션 저장
 │   ├── docs/             # 로컬 문서
@@ -295,10 +295,10 @@ a2g-cli/
 ### Q1: `config init` 후에도 설정이 없다고 나와요
 ```bash
 # 초기화 상태 확인
-ls -la ~/.a2g-cli/
+ls -la ~/.open-cli/
 
 # config.json 확인
-cat ~/.a2g-cli/config.json
+cat ~/.open-cli/config.json
 
 # 다시 초기화
 node dist/cli.js config init
@@ -310,7 +310,7 @@ node dist/cli.js config init
 node dist/cli.js config show
 
 # API 키 마스킹 해제하여 확인
-cat ~/.a2g-cli/config.json | grep apiKey
+cat ~/.open-cli/config.json | grep apiKey
 ```
 
 Gemini API 키가 유효한지 확인하세요:
@@ -368,9 +368,12 @@ MIT License - 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요
 
 ---
 
-## 👥 팀
+## 👥 팀 및 문의
 
-A2G-CLI Team
+**OPEN-CLI Team**
+
+문의사항: gkstmdgk2731@naver.com
+GitHub: https://github.com/HanSyngha/open-cli
 
 ---
 

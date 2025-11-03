@@ -1,10 +1,10 @@
 {
-  "name": "a2g-cli",
+  "name": "open-cli",
   "version": "0.1.0",
-  "description": "A2G-CLI (AI2Go CLI) - 오프라인 기업 환경을 위한 완전한 로컬 LLM CLI 플랫폼",
+  "description": "OPEN-CLI - 오프라인 기업 환경을 위한 완전한 로컬 LLM CLI 플랫폼",
   "main": "dist/index.js",
   "bin": {
-    "a2g": "dist/cli.js"
+    "open": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -25,7 +25,7 @@
     "enterprise",
     "coding-assistant"
   ],
-  "author": "A2G-CLI Team",
+  "author": "OPEN-CLI Team",
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0",

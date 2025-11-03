@@ -1,13 +1,13 @@
 /**
  * Configuration Manager
  *
- * A2G-CLI 설정 관리 시스템
- * ~/.a2g-cli/ 디렉토리 및 설정 파일 관리
+ * OPEN-CLI 설정 관리 시스템
+ * ~/.open-cli/ 디렉토리 및 설정 파일 관리
  */
 
-import { A2GConfig, EndpointConfig, ModelInfo } from '../types';
+import { OpenConfig, EndpointConfig, ModelInfo } from '../types';
 import {
-  A2G_HOME_DIR,
+  OPEN_HOME_DIR,
   CONFIG_FILE_PATH,
   SESSIONS_DIR,
   DOCS_DIR,
@@ -49,7 +49,7 @@ const DEFAULT_GEMINI_ENDPOINT: EndpointConfig = {
 /**
  * 기본 설정
  */
-const DEFAULT_CONFIG: A2GConfig = {
+const DEFAULT_CONFIG: OpenConfig = {
   version: '0.1.0',
   currentEndpoint: DEFAULT_ENDPOINT_ID,
   currentModel: DEFAULT_MODEL_ID,
@@ -68,12 +68,12 @@ const DEFAULT_CONFIG: A2GConfig = {
  * 설정 파일 및 디렉토리 관리
  */
 export class ConfigManager {
-  private config: A2GConfig | null = null;
+  private config: OpenConfig | null = null;
   private initialized = false;
 
   /**
-   * A2G-CLI 초기화
-   * ~/.a2g-cli/ 디렉토리 및 설정 파일 생성
+   * OPEN-CLI 초기화
+   * ~/.open-cli/ 디렉토리 및 설정 파일 생성
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -81,7 +81,7 @@ export class ConfigManager {
     }
 
     // 홈 디렉토리 생성
-    await ensureDirectory(A2G_HOME_DIR);
+    await ensureDirectory(OPEN_HOME_DIR);
 
     // 하위 디렉토리 생성
     await ensureDirectory(SESSIONS_DIR);
@@ -99,7 +99,7 @@ export class ConfigManager {
    * 설정 파일 로드 또는 기본 설정 생성
    */
   private async loadOrCreateConfig(): Promise<void> {
-    const existingConfig = await readJsonFile<A2GConfig>(CONFIG_FILE_PATH);
+    const existingConfig = await readJsonFile<OpenConfig>(CONFIG_FILE_PATH);
 
     if (existingConfig) {
       this.config = existingConfig;
@@ -124,7 +124,7 @@ export class ConfigManager {
   /**
    * 현재 설정 가져오기
    */
-  getConfig(): A2GConfig {
+  getConfig(): OpenConfig {
     if (!this.config) {
       throw new Error('Configuration not initialized. Call initialize() first.');
     }
@@ -251,7 +251,7 @@ export class ConfigManager {
   /**
    * 설정 값 업데이트
    */
-  async updateSettings(settings: Partial<A2GConfig['settings']>): Promise<void> {
+  async updateSettings(settings: Partial<OpenConfig['settings']>): Promise<void> {
     const config = this.getConfig();
     config.settings = { ...config.settings, ...settings };
     await this.saveConfig();
@@ -261,7 +261,7 @@ export class ConfigManager {
    * 홈 디렉토리 존재 여부 확인
    */
   async isInitialized(): Promise<boolean> {
-    return await directoryExists(A2G_HOME_DIR);
+    return await directoryExists(OPEN_HOME_DIR);
   }
 
   /**
