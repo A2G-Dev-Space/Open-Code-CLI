@@ -1,554 +1,245 @@
 # OPEN-CLI
 
-**오프라인 기업 환경을 위한 완전한 로컬 LLM CLI 플랫폼**
-
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/HanSyngha/open-cli)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+**🇰🇷 한국어** | [🇺🇸 English](#english-version)
 
 ---
 
-## 📋 프로젝트 개요
+## 🇰🇷 한국어
 
-OPEN-CLI는 **Gemini CLI의 개념을 기업 환경에 맞춰 완전히 재구축**한 프로젝트입니다. 인터넷 연결이 없는 회사 네트워크 환경에서 로컬 OpenAI Compatible 모델들을 활용하여 코드 작성, 분석, 문제 해결을 지원하는 **엔터프라이즈급 CLI 도구**입니다.
+### 📋 프로젝트 개요
 
-### 핵심 가치 제안
-- ✅ **완전 오프라인 운영**: 인터넷 없이 독립적으로 작동
-- ✅ **사내 모델 통합**: 기업의 로컬 LLM 서버와 직접 연결
-- ✅ **제로 의존성 배포**: Git Clone만으로 설치 가능
-- ✅ **침입적 LLM 도구**: 파일 시스템, 쉘 명령, 로컬 문서 접근 권한
-- ✅ **엔터프라이즈 설정**: 멀티 모델 관리, 엔드포인트 검증, 팀 프리셋
+**오프라인 기업 환경을 위한 로컬 LLM CLI 플랫폼**
+
+OPEN-CLI는 인터넷 연결이 없는 기업 환경에서 로컬 AI 모델을 활용하여 개발자를 지원하는 터미널 기반 도구입니다.
+
+### ✨ 핵심 가치
+
+- 🔒 **완전 오프라인 운영**: 인터넷 없이 독립적으로 작동
+- 🏢 **사내 모델 통합**: 기업의 로컬 LLM 서버 직접 연결 (OpenAI Compatible)
+- 🚀 **빠른 설치**: Git clone 후 npm install만으로 즉시 사용
+- 🛠️ **파일 시스템 접근**: AI가 직접 파일을 읽고 쓰고 검색
+- 📚 **로컬 문서 관리**: 오프라인 지식 베이스 구축
+
+### 🎯 타겟 유저
+
+- **오프라인 기업 개발자**: 인터넷 접근이 제한된 환경에서 일하는 개발팀
+- **보안 중시 조직**: 데이터를 외부로 전송할 수 없는 금융/국방/의료 분야
+- **로컬 AI 사용자**: 사내에 구축된 LLM 서버를 활용하려는 엔터프라이즈 사용자
+- **CLI 선호 개발자**: 터미널에서 AI와 대화하며 코딩하고 싶은 개발자
 
 ---
 
 ## 🚀 빠른 시작
 
-### 필수 요구사항
-- Node.js >= 20.0.0
-- npm >= 10.0.0
-- OpenAI Compatible API 엔드포인트 (Gemini, LiteLLM 등)
-
 ### 1. 설치
 
 ```bash
 # 저장소 클론
-git clone https://github.com/HanSyngha/open-cli.git
-cd open-cli
+git clone https://github.com/A2G-Dev-Space/Open-Code-CLI.git
+cd Open-Code-CLI
 
-# 의존성 설치 (220개 패키지)
+# 의존성 설치
 npm install
 
-# TypeScript 빌드
+# 빌드
 npm run build
 
-**Global 명령어 사용** (권장):
-# npm link 설정 (한 번만)
+# 글로벌 명령어 설정 (선택사항)
 npm link
-
-# 이제 'open' 명령어 사용 가능
-open              # Interactive mode 시작
-open help         # 도움말
-open config show  # 설정 확인
 ```
 
-### 2. 초기 설정 (Interactive Init)
-
-OPEN-CLI를 처음 사용하기 전에 대화형 초기화가 필요합니다:
+### 2. 초기 설정
 
 ```bash
+# 대화형 초기화
 open config init
-# OPEN-CLI 초기화 (엔드포인트 설정 및 연결 확인)
+
+# 또는
 node dist/cli.js config init
 ```
 
-**대화형 설정 프로세스**:
+**설정 과정**:
 ```
 🚀 OPEN-CLI 초기화
 
-엔드포인트 정보를 입력해주세요:
-
-? 엔드포인트 이름: My LLM Endpoint
-? Base URL (HTTP/HTTPS): https://generativelanguage.googleapis.com/v1beta/openai/
-? API Key (선택사항, Enter 키 입력 시 스킵): ********
+? 엔드포인트 이름: My LLM Server
+? Base URL: https://your-llm-server.com/v1/
+? API Key (선택사항): ********
 ? Model ID: gemini-2.0-flash
-? Model 이름 (표시용): Gemini 2.0 Flash
+? Model 이름: Gemini Flash
 ? Max Tokens: 1048576
 
-🔍 엔드포인트 연결 테스트 중...
-
+🔍 연결 테스트 중...
 ✔ 연결 성공!
 
 ✅ 초기화 완료!
-
-생성된 디렉토리:
-  ~/.open-cli/
-  ~/.open-cli/config.json
-  ~/.open-cli/sessions/
-  ~/.open-cli/docs/
-  ~/.open-cli/backups/
-  ~/.open-cli/logs/
-
-📡 등록된 엔드포인트:
-  이름: My LLM Endpoint
-  URL: https://generativelanguage.googleapis.com/v1beta/openai/
-  모델: Gemini 2.0 Flash (gemini-2.0-flash)
-  상태: 🟢 연결 확인됨
-```
-
-**지원 엔드포인트**:
-- ✅ **HTTPS**: Gemini, OpenAI, Claude 등 클라우드 API
-- ✅ **HTTP**: LiteLLM, Ollama 등 로컬 서버
-
-**API Key 없이 사용** (로컬 LLM):
-```bash
-# Ollama 예시 (API Key 불필요)
-? Base URL: http://localhost:11434/v1/
-? API Key: [Enter 키로 스킵]
-```
-
-### 3. 기본 사용법
-
-**Global 명령어 사용** (권장):
-```bash
-# npm link 설정 (한 번만)
-npm link
-
-# 이제 'open' 명령어 사용 가능
-open              # Interactive mode 시작
-open help         # 도움말
-open config show  # 설정 확인
-```
-
-**또는 직접 실행**:
-```bash
-node dist/cli.js              # Interactive mode 시작
-node dist/cli.js help         # 도움말
-node dist/cli.js config show  # 설정 확인
 ```
 
 ---
 
-#### Interactive Mode (대화형 모드) - 추천!
+## 💻 사용법
 
-`open` 명령어만 입력하면 **모던 Ink UI**로 대화형 모드가 시작됩니다:
-
-```bash
-$ open
-
-╔════════════════════════════════════════════════════════════╗
-║          OPEN-CLI Interactive Mode (Ink UI)               ║
-╚════════════════════════════════════════════════════════════╝
-
-Model: gemini-2.0-flash | Endpoint: https://...
-Commands: /exit /clear /help | Ctrl+C to quit
-
-🧑 You: Hello! How are you?
-
-🤖 Assistant: Hello! I'm doing well, thank you! How can I help you today?
-
-You: [입력 중...]
-```
-
-**Classic UI 사용**:
-기존 Inquirer 기반 UI를 선호하는 경우:
+### 기본 명령어
 
 ```bash
-$ open --classic
+# 대화형 모드 시작 (추천!)
+open
 
-╔════════════════════════════════════════════════════════════╗
-║          OPEN-CLI Interactive Mode (Classic)              ║
-╚════════════════════════════════════════════════════════════╝
-
-모델: gemini-2.0-flash
-엔드포인트: https://...
-
-명령어:
-  /exit, /quit    - 종료
-  /context        - 대화 히스토리 보기
-  /clear          - 대화 히스토리 초기화
-  /save [name]    - 현재 대화 저장
-  /load           - 저장된 대화 불러오기
-  /sessions       - 저장된 대화 목록 보기
-  /endpoint       - 엔드포인트 보기/전환
-  /docs           - 로컬 문서 보기/검색
-  /help           - 도움말
-
-? You: Hello! How are you?
-
-🤖 Assistant: Hello! I'm doing well, thank you! How can I help you today?
-
-? You: /save my-first-chat
-
-✅ 대화가 저장되었습니다!
-  이름: my-first-chat
-  메시지: 2개
-
-? You: /exit
-👋 Goodbye!
-```
-
-**Ink UI 특징**:
-- ✨ React 기반 현대적 터미널 UI
-- 🎨 실시간 스트리밍 응답 표시
-- ⚡ 부드러운 UI 업데이트
-- 🎯 향상된 키보드 인터랙션 (Ctrl+C)
-- 📱 반응형 레이아웃
-
-**🛠️ 자동 Tool Binding (파일 시스템 도구)**:
-모든 대화형 모드에서 LLM이 자동으로 파일 시스템에 접근할 수 있습니다!
-- `read_file` - 파일 읽기
-- `write_file` - 파일 쓰기
-- `list_files` - 디렉토리 목록 조회
-- `find_files` - 파일 검색 (glob 패턴)
-
-사용 예시:
-```bash
-$ open --classic
-
-? You: package.json 파일을 읽어서 프로젝트 이름을 알려줘
-
-🔧 사용된 도구:
-  1. read_file
-     Args: {"file_path":"package.json"}
-
----
-
-### 4. 설정 명령어
-
-#### 초기화 및 설정 관리
-```bash
-# 초기화
-node dist/cli.js config init
+# 도움말
+open help
 
 # 설정 확인
-node dist/cli.js config show
-
-# 설정 초기화 (공장 초기화)
-node dist/cli.js config reset
+open config show
 ```
 
-#### 엔드포인트 관리 (Phase 2 신기능!)
+### 대화형 모드 (Interactive Mode)
 
-여러 LLM 엔드포인트를 등록하고 전환할 수 있습니다:
-
-```bash
-# 모든 엔드포인트 목록 보기
-node dist/cli.js config endpoints
-
-# 새 엔드포인트 추가 (대화형)
-node dist/cli.js config endpoint add
-
-# 엔드포인트 삭제
-node dist/cli.js config endpoint remove <endpoint-id>
-
-# 엔드포인트 전환
-node dist/cli.js config endpoint switch <endpoint-id>
-```
-
-**Interactive Mode에서 엔드포인트 전환**:
 ```bash
 $ open
 
-? You: /endpoint
+╔════════════════════════════════════════════════╗
+║        OPEN-CLI Interactive Mode (Ink UI)      ║
+╚════════════════════════════════════════════════╝
 
-📡 등록된 엔드포인트:
+Model: gemini-2.0-flash
+Commands: /exit /clear /help | Ctrl+C to quit
 
-● Gemini 2.0 Flash (현재)
-   ID: ep-1234567890
-   URL: https://generativelanguage.googleapis.com/v1beta/openai/
+🧑 You: package.json 파일을 읽어서 프로젝트 이름 알려줘
 
-○ Local Ollama
-   ID: ep-0987654321
-   URL: http://localhost:11434/v1/
+🔧 Tool: read_file(file_path="package.json")
 
-? 전환할 엔드포인트를 선택하세요: Local Ollama
+🤖 Assistant: 프로젝트 이름은 "open-cli"입니다.
 
-✅ 엔드포인트가 변경되었습니다!
-  이름: Local Ollama
-  URL: http://localhost:11434/v1/
-
-⚠️  Interactive Mode를 재시작하면 새 엔드포인트가 적용됩니다.
+You: _
 ```
 
-#### LLM 대화
+**주요 메타 명령어**:
+- `/exit` - 종료
+- `/clear` - 대화 초기화
+- `/save [name]` - 현재 대화 저장
+- `/load` - 저장된 대화 불러오기
+- `/endpoint` - LLM 엔드포인트 전환
+- `/docs` - 로컬 문서 보기/검색
+- `/help` - 도움말
+
+### LLM 도구 (자동 실행)
+
+대화형 모드에서 LLM이 자동으로 사용할 수 있는 도구:
+
+- `read_file` - 파일 읽기
+- `write_file` - 파일 쓰기
+- `list_files` - 디렉토리 목록
+- `find_files` - 파일 검색 (glob 패턴)
+
+**예시**:
 ```bash
-# 기본 대화
-node dist/cli.js chat "메시지"
+You: src 폴더에 있는 모든 TypeScript 파일을 찾아줘
 
-# 스트리밍 응답
-node dist/cli.js chat "메시지" -s
+🔧 Tool: find_files(pattern="*.ts", directory_path="src")
 
-# 시스템 프롬프트 지정
-node dist/cli.js chat "메시지" --system "시스템 프롬프트"
+🤖 Assistant: 다음 TypeScript 파일들을 찾았습니다:
+- src/cli.ts
+- src/core/llm-client.ts
+- src/core/config-manager.ts
+...
 ```
 
-#### 도움말
-```bash
-# 전체 도움말
-node dist/cli.js help
+### 세션 관리
 
-# 버전 확인
-node dist/cli.js --version
+```bash
+# 대화 저장
+You: /save typescript-tutorial
+
+# 대화 불러오기
+You: /load
+? 불러올 대화 선택: typescript-tutorial
+
+# 저장된 대화 목록
+You: /sessions
 ```
 
-#### 세션 관리 (Phase 2 신기능!)
-
-대화를 저장하고 나중에 다시 불러올 수 있습니다:
+### 로컬 문서 시스템
 
 ```bash
+# 문서 목록
+open docs list
+
+# 문서 추가
+open docs add
+
+# 문서 검색
+open docs search "typescript"
+
 # Interactive Mode에서
-$ open
-
-? You: TypeScript의 제네릭에 대해 설명해줘
-
-🤖 Assistant: 제네릭은...
-
-? You: /save typescript-generics
-
-✅ 대화가 저장되었습니다!
-  이름: typescript-generics
-  메시지: 2개
-
-# 나중에 다시 시작
-$ open
-
-? You: /load
-? 불러올 대화를 선택하세요: typescript-generics (2개 메시지, 2025-11-03)
-
-✅ 대화가 복원되었습니다!
-  이름: typescript-generics
-  메시지: 2개
-
-# 계속 대화...
-? You: 그럼 유틸리티 타입은?
-
-# 저장된 모든 대화 보기
-? You: /sessions
-
-📋 저장된 대화 목록:
-
-  1. typescript-generics
-     메시지: 4개 | 모델: gemini-2.0-flash
-     생성: 2025. 11. 3.
-     "TypeScript의 제네릭에 대해 설명해줘"
-```
-
-**세션 파일 위치**: `~/.open-cli/sessions/`
-
-#### 로컬 문서 시스템 (Phase 2 신기능!)
-
-마크다운 문서를 로컬에 저장하고 검색할 수 있는 오프라인 지식 베이스:
-
-```bash
-# 모든 문서 목록 보기
-node dist/cli.js docs list
-
-# 새 문서 추가 (대화형 에디터 열림)
-node dist/cli.js docs add
-
-# 문서 내용 보기
-node dist/cli.js docs view <document-id>
-
-# 문서 검색 (제목, 내용, 태그)
-node dist/cli.js docs search "검색어"
-
-# 문서 삭제
-node dist/cli.js docs delete <document-id>
-
-# 모든 태그 목록
-node dist/cli.js docs tags
-```
-
-**Interactive Mode에서 문서 사용**:
-```bash
-$ open
-
-? You: /docs
-
-📚 로컬 문서 목록
-
-  1. TypeScript 고급 패턴
-     ID: doc-1730640000000-abc123
-     태그: typescript, patterns
-     "TypeScript의 고급 타입 패턴들을 정리한 문서..."
-
-  2. API 설계 가이드
-     ID: doc-1730639000000-def456
-     태그: api, design
-     "REST API 설계 시 고려해야 할 사항들..."
-
-문서 보기: /docs view <id>
-문서 검색: /docs search <query>
-
-? You: /docs search typescript
-
-🔍 검색 결과: "typescript"
-
-  1. TypeScript 고급 패턴
-     ID: doc-1730640000000-abc123
-     태그: typescript, patterns
-
-? You: /docs view doc-1730640000000-abc123
-
-📄 TypeScript 고급 패턴
-
-ID: doc-1730640000000-abc123
-태그: typescript, patterns
-
-────────────────────────────────────────────────────────────
-
-# TypeScript 고급 패턴
-
-## 제네릭 제약 조건
-
-...문서 내용...
-
-────────────────────────────────────────────────────────────
-```
-
-**문서 파일 위치**: `~/.open-cli/docs/`
-**지원 형식**: Markdown (.md)
-
-### 5. 개발 모드
-
-개발 중에는 TypeScript를 직접 실행할 수 있습니다:
-
-```bash
-# ts-node로 직접 실행 (빌드 불필요)
-npm run dev
-
-# 자동 빌드 (변경 감지)
-npm run watch
-```
-
-### 6. 실제 사용 예시
-
-#### 예시 1: 코드 질문
-```bash
-$ node dist/cli.js chat "JavaScript의 async/await는 어떻게 동작하나요?" -s
-
-💬 OPEN-CLI Chat
-
-모델: gemini-2.0-flash
-엔드포인트: https://generativelanguage.googleapis.com/v1beta/openai/
-
-🤖 Assistant:
-async/await는 JavaScript의 비동기 프로그래밍을 더 직관적으로...
-(스트리밍으로 실시간 출력)
-```
-
-#### 예시 2: 시스템 프롬프트 활용
-```bash
-$ node dist/cli.js chat "React hooks 설명" --system "You are an expert React developer. Explain in Korean with examples."
-
-🤖 Assistant:
-React Hooks는 함수형 컴포넌트에서 상태와 생명주기 기능을...
-```
-
-#### 예시 3: 설정 확인
-```bash
-$ node dist/cli.js config show
-
-📋 OPEN-CLI 설정
-
-현재 엔드포인트:
-  ID: ep-gemini-default
-  이름: Gemini 2.0 Flash (Default)
-  URL: https://generativelanguage.googleapis.com/v1beta/openai/
-  API Key: ******** (마스킹)
-  우선순위: 1
-
-현재 모델:
-  ID: gemini-2.0-flash
-  이름: Gemini 2.0 Flash
-  최대 토큰: 1,048,576
-  상태: ✅ 활성
-  헬스: 🟢 정상
+You: /docs search typescript
 ```
 
 ---
 
-## ✨ 현재 구현된 기능
+## ✨ 주요 기능
 
-### Phase 1: 기초 구축 (100% 완료! ✅)
-- ✅ **프로젝트 초기 설정** - TypeScript, ESLint, Prettier
-- ✅ **설정 파일 시스템** - ConfigManager, ~/.open-cli/ 디렉토리
-- ✅ **OpenAI Compatible API 클라이언트** - LLMClient, 스트리밍 지원
-- ✅ **Interactive 설정** - 대화형 초기화, 엔드포인트 연결 테스트
-- ✅ **파일 시스템 도구 (LLM Tools)** - read_file, write_file, list_files, find_files
-- ✅ **대화형 모드 (Interactive Mode)** - 메시지 히스토리, 메타 명령어, Context-aware 대화
-- ✅ **글로벌 명령어** - npm link로 'open' 명령어 사용 가능
+### ✅ 완료된 기능 (Phase 1 & 2)
 
-### Phase 2: 상호작용 고도화 (100% 완료! ✅)
-- ✅ **세션 저장/로드** - 대화 저장, 불러오기, 목록 보기 (~/.open-cli/sessions/)
-- ✅ **멀티 엔드포인트 관리** - 여러 LLM 엔드포인트 등록 및 전환
-- ✅ **로컬 문서 시스템** - 마크다운 지식 베이스, 검색, 태그 관리 (~/.open-cli/docs/)
-- ✅ **모던 Ink UI** - React 기반 터미널 UI, 실시간 스트리밍, Classic UI 병행 지원
-- ✅ **ESM 마이그레이션** - CommonJS → ES Modules, Gemini CLI 아키텍처 참조
+- ✅ OpenAI Compatible API 연결
+- ✅ 대화형 모드 (Ink UI + Classic UI)
+- ✅ 파일 시스템 도구 (LLM이 자동 사용)
+- ✅ 세션 저장/복구
+- ✅ 멀티 엔드포인트 관리
+- ✅ 로컬 문서 시스템 (마크다운 지식 베이스)
+- ✅ ESM 마이그레이션
 
-### Practical Improvements (완료! ✅)
-- ✅ **Error Handling System** - 체계적인 에러 클래스, 사용자 친화적 메시지, 복구 가능 여부 판단
-- ✅ **Retry Mechanism** - 지수 백오프, 재시도 로직, 네트워크 실패 자동 복구
-- ✅ **Logging System** - 파일/콘솔 로깅, 로그 로테이션, 구조화된 로그 (~/.open-cli/logs/)
-- ✅ **Performance Optimization** - LRU 캐시, TTL 지원, 메모리 최적화
-- ✅ **Test Framework** - Jest 기반 테스트, 에러/캐시 테스트 커버리지
+### 🚧 개발 중 (Phase 2.5)
+
+**Plan-and-Execute 아키텍처** (3-4주 예상)
+
+사용자 요청을 자동으로 TODO list로 분해하고 순차 실행하는 시스템:
+
+```
+사용자: "TypeScript로 REST API 만들어줘"
+    ↓
+Planning LLM → TODO List 자동 생성
+    ├─ ☐ 1. TypeScript 프로젝트 설정 조사
+    ├─ ☐ 2. Express.js 설치
+    ├─ ☐ 3. 라우트 구조 생성
+    ├─ ☐ 4. API 엔드포인트 구현
+    └─ ☐ 5. 테스트 코드 작성
+    ↓
+각 TODO 순차 실행
+    ├─ Docs Search Agent (선행)
+    ├─ LLM 실행 (Tools 사용)
+    └─ ✓ 완료
+    ↓
+Session에 진행 상황 저장
+```
+
+**주요 기능**:
+- 📋 TODO list 자동 생성 및 UI 표시
+- 🔍 Docs Search Agent (각 TODO 실행 전 문서 검색)
+- 🎯 실시간 진행 상황 추적
+- 💾 TODO 상태 저장/복구
+
+**Docs Search Agent Tool**:
+- LLM이 bash 명령어로 ~/.open-cli/docs 폴더 검색
+- Multi-iteration (최대 10회) 복잡한 검색 수행
+- 검색 결과 자동 요약
+
+**UI 개선**:
+- Tool 사용 내역 박스 표시
+- 하단 상태바 (컨텍스트 사용률)
+- ASCII 로고 및 Welcome 화면
 
 ---
 
-## 📦 프로젝트 구조
+## 📦 디렉토리 구조
 
 ```
-open-cli/
-├── src/                    # 소스 코드
-│   ├── cli.ts             # CLI Entry Point (Commander.js)
-│   ├── index.ts           # Main Export
-│   ├── constants.ts       # 프로젝트 상수
-│   ├── core/              # 핵심 로직
-│   │   ├── config-manager.ts    # 설정 관리 (싱글톤)
-│   │   └── llm-client.ts        # LLM API 클라이언트
-│   ├── ui/                # 터미널 UI 컴포넌트 (Ink + React)
-│   │   ├── components/
-│   │   │   └── InteractiveApp.tsx  # Ink UI 메인 컴포넌트
-│   │   └── index.ts               # UI exports
-│   ├── tools/             # LLM Tools
-│   │   └── file-tools.ts          # 파일 시스템 도구
-│   ├── utils/             # 유틸리티 함수
-│   │   └── file-system.ts         # 파일 시스템 유틸
-│   └── types/             # TypeScript 타입 정의
-│       └── index.ts               # 전역 타입
-├── tests/                 # 테스트 파일
-├── docs/                  # 문서
-├── dist/                  # 빌드 출력 (tsc)
-├── ~/.open-cli/          # 사용자 설정 디렉토리
-│   ├── config.json       # 설정 파일
-│   ├── sessions/         # 세션 저장
-│   ├── docs/             # 로컬 문서
-│   ├── backups/          # 백업
-│   └── logs/             # 로그
-├── PROGRESS.md           # 개발 진행 상황
-├── INTEGRATED_PROJECT_DOCUMENT.md  # 프로젝트 전체 문서
-├── package.json
-├── tsconfig.json
-└── README.md
+~/.open-cli/
+├── config.json       # 설정 파일
+├── sessions/         # 저장된 대화
+├── docs/            # 로컬 문서 (마크다운)
+├── backups/         # 백업
+└── logs/            # 로그
 ```
-
----
-
-## 🎯 개발 로드맵
-
-### Phase 1: 기초 구축 (진행률: 100% ✅)
-- [x] 프로젝트 초기 설정
-- [x] 기본 CLI 프레임워크
-- [x] 설정 파일 시스템
-- [x] 로컬 모델 엔드포인트 연결 (OpenAI Compatible API)
-- [x] 파일 시스템 도구 (LLM Tools)
-- [x] 대화형 모드 (Interactive Mode)
-
-### Phase 2: 상호작용 고도화 (진행률: 100% ✅)
-- [x] 세션 저장/로드 기능 (대화 저장 및 복원)
-- [x] 멀티 엔드포인트 관리 (추가, 삭제, 전환)
-- [x] 로컬 문서 시스템 (마크다운 지식 베이스)
-- [x] 인터랙티브 터미널 UI (Ink/React 기반 - 스트리밍 지원, Classic UI 병행)
-- [x] ESM 마이그레이션 (CommonJS → ES Modules, Gemini CLI 패턴 적용)
 
 ---
 
@@ -556,123 +247,304 @@ open-cli/
 
 - **언어**: TypeScript (ESM)
 - **런타임**: Node.js v20+
-- **모듈 시스템**: ES Modules (Native ESM)
-- **CLI 프레임워크**: Commander.js
-- **HTTP 클라이언트**: Axios
-- **터미널 UI**:
-  - Ink v4.4.1 + React v18.3.1 (Modern UI)
-  - Chalk, Ora, Inquirer (Classic UI)
-- **빌드**: TypeScript Compiler (module: NodeNext)
-- **타입 검사**: TypeScript Strict Mode
-- **테스트**: Jest + ts-jest
-- **린팅**: ESLint + @typescript-eslint
-- **포맷팅**: Prettier
+- **CLI**: Commander.js
+- **UI**: Ink (React), Chalk, Inquirer
+- **HTTP**: Axios
 
 ---
 
-## 🌐 지원 모델
+## 📚 추가 문서
 
-### 현재 테스트 완료
-- ✅ **Gemini 2.0 Flash** (Google)
-  - Endpoint: `https://generativelanguage.googleapis.com/v1beta/openai/`
-  - Context: 1M tokens
-  - 기능: 일반 응답, 스트리밍 지원
-
-### 향후 지원 예정 (LiteLLM 기반)
-- ⬜ **GLM4.5** (Zhipu AI)
-- ⬜ **DeepSeek V3** (deepseek-v3-0324)
-- ⬜ **GPT-OSS-120B**
-
-모든 OpenAI Compatible API 엔드포인트와 호환됩니다.
-
----
-
-## 🔧 트러블슈팅
-
-### Q1: `config init` 후에도 설정이 없다고 나와요
-```bash
-# 초기화 상태 확인
-ls -la ~/.open-cli/
-
-# config.json 확인
-cat ~/.open-cli/config.json
-
-# 다시 초기화
-node dist/cli.js config init
-```
-
-### Q2: API 키 에러가 발생해요
-```bash
-# 설정 확인
-node dist/cli.js config show
-
-# API 키 마스킹 해제하여 확인
-cat ~/.open-cli/config.json | grep apiKey
-```
-
-Gemini API 키가 유효한지 확인하세요:
-- 키 형식: `AIza...`
-- 엔드포인트: `https://generativelanguage.googleapis.com/v1beta/openai/`
-
-### Q3: 네트워크 에러가 발생해요
-```
-네트워크 에러: 엔드포인트에 연결할 수 없습니다.
-```
-
-원인:
-- 인터넷 연결 확인
-- 프록시 설정 확인
-- 방화벽 설정 확인
-- 엔드포인트 URL 확인
-
-### Q4: TypeScript 빌드 에러
-```bash
-# node_modules 삭제 후 재설치
-rm -rf node_modules package-lock.json
-npm install
-
-# 빌드
-npm run build
-```
-
-### Q5: 스트리밍 응답이 느려요
-이는 정상입니다. LLM이 텍스트를 생성하는 속도에 따라 다르며:
-- Gemini 2.0 Flash: 빠른 응답 속도
-- 일반 응답 (`-s` 없이): 전체 응답 후 한 번에 표시
-- 스트리밍 응답 (`-s`): 실시간 생성 표시
-
----
-
-## 📚 문서
-
-자세한 문서는 다음 파일들을 참조하세요:
-
-- [PROGRESS.md](./PROGRESS.md) - 개발 진행 상황 및 규칙
-- [INTEGRATED_PROJECT_DOCUMENT.md](./INTEGRATED_PROJECT_DOCUMENT.md) - 전체 프로젝트 문서
-- [docs/](./docs/) - 추가 문서 (추후 추가 예정)
-
----
-
-## 🤝 기여
-
-이 프로젝트는 현재 초기 개발 단계입니다. 기여 가이드라인은 추후 업데이트 예정입니다.
+- [PROGRESS.md](./PROGRESS.md) - 개발 진행 상황 (상세)
+- [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) - 프로젝트 전체 문서
 
 ---
 
 ## 📄 라이선스
 
-MIT License - 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요.
+MIT License
 
 ---
 
-## 👥 팀 및 문의
+## 🤝 기여 및 문의
 
-**OPEN-CLI Team**
-
-문의사항: gkstmdgk2731@naver.com
-GitHub: https://github.com/HanSyngha/open-cli
+**GitHub**: https://github.com/A2G-Dev-Space/Open-Code-CLI
+**Email**: gkstmdgk2731@naver.com
 
 ---
 
-**현재 버전**: 0.1.0
-**마지막 업데이트**: 2025-11-03
+---
+
+<a name="english-version"></a>
+
+## 🇺🇸 English
+
+### 📋 Project Overview
+
+**Local LLM CLI Platform for Offline Enterprise Environments**
+
+OPEN-CLI is a terminal-based tool that helps developers in offline enterprise environments by utilizing local AI models without internet connectivity.
+
+### ✨ Key Features
+
+- 🔒 **Fully Offline**: Works independently without internet
+- 🏢 **Enterprise LLM Integration**: Direct connection to company's local LLM servers (OpenAI Compatible)
+- 🚀 **Quick Setup**: Ready to use after git clone and npm install
+- 🛠️ **File System Access**: AI can directly read, write, and search files
+- 📚 **Local Document Management**: Build offline knowledge base
+
+### 🎯 Target Users
+
+- **Offline Enterprise Developers**: Development teams working in internet-restricted environments
+- **Security-Focused Organizations**: Finance/Defense/Healthcare sectors that cannot send data externally
+- **Local AI Users**: Enterprise users who want to utilize in-house LLM servers
+- **CLI-Loving Developers**: Developers who prefer coding while chatting with AI in terminal
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+
+```bash
+# Clone repository
+git clone https://github.com/A2G-Dev-Space/Open-Code-CLI.git
+cd Open-Code-CLI
+
+# Install dependencies
+npm install
+
+# Build
+npm run build
+
+# Global command setup (optional)
+npm link
+```
+
+### 2. Initial Setup
+
+```bash
+# Interactive initialization
+open config init
+
+# Or
+node dist/cli.js config init
+```
+
+**Setup Process**:
+```
+🚀 OPEN-CLI Initialization
+
+? Endpoint name: My LLM Server
+? Base URL: https://your-llm-server.com/v1/
+? API Key (optional): ********
+? Model ID: gemini-2.0-flash
+? Model name: Gemini Flash
+? Max Tokens: 1048576
+
+🔍 Testing connection...
+✔ Connection successful!
+
+✅ Initialization complete!
+```
+
+---
+
+## 💻 Usage
+
+### Basic Commands
+
+```bash
+# Start interactive mode (Recommended!)
+open
+
+# Help
+open help
+
+# View config
+open config show
+```
+
+### Interactive Mode
+
+```bash
+$ open
+
+╔════════════════════════════════════════════════╗
+║        OPEN-CLI Interactive Mode (Ink UI)      ║
+╚════════════════════════════════════════════════╝
+
+Model: gemini-2.0-flash
+Commands: /exit /clear /help | Ctrl+C to quit
+
+🧑 You: Read package.json and tell me the project name
+
+🔧 Tool: read_file(file_path="package.json")
+
+🤖 Assistant: The project name is "open-cli".
+
+You: _
+```
+
+**Meta Commands**:
+- `/exit` - Exit
+- `/clear` - Clear conversation
+- `/save [name]` - Save current conversation
+- `/load` - Load saved conversation
+- `/endpoint` - Switch LLM endpoint
+- `/docs` - View/search local documents
+- `/help` - Help
+
+### LLM Tools (Auto-Execution)
+
+Tools that LLM can automatically use in interactive mode:
+
+- `read_file` - Read file
+- `write_file` - Write file
+- `list_files` - List directory
+- `find_files` - Find files (glob pattern)
+
+**Example**:
+```bash
+You: Find all TypeScript files in src folder
+
+🔧 Tool: find_files(pattern="*.ts", directory_path="src")
+
+🤖 Assistant: Found the following TypeScript files:
+- src/cli.ts
+- src/core/llm-client.ts
+- src/core/config-manager.ts
+...
+```
+
+### Session Management
+
+```bash
+# Save conversation
+You: /save typescript-tutorial
+
+# Load conversation
+You: /load
+? Select conversation: typescript-tutorial
+
+# List saved conversations
+You: /sessions
+```
+
+### Local Document System
+
+```bash
+# List documents
+open docs list
+
+# Add document
+open docs add
+
+# Search documents
+open docs search "typescript"
+
+# In Interactive Mode
+You: /docs search typescript
+```
+
+---
+
+## ✨ Features
+
+### ✅ Completed (Phase 1 & 2)
+
+- ✅ OpenAI Compatible API connection
+- ✅ Interactive mode (Ink UI + Classic UI)
+- ✅ File system tools (Auto-used by LLM)
+- ✅ Session save/restore
+- ✅ Multi-endpoint management
+- ✅ Local document system (Markdown knowledge base)
+- ✅ ESM migration
+
+### 🚧 In Development (Phase 2.5)
+
+**Plan-and-Execute Architecture** (3-4 weeks estimated)
+
+System that automatically decomposes user requests into TODO lists and executes sequentially:
+
+```
+User: "Build REST API with TypeScript"
+    ↓
+Planning LLM → Auto-generate TODO List
+    ├─ ☐ 1. Research TypeScript project setup
+    ├─ ☐ 2. Install Express.js
+    ├─ ☐ 3. Create route structure
+    ├─ ☐ 4. Implement API endpoints
+    └─ ☐ 5. Write tests
+    ↓
+Execute each TODO sequentially
+    ├─ Docs Search Agent (pre-execution)
+    ├─ LLM execution (with Tools)
+    └─ ✓ Complete
+    ↓
+Save progress to Session
+```
+
+**Key Features**:
+- 📋 Auto-generate TODO list with UI display
+- 🔍 Docs Search Agent (search docs before each TODO)
+- 🎯 Real-time progress tracking
+- 💾 Save/restore TODO state
+
+**Docs Search Agent Tool**:
+- LLM searches ~/.open-cli/docs using bash commands
+- Multi-iteration (max 10) for complex searches
+- Auto-summarize search results
+
+**UI Improvements**:
+- Tool usage display box
+- Bottom status bar (context usage)
+- ASCII logo and welcome screen
+
+---
+
+## 📦 Directory Structure
+
+```
+~/.open-cli/
+├── config.json       # Configuration file
+├── sessions/         # Saved conversations
+├── docs/            # Local documents (Markdown)
+├── backups/         # Backups
+└── logs/            # Logs
+```
+
+---
+
+## 🛠️ Tech Stack
+
+- **Language**: TypeScript (ESM)
+- **Runtime**: Node.js v20+
+- **CLI**: Commander.js
+- **UI**: Ink (React), Chalk, Inquirer
+- **HTTP**: Axios
+
+---
+
+## 📚 Additional Documentation
+
+- [PROGRESS.md](./PROGRESS.md) - Development Progress (Detailed)
+- [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) - Complete Project Documentation
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 🤝 Contributing & Contact
+
+**GitHub**: https://github.com/A2G-Dev-Space/Open-Code-CLI
+**Email**: gkstmdgk2731@naver.com
+
+---
+
+**Version**: 0.2.0
+**Last Updated**: 2025-11-04
