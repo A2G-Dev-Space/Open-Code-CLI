@@ -70,68 +70,29 @@ export const InteractiveApp: React.FC<InteractiveAppProps> = ({ llmClient, model
     setMessages(newMessages);
 
     try {
-      // 스트리밍 응답
-      let fullText = '';
-      let thinkingContent = '';
-      let responseContent = '';
+      // FILE_TOOLS import (dynamic import for ESM)
+      const { FILE_TOOLS } = await import('../../tools/file-tools.js');
 
-      for await (const chunk of llmClient.chatCompletionStream({
-        messages: newMessages,
-      })) {
-        // chunk에서 실제 content 추출
-        const content = chunk.choices[0]?.delta?.content;
-        if (!content) continue;
+      // Tool calling과 함께 LLM 호출 (Non-streaming for tool support)
+      const result = await llmClient.chatCompletionWithTools(
+        newMessages,
+        FILE_TOOLS,
+        5 // maxIterations
+      );
 
-        fullText += content;
+      // Tool 사용 내역이 있으면 표시 (콘솔 로그로 - UI는 나중에 개선 가능)
+      if (result.toolCalls.length > 0) {
+        // Tool calls가 있었음을 메시지에 표시
+        const toolCallsInfo = result.toolCalls.map((call, idx) =>
+          `${idx + 1}. ${call.tool}(${JSON.stringify(call.args)})`
+        ).join('\n');
 
-        // <think> 또는 <thinking> 태그 파싱
-        const thinkOpenRegex = /<think(?:ing)?>/g;
-        const thinkCloseRegex = /<\/think(?:ing)?>/g;
-
-        // Thinking 태그 처리
-        let currentText = fullText;
-        const thinkOpenMatch = currentText.match(thinkOpenRegex);
-        const thinkCloseMatch = currentText.match(thinkCloseRegex);
-
-        if (thinkOpenMatch && !thinkCloseMatch) {
-          // Thinking 시작, 아직 끝나지 않음
-          const parts = currentText.split(thinkOpenRegex);
-          thinkingContent = parts[1] || '';
-          responseContent = parts[0] || '';
-          setCurrentThinking(thinkingContent);
-          setCurrentResponse(responseContent);
-        } else if (thinkOpenMatch && thinkCloseMatch) {
-          // Thinking 완료
-          const thinkStartIdx = currentText.search(thinkOpenRegex);
-          const thinkEndIdx = currentText.search(thinkCloseRegex);
-
-          if (thinkStartIdx !== -1 && thinkEndIdx !== -1) {
-            const beforeThink = currentText.substring(0, thinkStartIdx);
-            const thinkContent = currentText.substring(
-              thinkStartIdx + currentText.match(thinkOpenRegex)![0].length,
-              thinkEndIdx
-            );
-            const afterThink = currentText.substring(
-              thinkEndIdx + currentText.match(thinkCloseRegex)![0].length
-            );
-
-            thinkingContent = thinkContent;
-            responseContent = beforeThink + afterThink;
-            setCurrentThinking(''); // Thinking 완료, 숨김
-            setCurrentResponse(responseContent);
-          }
-        } else {
-          // Thinking 태그 없음, 일반 응답
-          responseContent = currentText;
-          setCurrentResponse(responseContent);
-        }
+        // 나중에 UI 개선 시 별도로 표시 가능
+        console.log('🔧 Tools used:\n' + toolCallsInfo);
       }
 
-      // 최종 응답 저장 (thinking 태그 제거된 버전)
-      setMessages([
-        ...newMessages,
-        { role: 'assistant', content: responseContent || fullText },
-      ]);
+      // 메시지 히스토리 업데이트 (allMessages에는 tool call/response 포함)
+      setMessages(result.allMessages);
       setCurrentResponse('');
       setCurrentThinking('');
     } catch (error) {

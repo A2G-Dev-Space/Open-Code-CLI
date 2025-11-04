@@ -193,6 +193,23 @@ $ open --classic
 - 🎯 향상된 키보드 인터랙션 (Ctrl+C)
 - 📱 반응형 레이아웃
 
+**🛠️ 자동 Tool Binding (파일 시스템 도구)**:
+모든 대화형 모드에서 LLM이 자동으로 파일 시스템에 접근할 수 있습니다!
+- `read_file` - 파일 읽기
+- `write_file` - 파일 쓰기
+- `list_files` - 디렉토리 목록 조회
+- `find_files` - 파일 검색 (glob 패턴)
+
+사용 예시:
+```bash
+$ open --classic
+
+? You: package.json 파일을 읽어서 프로젝트 이름을 알려줘
+
+🔧 사용된 도구:
+  1. read_file
+     Args: {"file_path":"package.json"}
+
 ---
 
 ### 4. 설정 명령어
@@ -532,18 +549,6 @@ open-cli/
 - [x] 로컬 문서 시스템 (마크다운 지식 베이스)
 - [x] 인터랙티브 터미널 UI (Ink/React 기반 - 스트리밍 지원, Classic UI 병행)
 - [x] ESM 마이그레이션 (CommonJS → ES Modules, Gemini CLI 패턴 적용)
-
-### Phase 3: 엔터프라이즈 기능 (12-18개월)
-- [ ] 팀 협업 기능
-- [ ] 감사 로그 및 보안
-- [ ] 고급 RAG/검색
-- [ ] 커스텀 플러그인 시스템
-
-### Phase 4: 최적화 & 확장 (18-24개월+)
-- [ ] 성능 최적화
-- [ ] 마이그레이션 도구
-- [ ] IDE 통합
-- [ ] 커뮤니티 기여 프레임워크
 
 ---
 

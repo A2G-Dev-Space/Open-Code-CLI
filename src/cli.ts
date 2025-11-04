@@ -439,24 +439,42 @@ program
         content: userMessage,
       });
 
-      // LLM 호출
+      // LLM 호출 (FILE_TOOLS 자동 bind)
       try {
         const spinner = ora('생각 중...').start();
 
-        const response = await llmClient.chatCompletion({
-          messages: [...messages],
-        });
+        // FILE_TOOLS import
+        const { FILE_TOOLS } = await import('./tools/file-tools.js');
+
+        // Tool calling과 함께 LLM 호출
+        const result = await llmClient.chatCompletionWithTools(
+          messages,
+          FILE_TOOLS,
+          5 // maxIterations
+        );
 
         spinner.stop();
 
-        const assistantMessage = response.choices[0]?.message;
-        if (assistantMessage) {
-          messages.push(assistantMessage);
-
-          console.log(chalk.cyan('\nAssistant:'));
-          console.log(chalk.white(assistantMessage.content));
+        // Tool 사용 내역 표시 (있으면)
+        if (result.toolCalls.length > 0) {
+          console.log(chalk.yellow('\n🔧 사용된 도구:\n'));
+          result.toolCalls.forEach((call, index) => {
+            console.log(chalk.white('  ' + (index + 1) + '. ' + call.tool));
+            console.log(chalk.dim('     Args: ' + JSON.stringify(call.args)));
+            const resultPreview = call.result.substring(0, 100) + (call.result.length > 100 ? '...' : '');
+            console.log(chalk.dim('     Result: ' + resultPreview));
+          });
           console.log();
         }
+
+        // 메시지 히스토리 업데이트 (allMessages에는 tool call/response 포함)
+        messages.length = 0;
+        messages.push(...result.allMessages);
+
+        // 최종 응답 표시
+        console.log(chalk.cyan('Assistant:'));
+        console.log(chalk.white(result.message.content));
+        console.log();
       } catch (error) {
         console.error(chalk.red('\n❌ 에러 발생:'));
         if (error instanceof Error) {
@@ -502,9 +520,10 @@ program
     console.log(chalk.white('  open chat "메시지"       일반 응답'));
     console.log(chalk.white('  open chat "메시지" -s    스트리밍 응답\n'));
 
-    console.log(chalk.yellow('도구 명령어:'));
-    console.log(chalk.white('  open tools "메시지"      파일 시스템 도구 사용'));
-    console.log(chalk.dim('    사용 가능: read_file, write_file, list_files, find_files\n'));
+    console.log(chalk.yellow('파일 시스템 도구 (자동 바인딩):'));
+    console.log(chalk.white('  모든 대화형 모드에서 LLM이 자동으로 사용'));
+    console.log(chalk.dim('    read_file, write_file, list_files, find_files'));
+    console.log(chalk.dim('    자세한 내용: BIND_TOOLS.md\n'));
 
     console.log(chalk.dim('더 자세한 정보는 문서를 참조하세요.'));
     console.log(chalk.dim('https://github.com/HanSyngha/open-cli\n'));

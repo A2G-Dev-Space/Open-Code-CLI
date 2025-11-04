@@ -293,6 +293,93 @@ export class LLMClient {
   }
 
   /**
+   * Chat Completion with Tools (대화 히스토리 유지)
+   * Interactive Mode에서 사용 - 전체 대화 히스토리와 함께 tool calling 지원
+   */
+  async chatCompletionWithTools(
+    messages: Message[],
+    tools: import('../types/index.js').ToolDefinition[],
+    maxIterations: number = 5
+  ): Promise<{
+    message: Message;
+    toolCalls: Array<{ tool: string; args: unknown; result: string }>;
+    allMessages: Message[];
+  }> {
+    const workingMessages = [...messages];
+    const toolCallHistory: Array<{ tool: string; args: unknown; result: string }> = [];
+    let iterations = 0;
+
+    while (iterations < maxIterations) {
+      iterations++;
+
+      // LLM 호출 (tools 포함)
+      const response = await this.chatCompletion({
+        messages: workingMessages,
+        tools,
+      });
+
+      const choice = response.choices[0];
+      if (!choice) {
+        throw new Error('응답에서 choice를 찾을 수 없습니다.');
+      }
+
+      const assistantMessage = choice.message;
+      workingMessages.push(assistantMessage);
+
+      // Tool calls 확인
+      if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+        // Tool calls 실행
+        for (const toolCall of assistantMessage.tool_calls) {
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
+
+          // Tool 실행
+          const { executeFileTool } = await import('../tools/file-tools.js');
+          const result = await executeFileTool(toolName, toolArgs);
+
+          // 결과를 메시지에 추가
+          workingMessages.push({
+            role: 'tool',
+            content: result.success ? result.result || '' : `Error: ${result.error}`,
+            tool_call_id: toolCall.id,
+          });
+
+          // 히스토리에 추가
+          toolCallHistory.push({
+            tool: toolName,
+            args: toolArgs,
+            result: result.success ? result.result || '' : `Error: ${result.error}`,
+          });
+        }
+
+        // Tool call 후 다시 LLM 호출 (다음 iteration)
+        continue;
+      } else {
+        // Tool call 없음 - 최종 응답
+        return {
+          message: assistantMessage,
+          toolCalls: toolCallHistory,
+          allMessages: workingMessages,
+        };
+      }
+    }
+
+    // Max iterations 도달
+    const finalMessage: Message = {
+      role: 'assistant',
+      content: '최대 반복 횟수에 도달했습니다. Tool 실행이 완료되지 않았을 수 있습니다.',
+    };
+
+    workingMessages.push(finalMessage);
+
+    return {
+      message: finalMessage,
+      toolCalls: toolCallHistory,
+      allMessages: workingMessages,
+    };
+  }
+
+  /**
    * 현재 모델 정보 가져오기
    */
   getModelInfo(): { model: string; endpoint: string } {

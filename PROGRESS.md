@@ -71,6 +71,45 @@
 
 ## 📊 완료된 작업
 
+### [COMPLETED] 2025-11-04 01:00: FILE_TOOLS 자동 바인딩 (Automatic Tool Binding)
+
+**작업 내용**:
+1. LLMClient에 chatCompletionWithTools() 메서드 추가
+2. Classic UI에 FILE_TOOLS 자동 바인딩 구현
+3. Ink UI에 FILE_TOOLS 자동 바인딩 구현
+4. BIND_TOOLS.md 문서 작성
+5. 실제 테스트 및 검증
+
+**상태**: 완료됨 (COMPLETED) ✅
+
+**주요 성과**:
+- ✅ 모든 대화형 모드에서 FILE_TOOLS 자동 사용 가능
+- ✅ 대화 히스토리에 tool call/response 완전 보존
+- ✅ 최대 5회 반복으로 무한 루프 방지
+- ✅ Classic UI/Ink UI 모두 정상 작동 확인
+
+**테스트 결과**:
+- `read_file`: package.json 읽기 성공
+- `write_file`: test.txt 생성 성공
+- Tool 사용 내역 UI 표시 정상
+
+**기술적 결정**:
+- Tool calling시 스트리밍 비활성화 (OpenAI API 제한)
+- Tool 결과를 assistant message로 변환하여 히스토리 포함
+- FILE_TOOLS를 dynamic import로 로드 (ESM 호환성)
+
+**문서화**:
+- BIND_TOOLS.md 신규 작성 (도구 I/O, 사용법, 예제)
+- README.md 업데이트 (자동 바인딩 설명)
+- cli.ts help 명령어 업데이트
+
+**다음 단계**:
+- Ink UI에서 tool 사용 내역을 UI로 표시 (현재는 콘솔 로그)
+- 추가 도구 구현 (run_command, search_in_files 등)
+- 사용자 승인 시스템 (위험한 명령 실행 전)
+
+---
+
 ### [COMPLETED] 2025-11-03 27:00: ESM 마이그레이션 및 Ink UI 최종 구현 (ESM Migration & Ink UI Final Implementation)
 
 **작업 내용**:
@@ -391,14 +430,6 @@ cli.ts (ESM)
 | Direct Rendering | ✅ | ✅ |
 
 #### 10. 향후 개선 계획
-
-**Phase 3에서 추가 예정**:
-- [ ] Context Providers (Settings, Keypress, Session 등)
-- [ ] Vim Mode Support
-- [ ] 키보드 프로토콜 개선
-- [ ] Performance Monitoring
-- [ ] Screen Reader 지원
-- [ ] Error Boundary 개선
 
 **기술 부채**:
 - [ ] Jest tests ESM 호환성 확인
