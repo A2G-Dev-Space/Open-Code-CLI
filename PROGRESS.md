@@ -147,6 +147,749 @@ Session에 저장 (복구 가능)
 
 ---
 
+#### 1.8 GitHub Release Auto-Update System [P0] 🚨 **최우선 과제**
+
+**목표**: GitHub Release를 통한 자동 버전 관리 및 업데이트 시스템 구축
+
+**배경**:
+- 사용자가 `open` 명령어 실행 시 자동으로 새 버전 체크
+- GitHub Release에 새 버전이 있으면 자동 업데이트 수행
+- 오프라인 환경을 고려한 에러 핸들링
+- 사용자에게 업데이트 진행상황 명확히 표시
+
+---
+
+##### 1.8.1 Architecture & Design
+
+**전체 흐름도**:
+```
+CLI 시작 (open 명령어)
+    ↓
+[업데이트 체크 단계]
+    ├─ GitHub API 호출 (latest release 조회)
+    ├─ 현재 버전과 비교 (package.json)
+    ├─ 새 버전 있음? → YES
+    │   ↓
+    │   사용자에게 알림 (옵션: 자동/수동)
+    │   ↓
+    │   [업데이트 다운로드]
+    │   ├─ Release tarball 다운로드
+    │   ├─ 임시 폴더에 압축 해제
+    │   ├─ 백업 생성 (현재 버전)
+    │   ↓
+    │   [업데이트 설치]
+    │   ├─ 기존 파일 교체
+    │   ├─ npm install 실행
+    │   ├─ npm run build 실행
+    │   ├─ 설정 파일 보존
+    │   ↓
+    │   [검증]
+    │   ├─ 설치 성공 확인
+    │   ├─ 버전 확인
+    │   └─ 실패 시 롤백
+    │   ↓
+    │   업데이트 완료 메시지
+    │
+    └─ NO → 정상 CLI 시작
+    ↓
+[정상 CLI 실행]
+```
+
+**핵심 컴포넌트**:
+1. **AutoUpdater** (`src/core/auto-updater.ts`)
+   - GitHub API 통신
+   - 버전 비교 로직
+   - 다운로드 및 설치 관리
+
+2. **UpdateUI** (`src/ui/components/UpdateNotification.tsx`)
+   - 업데이트 알림 표시
+   - 진행 상황 바
+   - 에러 메시지
+
+3. **BackupManager** (`src/core/backup-manager.ts`)
+   - 현재 버전 백업
+   - 롤백 기능
+
+---
+
+##### 1.8.2 Version Checking
+
+**GitHub API 사용**:
+```typescript
+// src/core/auto-updater.ts
+import axios from 'axios';
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+
+/**
+ * GitHub Release 정보
+ */
+export interface ReleaseInfo {
+  version: string;
+  releaseDate: string;
+  downloadUrl: string;
+  changelog: string;
+  assets: {
+    name: string;
+    url: string;
+    size: number;
+  }[];
+}
+
+/**
+ * 업데이트 체크 결과
+ */
+export interface UpdateCheckResult {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion?: string;
+  releaseInfo?: ReleaseInfo;
+  error?: string;
+}
+
+/**
+ * Auto Updater
+ */
+export class AutoUpdater {
+  private owner: string = 'A2G-Dev-Space';
+  private repo: string = 'Open-Code-CLI';
+  private currentVersion: string;
+  private apiBaseUrl: string = 'https://api.github.com';
+
+  constructor() {
+    // package.json에서 현재 버전 읽기
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    this.currentVersion = packageJson.version;
+  }
+
+  /**
+   * 업데이트 체크
+   */
+  async checkForUpdates(): Promise<UpdateCheckResult> {
+    try {
+      // GitHub API: 최신 Release 조회
+      const url = `${this.apiBaseUrl}/repos/${this.owner}/${this.repo}/releases/latest`;
+
+      const response = await axios.get(url, {
+        timeout: 5000, // 5초 타임아웃 (오프라인 환경 고려)
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'OPEN-CLI',
+        },
+      });
+
+      const release = response.data;
+      const latestVersion = release.tag_name.replace(/^v/, ''); // "v1.0.0" → "1.0.0"
+
+      // 버전 비교
+      if (this.isNewerVersion(latestVersion, this.currentVersion)) {
+        return {
+          hasUpdate: true,
+          currentVersion: this.currentVersion,
+          latestVersion,
+          releaseInfo: {
+            version: latestVersion,
+            releaseDate: release.published_at,
+            downloadUrl: release.tarball_url,
+            changelog: release.body || '',
+            assets: release.assets.map((asset: any) => ({
+              name: asset.name,
+              url: asset.browser_download_url,
+              size: asset.size,
+            })),
+          },
+        };
+      }
+
+      return {
+        hasUpdate: false,
+        currentVersion: this.currentVersion,
+        latestVersion,
+      };
+    } catch (error: any) {
+      // 오프라인이거나 API 호출 실패 → 조용히 넘어감
+      return {
+        hasUpdate: false,
+        currentVersion: this.currentVersion,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * 버전 비교 (semantic versioning)
+   */
+  private isNewerVersion(latest: string, current: string): boolean {
+    const latestParts = latest.split('.').map(Number);
+    const currentParts = current.split('.').map(Number);
+
+    for (let i = 0; i < 3; i++) {
+      if (latestParts[i] > currentParts[i]) return true;
+      if (latestParts[i] < currentParts[i]) return false;
+    }
+
+    return false; // 동일 버전
+  }
+}
+```
+
+**사용 예시**:
+```typescript
+const updater = new AutoUpdater();
+const result = await updater.checkForUpdates();
+
+if (result.hasUpdate) {
+  console.log(`새 버전 발견: ${result.latestVersion}`);
+}
+```
+
+---
+
+##### 1.8.3 Update Mechanism
+
+**업데이트 전략**: Git Pull 방식 (오프라인 대비 Tarball 방식 준비)
+
+**전략 A: Git Pull 방식** (권장):
+```typescript
+/**
+ * Git Pull 기반 업데이트
+ */
+async performGitUpdate(): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. Git 상태 확인
+    const gitStatus = execSync('git status --porcelain', { encoding: 'utf-8' });
+
+    if (gitStatus.trim() !== '') {
+      return {
+        success: false,
+        error: '로컬 변경사항이 있습니다. 업데이트 전에 커밋하거나 stash하세요.',
+      };
+    }
+
+    // 2. Git Pull
+    execSync('git pull origin main', { stdio: 'pipe' });
+
+    // 3. npm install (의존성 업데이트)
+    execSync('npm install', { stdio: 'pipe' });
+
+    // 4. Build
+    execSync('npm run build', { stdio: 'pipe' });
+
+    return { success: true };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+```
+
+**전략 B: Tarball 다운로드 방식** (오프라인 환경에서 사전 다운로드):
+```typescript
+/**
+ * Tarball 다운로드 및 설치
+ */
+async performTarballUpdate(releaseInfo: ReleaseInfo): Promise<{ success: boolean; error?: string }> {
+  const tempDir = path.join(os.tmpdir(), 'open-cli-update');
+  const currentDir = process.cwd();
+  const backupDir = path.join(currentDir, '..', `open-cli-backup-${Date.now()}`);
+
+  try {
+    // 1. 임시 폴더 생성
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    // 2. Tarball 다운로드
+    const tarballPath = path.join(tempDir, 'update.tar.gz');
+    const response = await axios.get(releaseInfo.downloadUrl, {
+      responseType: 'stream',
+      timeout: 30000, // 30초
+    });
+
+    const writer = fs.createWriteStream(tarballPath);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
+
+    // 3. 압축 해제
+    execSync(`tar -xzf ${tarballPath} -C ${tempDir}`, { stdio: 'pipe' });
+
+    // 4. 백업 생성
+    fs.cpSync(currentDir, backupDir, { recursive: true });
+
+    // 5. 파일 교체 (src/, dist/, package.json 등)
+    const extractedDir = fs.readdirSync(tempDir).find(dir => dir.startsWith('A2G-Dev-Space'));
+    const sourcePath = path.join(tempDir, extractedDir!);
+
+    // 중요 파일들만 교체 (설정 파일 보존)
+    const filesToUpdate = ['src', 'dist', 'package.json', 'package-lock.json', 'tsconfig.json'];
+
+    for (const file of filesToUpdate) {
+      const srcPath = path.join(sourcePath, file);
+      const destPath = path.join(currentDir, file);
+
+      if (fs.existsSync(srcPath)) {
+        fs.rmSync(destPath, { recursive: true, force: true });
+        fs.cpSync(srcPath, destPath, { recursive: true });
+      }
+    }
+
+    // 6. npm install & build
+    execSync('npm install', { cwd: currentDir, stdio: 'pipe' });
+    execSync('npm run build', { cwd: currentDir, stdio: 'pipe' });
+
+    // 7. 정리
+    fs.rmSync(tempDir, { recursive: true, force: true });
+
+    return { success: true };
+  } catch (error: any) {
+    // 롤백
+    if (fs.existsSync(backupDir)) {
+      fs.rmSync(currentDir, { recursive: true, force: true });
+      fs.cpSync(backupDir, currentDir, { recursive: true });
+    }
+
+    return {
+      success: false,
+      error: error.message,
+    };
+  } finally {
+    // 백업 정리 (선택)
+    // fs.rmSync(backupDir, { recursive: true, force: true });
+  }
+}
+```
+
+---
+
+##### 1.8.4 UI/UX During Update
+
+**업데이트 UI 컴포넌트** (`src/ui/components/UpdateNotification.tsx`):
+
+```typescript
+import React, { useState, useEffect } from 'react';
+import { Box, Text } from 'ink';
+import Spinner from 'ink-spinner';
+
+interface UpdateNotificationProps {
+  currentVersion: string;
+  latestVersion: string;
+  onAccept: () => void;
+  onSkip: () => void;
+}
+
+/**
+ * 업데이트 알림 컴포넌트
+ */
+export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
+  currentVersion,
+  latestVersion,
+  onAccept,
+  onSkip,
+}) => {
+  return (
+    <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={2}>
+      <Text color="yellow" bold>
+        🚀 새 버전 발견!
+      </Text>
+      <Text>
+        현재 버전: <Text color="gray">{currentVersion}</Text>
+      </Text>
+      <Text>
+        최신 버전: <Text color="green" bold>{latestVersion}</Text>
+      </Text>
+      <Box marginTop={1}>
+        <Text>
+          업데이트를 진행하시겠습니까? (Y/n)
+        </Text>
+      </Box>
+    </Box>
+  );
+};
+
+interface UpdateProgressProps {
+  stage: 'downloading' | 'installing' | 'building' | 'completed';
+  progress?: number;
+}
+
+/**
+ * 업데이트 진행 상황 컴포넌트
+ */
+export const UpdateProgress: React.FC<UpdateProgressProps> = ({ stage, progress }) => {
+  const stageMessages = {
+    downloading: '📥 업데이트 다운로드 중...',
+    installing: '📦 패키지 설치 중...',
+    building: '🔨 빌드 중...',
+    completed: '✅ 업데이트 완료!',
+  };
+
+  return (
+    <Box flexDirection="column" borderStyle="round" paddingX={2}>
+      <Box>
+        {stage !== 'completed' && <Text color="cyan"><Spinner type="dots" /></Text>}
+        <Text> {stageMessages[stage]}</Text>
+      </Box>
+      {progress !== undefined && (
+        <Box marginTop={1}>
+          <Text>진행률: {progress}%</Text>
+        </Box>
+      )}
+    </Box>
+  );
+};
+```
+
+**UI 흐름**:
+```
+Step 1: 업데이트 알림
+┌─────────────────────────────────────────────┐
+│ 🚀 새 버전 발견!                             │
+│ 현재 버전: 0.2.0                            │
+│ 최신 버전: 0.3.0                            │
+│                                             │
+│ 업데이트를 진행하시겠습니까? (Y/n)          │
+└─────────────────────────────────────────────┘
+
+Step 2: 다운로드 중
+┌─────────────────────────────────────────────┐
+│ ⣾ 📥 업데이트 다운로드 중...                 │
+└─────────────────────────────────────────────┘
+
+Step 3: 설치 중
+┌─────────────────────────────────────────────┐
+│ ⣾ 📦 패키지 설치 중...                       │
+│ 진행률: 45%                                 │
+└─────────────────────────────────────────────┘
+
+Step 4: 완료
+┌─────────────────────────────────────────────┐
+│ ✅ 업데이트 완료!                            │
+│ 버전 0.3.0으로 업데이트되었습니다.          │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+##### 1.8.5 Error Handling & Rollback
+
+**에러 시나리오 및 처리**:
+
+1. **GitHub API 타임아웃** (오프라인 환경):
+   ```typescript
+   // 조용히 넘어가고 정상 CLI 시작
+   if (result.error) {
+     // 로그만 남기고 계속 진행
+     console.log('업데이트 체크 실패 (오프라인 환경일 수 있음)');
+   }
+   ```
+
+2. **다운로드 실패**:
+   ```typescript
+   if (!downloadResult.success) {
+     console.error('❌ 다운로드 실패:', downloadResult.error);
+     console.log('수동으로 업데이트하려면: git pull && npm install && npm run build');
+     // 정상 CLI 시작
+   }
+   ```
+
+3. **빌드 실패**:
+   ```typescript
+   if (!buildResult.success) {
+     console.error('❌ 빌드 실패. 백업에서 복구합니다...');
+     await rollback(backupDir);
+     console.log('✅ 이전 버전으로 복구되었습니다.');
+   }
+   ```
+
+4. **권한 문제**:
+   ```typescript
+   if (error.code === 'EACCES') {
+     console.error('❌ 권한 오류. sudo로 다시 시도하거나 수동 업데이트를 진행하세요.');
+   }
+   ```
+
+**롤백 함수**:
+```typescript
+/**
+ * 업데이트 실패 시 이전 버전으로 롤백
+ */
+async function rollback(backupDir: string): Promise<void> {
+  const currentDir = process.cwd();
+
+  try {
+    // 현재 디렉토리 삭제
+    fs.rmSync(currentDir, { recursive: true, force: true });
+
+    // 백업에서 복구
+    fs.cpSync(backupDir, currentDir, { recursive: true });
+
+    console.log('✅ 롤백 완료');
+  } catch (error) {
+    console.error('❌ 롤백 실패:', error);
+    console.log('수동 복구가 필요합니다:', backupDir);
+  }
+}
+```
+
+---
+
+##### 1.8.6 Integration with CLI Startup
+
+**CLI 시작 시 자동 업데이트 체크** (`src/cli.ts` 수정):
+
+```typescript
+// src/cli.ts
+import { AutoUpdater } from './core/auto-updater.js';
+import { UpdateNotification, UpdateProgress } from './ui/components/UpdateNotification.js';
+
+/**
+ * CLI 시작 전 업데이트 체크
+ */
+async function checkAndUpdate(): Promise<void> {
+  // --no-update 플래그로 스킵 가능
+  if (process.argv.includes('--no-update')) {
+    return;
+  }
+
+  const updater = new AutoUpdater();
+  const result = await updater.checkForUpdates();
+
+  if (!result.hasUpdate) {
+    return; // 업데이트 없음 → 정상 진행
+  }
+
+  // 업데이트 알림 표시
+  console.log('\n');
+  console.log('🚀 새 버전 발견!');
+  console.log(`현재 버전: ${result.currentVersion}`);
+  console.log(`최신 버전: ${result.latestVersion}`);
+  console.log('\n업데이트를 진행하시겠습니까? (Y/n)');
+
+  // 사용자 입력 대기
+  const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    readline.question('', async (answer: string) => {
+      readline.close();
+
+      if (answer.toLowerCase() === 'n') {
+        console.log('업데이트를 건너뜁니다.\n');
+        resolve();
+        return;
+      }
+
+      // 업데이트 진행
+      console.log('\n📥 업데이트 다운로드 중...');
+
+      const updateResult = await updater.performGitUpdate();
+
+      if (updateResult.success) {
+        console.log('✅ 업데이트 완료! CLI를 다시 시작합니다.\n');
+        process.exit(0); // CLI 재시작 필요
+      } else {
+        console.error('❌ 업데이트 실패:', updateResult.error);
+        console.log('정상 CLI를 시작합니다.\n');
+        resolve();
+      }
+    });
+  });
+}
+
+// Program 시작 전 실행
+(async () => {
+  await checkAndUpdate();
+
+  // 정상 CLI 시작
+  program.parse();
+})();
+```
+
+**사용 예시**:
+```bash
+# 자동 업데이트 체크 (기본)
+$ open
+
+# 업데이트 체크 스킵
+$ open --no-update
+```
+
+---
+
+##### 1.8.7 Configuration Options
+
+**설정 파일에 업데이트 옵션 추가** (`~/.open-cli/config.json`):
+
+```json
+{
+  "autoUpdate": {
+    "enabled": true,
+    "checkOnStartup": true,
+    "autoInstall": false,
+    "channel": "stable"
+  }
+}
+```
+
+**설정 인터페이스**:
+```typescript
+export interface AutoUpdateConfig {
+  enabled: boolean; // 자동 업데이트 활성화
+  checkOnStartup: boolean; // 시작 시 체크
+  autoInstall: boolean; // 자동 설치 (물어보지 않음)
+  channel: 'stable' | 'beta' | 'nightly'; // 업데이트 채널
+}
+```
+
+---
+
+##### 1.8.8 Testing Scenarios
+
+**테스트 시나리오**:
+
+1. **정상 업데이트 플로우**:
+   ```bash
+   # 1. 현재 버전: 0.2.0
+   $ open
+
+   # 2. 새 버전 발견 알림 표시
+   🚀 새 버전 발견!
+   현재 버전: 0.2.0
+   최신 버전: 0.3.0
+
+   # 3. 사용자 승인
+   업데이트를 진행하시겠습니까? (Y/n) y
+
+   # 4. 업데이트 진행
+   📥 업데이트 다운로드 중...
+   📦 패키지 설치 중...
+   🔨 빌드 중...
+   ✅ 업데이트 완료!
+
+   # 5. 버전 확인
+   $ open --version
+   0.3.0
+   ```
+
+2. **오프라인 환경**:
+   ```bash
+   $ open
+   # 타임아웃 후 조용히 정상 CLI 시작
+   # (에러 메시지 없음)
+   ```
+
+3. **업데이트 거부**:
+   ```bash
+   $ open
+   업데이트를 진행하시겠습니까? (Y/n) n
+   업데이트를 건너뜁니다.
+   # 정상 CLI 시작
+   ```
+
+4. **업데이트 체크 스킵**:
+   ```bash
+   $ open --no-update
+   # 즉시 CLI 시작
+   ```
+
+5. **빌드 실패 및 롤백**:
+   ```bash
+   $ open
+   📥 업데이트 다운로드 중...
+   📦 패키지 설치 중...
+   🔨 빌드 중...
+   ❌ 빌드 실패. 백업에서 복구합니다...
+   ✅ 이전 버전으로 복구되었습니다.
+   # 정상 CLI 시작
+   ```
+
+---
+
+##### 1.8.9 Implementation Checklist
+
+**작업 체크리스트**:
+
+- [ ] `src/core/auto-updater.ts` 파일 생성
+  - [ ] `AutoUpdater` 클래스 구현
+  - [ ] `checkForUpdates()` 메서드
+  - [ ] `performGitUpdate()` 메서드
+  - [ ] `performTarballUpdate()` 메서드
+  - [ ] 버전 비교 로직
+
+- [ ] `src/core/backup-manager.ts` 파일 생성
+  - [ ] 백업 생성 함수
+  - [ ] 롤백 함수
+
+- [ ] `src/ui/components/UpdateNotification.tsx` 파일 생성
+  - [ ] `UpdateNotification` 컴포넌트
+  - [ ] `UpdateProgress` 컴포넌트
+
+- [ ] `src/cli.ts` 수정
+  - [ ] `checkAndUpdate()` 함수 추가
+  - [ ] CLI 시작 전 호출
+  - [ ] `--no-update` 플래그 처리
+
+- [ ] `src/types/index.ts` 타입 추가
+  - [ ] `ReleaseInfo` 인터페이스
+  - [ ] `UpdateCheckResult` 인터페이스
+  - [ ] `AutoUpdateConfig` 인터페이스
+
+- [ ] `config-manager.ts` 수정
+  - [ ] `autoUpdate` 설정 추가
+  - [ ] 기본값 설정
+
+- [ ] 테스트
+  - [ ] 정상 업데이트 플로우 테스트
+  - [ ] 오프라인 환경 테스트
+  - [ ] 업데이트 거부 테스트
+  - [ ] 빌드 실패 롤백 테스트
+  - [ ] `--no-update` 플래그 테스트
+
+- [ ] 문서화
+  - [ ] README.md 업데이트
+  - [ ] CHANGELOG.md 작성 규칙 정의
+
+---
+
+##### 1.8.10 Dependencies
+
+**필요한 npm 패키지**:
+```json
+{
+  "dependencies": {
+    "axios": "^1.6.0", // (이미 설치됨)
+    "semver": "^7.5.4" // 버전 비교 라이브러리 (선택)
+  }
+}
+```
+
+**설치**:
+```bash
+npm install semver
+```
+
+---
+
+##### 1.8.11 Security Considerations
+
+**보안 고려사항**:
+
+1. **HTTPS Only**: GitHub API는 항상 HTTPS 사용
+2. **타임아웃 설정**: 네트워크 요청에 타임아웃 설정 (5초)
+3. **검증**: 다운로드한 파일의 무결성 검증 (선택: checksum)
+4. **백업**: 업데이트 전 항상 백업 생성
+5. **롤백**: 실패 시 자동 롤백
+6. **권한**: 사용자 권한으로 실행 (sudo 불필요)
+
+---
+
 #### 1.9 Plan-and-Execute 아키텍처 구현 [P0] 🚨
 
 **목표**: User request를 TODO list로 분해하고, 각 TODO를 순차적으로 실행하는 시스템 구축
