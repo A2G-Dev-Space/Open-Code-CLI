@@ -187,6 +187,11 @@ You: /docs search typescript
 - ✅ 멀티 엔드포인트 관리
 - ✅ 로컬 문서 시스템 (마크다운 지식 베이스)
 - ✅ ESM 마이그레이션
+- ✅ **GitHub Release Auto-Update System** 🆕
+  - 자동 버전 체크 (GitHub Releases API)
+  - 원클릭 업데이트 (Git pull 또는 Tarball 다운로드)
+  - 롤백 지원 (자동 백업 생성)
+  - `--no-update` 플래그로 비활성화 가능
 
 ### 🚧 개발 중 (Phase 2.5)
 

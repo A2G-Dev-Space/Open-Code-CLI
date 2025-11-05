@@ -19,6 +19,7 @@ import { sessionManager } from './core/session-manager.js';
 import { documentManager } from './core/document-manager.js';
 import { EndpointConfig, Message } from './types/index.js';
 import { InteractiveApp } from './ui/components/InteractiveApp.js';
+import { AutoUpdater } from './core/auto-updater.js';
 
 const program = new Command();
 
@@ -32,8 +33,15 @@ program.name('open').description('OPEN-CLI - 오프라인 기업용 AI 코딩 �
  */
 program
   .option('--classic', 'Use classic inquirer-based UI instead of Ink UI')
-  .action(async (options: { classic?: boolean }) => {
+  .option('--no-update', 'Skip auto-update check')
+  .action(async (options: { classic?: boolean; noUpdate?: boolean }) => {
   try {
+    // Auto-update check (unless disabled)
+    if (!options.noUpdate) {
+      const updater = new AutoUpdater();
+      await updater.run({ noUpdate: options.noUpdate, silent: false });
+    }
+
     // ConfigManager 초기화 확인
     const isInitialized = await configManager.isInitialized();
     if (!isInitialized) {

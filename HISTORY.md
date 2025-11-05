@@ -73,6 +73,21 @@
 
 ## ✅ Phase 2: Advanced Features (100% Complete)
 
+## ✅ Phase 2.5: Auto-Update & Agent Architecture (In Progress)
+
+### 2.5.1 GitHub Release Auto-Update System
+- **Status**: ✅ Completed
+- **Date**: 2025-11-05
+- **Details**: [HISTORY_ALL.md#L1100-L1200](./HISTORY_ALL.md#L1100-L1200)
+- **Summary**: Automatic version checking and updates from GitHub Releases
+- **Key Features**:
+  - Checks GitHub Releases API on startup
+  - Compares semantic versions
+  - Downloads and installs updates automatically
+  - Creates backups before updating
+  - Supports both Git and Tarball update methods
+  - `--no-update` flag to skip checks
+
 ### 2.1 Ink/React UI Implementation
 - **Status**: ✅ Completed
 - **Date**: 2024-12-25
