@@ -2258,5 +2258,350 @@ You: Read the large log file
 
 ---
 
-*This document represents the complete implementation history of OPEN-CLI through Phase 2.7.2.*
+---
+
+## Phase 2.7.3: Auto-Update Detailed Logging (2025-11-05)
+
+### 📝 Problem Statement
+
+**Issue**: When "Update check failed" error appears, users only see a generic message without details about what went wrong. Debug/verbose modes don't show additional information.
+
+**User Feedback**: "Update check failed 뜨는데, 이거도 debug 모드에선 더 상세하게 log 뜨게 해줘"
+
+**Why This Matters**:
+- Network issues (timeout, DNS, connection refused) show the same generic error
+- GitHub API rate limiting or authentication issues are not visible
+- Debugging update failures requires guessing the cause
+- No visibility into which step failed (download, extract, build, etc.)
+
+### ✨ Implementation
+
+#### 1. Added Logger Integration
+
+**File**: `src/core/auto-updater.ts`
+
+**Import Logger**:
+```typescript
+import { logger } from '../utils/logger.js';
+```
+
+#### 2. Enhanced checkForUpdates() Method
+
+**Before** (127-143 lines):
+```typescript
+} catch (error: any) {
+  spinner?.fail('Update check failed');
+
+  if (!silent) {
+    if (this.config.enabled && !silent) {
+      console.log(chalk.dim(`  ${error.message}`));
+    }
+  }
+
+  return {
+    hasUpdate: false,
+    currentVersion: this.currentVersion,
+    error: error.message,
+  };
+}
+```
+
+**After** (156-214 lines):
+```typescript
+} catch (error: any) {
+  spinner?.fail('Update check failed');
+
+  // Detailed error logging
+  logger.error('Update check failed', error);
+
+  if (axios.isAxiosError(error)) {
+    const axiosError = error;
+    const status = axiosError.response?.status;
+    const statusText = axiosError.response?.statusText;
+    const errorCode = axiosError.code;
+    const responseData = axiosError.response?.data;
+
+    logger.error('Update check error details', {
+      errorCode,
+      status,
+      statusText,
+      url: axiosError.config?.url,
+      method: axiosError.config?.method,
+      timeout: axiosError.config?.timeout,
+      message: axiosError.message,
+    });
+
+    if (responseData) {
+      logger.debug('GitHub API error response', responseData);
+    }
+
+    // User-friendly error messages
+    if (!silent) {
+      if (errorCode === 'ECONNABORTED' || error.message.includes('timeout')) {
+        console.log(chalk.dim(`  Timeout: GitHub API did not respond within 5 seconds`));
+      } else if (errorCode === 'ENOTFOUND' || errorCode === 'ECONNREFUSED') {
+        console.log(chalk.dim(`  Network error: Cannot reach GitHub API (${errorCode})`));
+      } else if (status === 403) {
+        console.log(chalk.dim(`  Rate limit: GitHub API rate limit exceeded`));
+      } else if (status === 404) {
+        console.log(chalk.dim(`  Not found: Release not found (${this.owner}/${this.repo})`));
+      } else {
+        console.log(chalk.dim(`  ${error.message}`));
+      }
+    }
+  } else {
+    // Non-axios error
+    logger.error('Non-axios error during update check', {
+      message: error.message,
+      stack: error.stack,
+    });
+
+    if (!silent) {
+      console.log(chalk.dim(`  ${error.message}`));
+    }
+  }
+
+  return {
+    hasUpdate: false,
+    currentVersion: this.currentVersion,
+    error: error.message,
+  };
+}
+```
+
+**Added Logging Points**:
+- Debug log when auto-update is disabled
+- Debug log before API call with URL and version info
+- HTTP request logging
+- HTTP response logging with version details
+- Version comparison logging
+- Success/skip logging
+
+#### 3. Enhanced performGitUpdate() Method
+
+**Added Logging**:
+```typescript
+logger.info('Starting Git-based update');
+logger.debug('Checking for uncommitted changes');
+logger.warn('Git update aborted: Local changes detected', { gitStatus });
+logger.debug('Executing: git pull origin main');
+logger.debug('Git pull output', { output: pullOutput });
+logger.debug('Executing: npm install');
+logger.debug('npm install output', { output: installOutput.substring(0, 200) });
+logger.debug('Executing: npm run build');
+logger.debug('npm build output', { output: buildOutput.substring(0, 200) });
+logger.info('Git-based update completed successfully');
+
+// Error logging
+logger.error('Git-based update failed', error);
+logger.error('Git update error details', {
+  message: error.message,
+  status: error.status,
+  signal: error.signal,
+  stdout: error.stdout?.toString().substring(0, 500),
+  stderr: error.stderr?.toString().substring(0, 500),
+});
+```
+
+#### 4. Enhanced performTarballUpdate() Method
+
+**Added Logging**:
+```typescript
+logger.info('Starting tarball-based update', {
+  version: releaseInfo.version,
+  downloadUrl: releaseInfo.downloadUrl,
+  tempDir,
+  backupDir,
+});
+logger.debug('Creating temp directory', { tempDir });
+logger.debug('Downloading tarball', { url: releaseInfo.downloadUrl, destination: tarballPath });
+logger.debug('Tarball download response', {
+  status: response.status,
+  contentType: response.headers['content-type'],
+  contentLength: response.headers['content-length'],
+});
+logger.debug('Tarball download completed', { path: tarballPath });
+logger.debug('Extracting tarball', { tarballPath, tempDir });
+logger.debug('Extracted directories', { count: extractedDirs.length, dirs: extractedDirs });
+logger.debug('Creating backup', { from: currentDir, to: backupDir });
+logger.debug('Updating files', { files: filesToUpdate });
+logger.debug(`Copying ${file}`, { from: srcPath, to: destPath });
+logger.warn(`File not found in release: ${file}`);
+logger.debug('Installing dependencies');
+logger.debug('Building project');
+logger.debug('Cleaning up temp files', { tempDir });
+logger.info('Tarball-based update completed successfully');
+
+// Error logging
+logger.error('Tarball-based update failed', error);
+logger.error('Tarball update error details', {
+  message: error.message,
+  stack: error.stack,
+  code: error.code,
+  tempDir,
+  backupDir,
+});
+logger.info('Attempting rollback', { backupDir });
+logger.debug(`Restoring ${file}`, { from: backupPath, to: destPath });
+logger.info('Rollback completed successfully');
+logger.error('Rollback failed', rollbackError);
+logger.debug('Cleaning up temp files after failure', { tempDir });
+```
+
+### 📊 Error Scenarios Covered
+
+#### 1. Network Errors
+- **ECONNABORTED** (Timeout): "Timeout: GitHub API did not respond within 5 seconds"
+- **ENOTFOUND** (DNS): "Network error: Cannot reach GitHub API (ENOTFOUND)"
+- **ECONNREFUSED** (Connection): "Network error: Cannot reach GitHub API (ECONNREFUSED)"
+
+#### 2. GitHub API Errors
+- **403 Forbidden**: "Rate limit: GitHub API rate limit exceeded"
+- **404 Not Found**: "Not found: Release not found (A2G-Dev-Space/Open-Code-CLI)"
+
+#### 3. Update Process Errors
+- **Git update**: Local changes detected, pull failed, npm install failed, build failed
+- **Tarball update**: Download failed, extraction failed, backup failed, file copy failed
+- **Rollback errors**: Rollback failed with manual intervention instructions
+
+### 🎯 Debug/Verbose Mode Output Examples
+
+#### Verbose Mode (--verbose):
+```bash
+$ open --verbose
+
+[2025-11-05T12:00:00.000Z] [OPEN-CLI] 🐛 DEBUG: Checking for updates from GitHub
+  url: https://api.github.com/repos/A2G-Dev-Space/Open-Code-CLI/releases/latest
+  currentVersion: 0.1.0
+  owner: A2G-Dev-Space
+  repo: Open-Code-CLI
+
+[2025-11-05T12:00:00.100Z] [OPEN-CLI] → HTTP REQUEST: GET https://api.github.com/repos/...
+
+[2025-11-05T12:00:01.234Z] [OPEN-CLI] ← HTTP RESPONSE: 200 OK
+  latestVersion: v0.2.0
+  releaseDate: 2025-11-05T10:00:00Z
+  assetsCount: 3
+
+[2025-11-05T12:00:01.500Z] [OPEN-CLI] 🐛 DEBUG: Version comparison
+  currentVersion: 0.1.0
+  latestVersion: 0.2.0
+  isNewer: true
+
+[2025-11-05T12:00:01.600Z] [OPEN-CLI] ℹ️ INFO: New version available
+  currentVersion: 0.1.0
+  latestVersion: 0.2.0
+```
+
+#### Error Example (Timeout):
+```bash
+$ open --verbose
+
+[2025-11-05T12:00:00.000Z] [OPEN-CLI] → HTTP REQUEST: GET https://api.github.com/repos/...
+[2025-11-05T12:05:00.000Z] [OPEN-CLI] ❌ ERROR: Update check failed
+  Error: timeout of 5000ms exceeded
+[2025-11-05T12:05:00.100Z] [OPEN-CLI] ❌ ERROR: Update check error details
+  errorCode: ECONNABORTED
+  status: undefined
+  statusText: undefined
+  url: https://api.github.com/repos/A2G-Dev-Space/Open-Code-CLI/releases/latest
+  method: GET
+  timeout: 5000
+  message: timeout of 5000ms exceeded
+
+✗ Update check failed
+  Timeout: GitHub API did not respond within 5 seconds
+```
+
+#### Error Example (Rate Limit):
+```bash
+$ open --debug
+
+[2025-11-05T12:00:00.000Z] [OPEN-CLI] ❌ ERROR: Update check failed
+[2025-11-05T12:00:00.100Z] [OPEN-CLI] ❌ ERROR: Update check error details
+  errorCode: undefined
+  status: 403
+  statusText: Forbidden
+  url: https://api.github.com/repos/A2G-Dev-Space/Open-Code-CLI/releases/latest
+  method: GET
+  timeout: 5000
+  message: Request failed with status code 403
+[2025-11-05T12:00:00.200Z] [OPEN-CLI] 🐛 DEBUG: GitHub API error response
+  {
+    "message": "API rate limit exceeded",
+    "documentation_url": "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"
+  }
+
+✗ Update check failed
+  Rate limit: GitHub API rate limit exceeded
+```
+
+### 📈 Benefits
+
+1. **Detailed Error Information**: Users can see exactly what went wrong
+2. **Network Debugging**: Timeout, DNS, connection errors clearly identified
+3. **API Debugging**: Rate limits, authentication failures visible
+4. **Update Process Tracking**: Each step logged in debug mode
+5. **Rollback Visibility**: Rollback attempts and results logged
+6. **User-Friendly Messages**: Contextual error messages for common scenarios
+
+### 🧪 Testing Scenarios
+
+1. **Network Timeout**:
+   - Slow network connection
+   - GitHub API not responding
+   - Expected: "Timeout: GitHub API did not respond within 5 seconds"
+
+2. **DNS Failure**:
+   - Invalid hostname / DNS resolution failure
+   - Expected: "Network error: Cannot reach GitHub API (ENOTFOUND)"
+
+3. **Connection Refused**:
+   - Firewall blocking connection
+   - Expected: "Network error: Cannot reach GitHub API (ECONNREFUSED)"
+
+4. **GitHub Rate Limit**:
+   - Exceeded API rate limit (60 requests/hour for unauthenticated)
+   - Expected: "Rate limit: GitHub API rate limit exceeded"
+
+5. **Release Not Found**:
+   - Repository has no releases
+   - Expected: "Not found: Release not found (owner/repo)"
+
+6. **Git Update Failure**:
+   - Uncommitted changes
+   - npm install failure
+   - build failure
+   - Expected: Detailed error with stdout/stderr
+
+7. **Tarball Update Failure**:
+   - Download failure
+   - Extraction failure
+   - Backup creation failure
+   - Expected: Step-by-step failure tracking with rollback attempt
+
+### 📝 Files Modified
+
+1. **src/core/auto-updater.ts** (+150 lines)
+   - Added logger import
+   - Enhanced checkForUpdates() with detailed error logging
+   - Enhanced performGitUpdate() with step tracking
+   - Enhanced performTarballUpdate() with detailed logging
+   - Added user-friendly error messages for common scenarios
+
+### 🔗 Related Features
+
+- **Phase 2.7.1**: Comprehensive Error Logging & Debugging System
+  - Logger utility with 5 log levels
+  - --verbose and --debug CLI flags
+  - Error classification system
+
+- **Phase 2.5.1**: GitHub Release Auto-Update System
+  - Automatic version checking
+  - Git and tarball update methods
+  - Backup and rollback support
+
+---
+
+*This document represents the complete implementation history of OPEN-CLI through Phase 2.7.3.*
 *For upcoming features and plans, see TODO_ALL.md.*

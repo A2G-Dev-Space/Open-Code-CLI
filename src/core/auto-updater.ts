@@ -16,6 +16,7 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import semver from 'semver';
 import { ReleaseInfo, UpdateCheckResult, AutoUpdateConfig } from '../types/index.js';
+import { logger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -61,6 +62,7 @@ export class AutoUpdater {
    */
   async checkForUpdates(silent: boolean = false): Promise<UpdateCheckResult> {
     if (!this.config.enabled) {
+      logger.debug('Auto-update is disabled');
       return {
         hasUpdate: false,
         currentVersion: this.currentVersion
@@ -73,6 +75,15 @@ export class AutoUpdater {
       // GitHub API: Get latest release
       const url = `${this.apiBaseUrl}/repos/${this.owner}/${this.repo}/releases/latest`;
 
+      logger.debug('Checking for updates from GitHub', {
+        url,
+        currentVersion: this.currentVersion,
+        owner: this.owner,
+        repo: this.repo,
+      });
+
+      logger.httpRequest('GET', url);
+
       const response = await axios.get(url, {
         timeout: 5000, // 5 second timeout
         headers: {
@@ -81,11 +92,24 @@ export class AutoUpdater {
         },
       });
 
+      logger.httpResponse(response.status, response.statusText, {
+        latestVersion: response.data.tag_name,
+        releaseDate: response.data.published_at,
+        assetsCount: response.data.assets?.length || 0,
+      });
+
       const release = response.data;
       const latestVersion = release.tag_name.replace(/^v/, ''); // "v1.0.0" → "1.0.0"
 
+      logger.debug('Version comparison', {
+        currentVersion: this.currentVersion,
+        latestVersion,
+        isNewer: semver.gt(latestVersion, this.currentVersion),
+      });
+
       // Check if this version should be skipped
       if (this.config.skipVersion === latestVersion) {
+        logger.info('Update skipped by user configuration', { version: latestVersion });
         spinner?.succeed('Update check complete (version skipped)');
         return {
           hasUpdate: false,
@@ -96,6 +120,10 @@ export class AutoUpdater {
 
       // Compare versions using semver
       if (semver.gt(latestVersion, this.currentVersion)) {
+        logger.info('New version available', {
+          currentVersion: this.currentVersion,
+          latestVersion,
+        });
         spinner?.succeed('New version available!');
 
         const releaseInfo: ReleaseInfo = {
@@ -118,6 +146,7 @@ export class AutoUpdater {
         };
       }
 
+      logger.info('Already using the latest version', { version: this.currentVersion });
       spinner?.succeed('You are using the latest version');
       return {
         hasUpdate: false,
@@ -127,9 +156,52 @@ export class AutoUpdater {
     } catch (error: any) {
       spinner?.fail('Update check failed');
 
-      if (!silent) {
-        // Only show error in verbose mode
-        if (this.config.enabled && !silent) {
+      // Detailed error logging
+      logger.error('Update check failed', error);
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error;
+        const status = axiosError.response?.status;
+        const statusText = axiosError.response?.statusText;
+        const errorCode = axiosError.code;
+        const responseData = axiosError.response?.data;
+
+        logger.error('Update check error details', {
+          errorCode,
+          status,
+          statusText,
+          url: axiosError.config?.url,
+          method: axiosError.config?.method,
+          timeout: axiosError.config?.timeout,
+          message: axiosError.message,
+        });
+
+        if (responseData) {
+          logger.debug('GitHub API error response', responseData);
+        }
+
+        // User-friendly error messages
+        if (!silent) {
+          if (errorCode === 'ECONNABORTED' || error.message.includes('timeout')) {
+            console.log(chalk.dim(`  Timeout: GitHub API did not respond within 5 seconds`));
+          } else if (errorCode === 'ENOTFOUND' || errorCode === 'ECONNREFUSED') {
+            console.log(chalk.dim(`  Network error: Cannot reach GitHub API (${errorCode})`));
+          } else if (status === 403) {
+            console.log(chalk.dim(`  Rate limit: GitHub API rate limit exceeded`));
+          } else if (status === 404) {
+            console.log(chalk.dim(`  Not found: Release not found (${this.owner}/${this.repo})`));
+          } else {
+            console.log(chalk.dim(`  ${error.message}`));
+          }
+        }
+      } else {
+        // Non-axios error
+        logger.error('Non-axios error during update check', {
+          message: error.message,
+          stack: error.stack,
+        });
+
+        if (!silent) {
           console.log(chalk.dim(`  ${error.message}`));
         }
       }
@@ -220,11 +292,15 @@ export class AutoUpdater {
   private async performGitUpdate(): Promise<{ success: boolean; error?: string }> {
     const spinner = ora('Updating via Git...').start();
 
+    logger.info('Starting Git-based update');
+
     try {
       // Check for uncommitted changes
+      logger.debug('Checking for uncommitted changes');
       const gitStatus = execSync('git status --porcelain', { encoding: 'utf-8' });
 
       if (gitStatus.trim() !== '') {
+        logger.warn('Git update aborted: Local changes detected', { gitStatus });
         spinner.fail('Update failed: Local changes detected');
         return {
           success: false,
@@ -234,19 +310,34 @@ export class AutoUpdater {
 
       // Pull latest changes
       spinner.text = 'Pulling latest changes...';
-      execSync('git pull origin main', { stdio: 'pipe' });
+      logger.debug('Executing: git pull origin main');
+      const pullOutput = execSync('git pull origin main', { encoding: 'utf-8', stdio: 'pipe' });
+      logger.debug('Git pull output', { output: pullOutput });
 
       // Update dependencies
       spinner.text = 'Installing dependencies...';
-      execSync('npm install', { stdio: 'pipe' });
+      logger.debug('Executing: npm install');
+      const installOutput = execSync('npm install', { encoding: 'utf-8', stdio: 'pipe' });
+      logger.debug('npm install output', { output: installOutput.substring(0, 200) }); // Truncate long output
 
       // Build the project
       spinner.text = 'Building project...';
-      execSync('npm run build', { stdio: 'pipe' });
+      logger.debug('Executing: npm run build');
+      const buildOutput = execSync('npm run build', { encoding: 'utf-8', stdio: 'pipe' });
+      logger.debug('npm build output', { output: buildOutput.substring(0, 200) });
 
+      logger.info('Git-based update completed successfully');
       spinner.succeed('Update completed successfully!');
       return { success: true };
     } catch (error: any) {
+      logger.error('Git-based update failed', error);
+      logger.error('Git update error details', {
+        message: error.message,
+        status: error.status,
+        signal: error.signal,
+        stdout: error.stdout?.toString().substring(0, 500),
+        stderr: error.stderr?.toString().substring(0, 500),
+      });
       spinner.fail('Update failed');
       return {
         success: false,
@@ -264,13 +355,23 @@ export class AutoUpdater {
     const currentDir = process.cwd();
     const backupDir = path.join(currentDir, '..', `open-cli-backup-${Date.now()}`);
 
+    logger.info('Starting tarball-based update', {
+      version: releaseInfo.version,
+      downloadUrl: releaseInfo.downloadUrl,
+      tempDir,
+      backupDir,
+    });
+
     try {
       // Create temp directory
+      logger.debug('Creating temp directory', { tempDir });
       fs.mkdirSync(tempDir, { recursive: true });
 
       // Download tarball
       spinner.text = 'Downloading release...';
       const tarballPath = path.join(tempDir, 'update.tar.gz');
+      logger.debug('Downloading tarball', { url: releaseInfo.downloadUrl, destination: tarballPath });
+
       const response = await axios.get(releaseInfo.downloadUrl, {
         responseType: 'stream',
         timeout: 60000, // 60 seconds
@@ -279,23 +380,38 @@ export class AutoUpdater {
         }
       });
 
+      logger.debug('Tarball download response', {
+        status: response.status,
+        contentType: response.headers['content-type'],
+        contentLength: response.headers['content-length'],
+      });
+
       // Save to file
       const writer = fs.createWriteStream(tarballPath);
       response.data.pipe(writer);
 
       await new Promise<void>((resolve, reject) => {
-        writer.on('finish', () => resolve());
-        writer.on('error', reject);
+        writer.on('finish', () => {
+          logger.debug('Tarball download completed', { path: tarballPath });
+          resolve();
+        });
+        writer.on('error', (err) => {
+          logger.error('Tarball download failed', err);
+          reject(err);
+        });
       });
 
       // Extract tarball
       spinner.text = 'Extracting files...';
+      logger.debug('Extracting tarball', { tarballPath, tempDir });
       execSync(`tar -xzf "${tarballPath}" -C "${tempDir}"`, { stdio: 'pipe' });
 
       // Find extracted directory
       const extractedDirs = fs.readdirSync(tempDir).filter(dir =>
         dir !== 'update.tar.gz' && fs.statSync(path.join(tempDir, dir)).isDirectory()
       );
+
+      logger.debug('Extracted directories', { count: extractedDirs.length, dirs: extractedDirs });
 
       if (extractedDirs.length === 0) {
         throw new Error('No directory found in tarball');
@@ -305,6 +421,7 @@ export class AutoUpdater {
 
       // Create backup
       spinner.text = 'Creating backup...';
+      logger.debug('Creating backup', { from: currentDir, to: backupDir });
       fs.cpSync(currentDir, backupDir, {
         recursive: true,
         filter: (src) => !src.includes('node_modules') && !src.includes('.git')
@@ -313,43 +430,59 @@ export class AutoUpdater {
       // Update files (preserve user config)
       spinner.text = 'Updating files...';
       const filesToUpdate = ['src', 'dist', 'package.json', 'package-lock.json', 'tsconfig.json'];
-      // Note: config files like '.open-cli', 'open-cli.config.json', 'OPEN_CLI.md' are preserved
+      logger.debug('Updating files', { files: filesToUpdate });
 
       for (const file of filesToUpdate) {
         const srcPath = path.join(sourcePath, file);
         const destPath = path.join(currentDir, file);
 
         if (fs.existsSync(srcPath)) {
+          logger.debug(`Copying ${file}`, { from: srcPath, to: destPath });
           // Remove old version
           if (fs.existsSync(destPath)) {
             fs.rmSync(destPath, { recursive: true, force: true });
           }
           // Copy new version
           fs.cpSync(srcPath, destPath, { recursive: true });
+        } else {
+          logger.warn(`File not found in release: ${file}`);
         }
       }
 
       // Install dependencies
       spinner.text = 'Installing dependencies...';
+      logger.debug('Installing dependencies');
       execSync('npm install', { cwd: currentDir, stdio: 'pipe' });
 
       // Build project
       spinner.text = 'Building project...';
+      logger.debug('Building project');
       execSync('npm run build', { cwd: currentDir, stdio: 'pipe' });
 
       // Cleanup temp files
+      logger.debug('Cleaning up temp files', { tempDir });
       fs.rmSync(tempDir, { recursive: true, force: true });
 
+      logger.info('Tarball-based update completed successfully');
       spinner.succeed('Update completed successfully!');
       console.log(chalk.dim(`  Backup saved at: ${backupDir}`));
 
       return { success: true };
     } catch (error: any) {
+      logger.error('Tarball-based update failed', error);
+      logger.error('Tarball update error details', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        tempDir,
+        backupDir,
+      });
       spinner.fail('Update failed');
 
       // Attempt rollback
       if (fs.existsSync(backupDir)) {
         try {
+          logger.info('Attempting rollback', { backupDir });
           spinner.start('Rolling back to previous version...');
 
           // Restore from backup
@@ -359,6 +492,7 @@ export class AutoUpdater {
             const destPath = path.join(currentDir, file);
 
             if (fs.existsSync(backupPath)) {
+              logger.debug(`Restoring ${file}`, { from: backupPath, to: destPath });
               if (fs.existsSync(destPath)) {
                 fs.rmSync(destPath, { recursive: true, force: true });
               }
@@ -367,8 +501,10 @@ export class AutoUpdater {
           }
 
           execSync('npm install', { cwd: currentDir, stdio: 'pipe' });
+          logger.info('Rollback completed successfully');
           spinner.succeed('Rollback completed');
         } catch (rollbackError) {
+          logger.error('Rollback failed', rollbackError);
           spinner.fail('Rollback failed');
           console.error(chalk.red('  Manual intervention may be required'));
           console.error(chalk.dim(`  Backup location: ${backupDir}`));
@@ -377,6 +513,7 @@ export class AutoUpdater {
 
       // Cleanup
       if (fs.existsSync(tempDir)) {
+        logger.debug('Cleaning up temp files after failure', { tempDir });
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
 

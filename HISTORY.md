@@ -232,6 +232,27 @@ $ open --verbose
   - Handles large file operations without timeout
   - Supports slow network environments
 
+### 2.7.3 Auto-Update Detailed Logging
+- **Status**: ✅ Completed
+- **Date**: 2025-11-05
+- **Details**: [HISTORY_ALL.md#L2263-L2607](./HISTORY_ALL.md#L2263-L2607)
+- **Summary**: Detailed logging for update check failures with debug/verbose support
+- **Key Changes**:
+  - **Enhanced Error Logging**: Detailed error information for all update check scenarios
+    - Network errors: Timeout, DNS (ENOTFOUND), Connection refused (ECONNREFUSED)
+    - GitHub API errors: Rate limit (403), Not found (404)
+    - Update process errors: Git/tarball download, extraction, build, rollback
+  - **User-Friendly Messages**: Contextual error messages for common scenarios
+  - **Debug Mode Support**: Step-by-step logging for entire update process
+- **Error Examples**:
+  - Timeout: "Timeout: GitHub API did not respond within 5 seconds"
+  - DNS: "Network error: Cannot reach GitHub API (ENOTFOUND)"
+  - Rate Limit: "Rate limit: GitHub API rate limit exceeded"
+- **Benefits**:
+  - Users can diagnose update failures without guessing
+  - Network and API issues clearly identified
+  - Complete visibility into update process with --debug flag
+
 ---
 
 ## ✅ Phase 3: Claude Code Agent Loop Architecture (100% Complete)
