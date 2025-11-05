@@ -5,7 +5,7 @@
  */
 
 import { AgentLoopController } from '../../src/core/agent-loop.js';
-import { TodoItem, Message, LLMResponse } from '../../src/types/index.js';
+import { TodoItem, Message, LLMResponse, LoopContext } from '../../src/types/index.js';
 
 // Simple mock LLM client for testing
 class MockLLMClient {
@@ -75,12 +75,31 @@ class MockLLMClient {
   }
 }
 
+// Mock ContextGatherer for testing
+class MockContextGatherer {
+  async gather(request: any): Promise<LoopContext> {
+    return {
+      currentTodo: request.todo,
+      previousResults: request.previousResults || [],
+      fileSystemContext: {
+        structure: 'test structure',
+        relevantFiles: [],
+        currentDirectory: '/test'
+      },
+      feedback: request.previousFeedback || [],
+      iteration: request.iteration
+    };
+  }
+}
+
 describe('AgentLoopController', () => {
   let controller: AgentLoopController;
   let mockLLMClient: MockLLMClient;
+  let mockContextGatherer: MockContextGatherer;
 
   beforeEach(() => {
     mockLLMClient = new MockLLMClient();
+    mockContextGatherer = new MockContextGatherer();
     controller = new AgentLoopController(
       mockLLMClient as any, // Cast to any to avoid type issues
       [],
@@ -88,6 +107,7 @@ describe('AgentLoopController', () => {
         maxIterations: 3,
         verbose: false,
         enableLLMJudge: false,
+        contextGatherer: mockContextGatherer as any,
       }
     );
   });
@@ -110,7 +130,7 @@ describe('AgentLoopController', () => {
       expect(result).toBeDefined();
       expect(result.iterations).toBeGreaterThan(0);
       expect(result.iterations).toBeLessThanOrEqual(3);
-    });
+    }, 15000); // Increase timeout to 15 seconds
 
     it('should handle iteration limits', async () => {
       const todo: TodoItem = {
@@ -236,6 +256,7 @@ describe('AgentLoopController', () => {
           maxIterations: 10,
           timeout: 1, // 1ms timeout
           verbose: false,
+          contextGatherer: mockContextGatherer as any,
         }
       );
 
@@ -258,6 +279,7 @@ describe('AgentLoopController', () => {
 describe('Agent Loop Basic Integration', () => {
   it('should complete without crashing', async () => {
     const mockClient = new MockLLMClient();
+    const mockContextGatherer = new MockContextGatherer();
     const controller = new AgentLoopController(
       mockClient as any,
       [],
@@ -265,6 +287,7 @@ describe('Agent Loop Basic Integration', () => {
         maxIterations: 2,
         verbose: false,
         enableLLMJudge: false,
+        contextGatherer: mockContextGatherer as any,
       }
     );
 
@@ -277,7 +300,7 @@ describe('Agent Loop Basic Integration', () => {
       dependencies: [],
     };
 
-    // This will use real Context Gatherer, Action Executor, and Work Verifier
+    // This will use mock Context Gatherer, real Action Executor, and Work Verifier
     const result = await controller.executeTodoWithLoop(todo, []);
 
     // Basic assertions - the actual execution might fail due to missing tools

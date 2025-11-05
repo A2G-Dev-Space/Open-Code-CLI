@@ -4,19 +4,70 @@
 
 import { LLMClient } from '../../src/core/llm-client.js';
 import { Message } from '../../src/types/index.js';
+import { configManager } from '../../src/core/config-manager.js';
 
 describe('LLMClient - Model Compatibility Layer', () => {
   let client: LLMClient;
 
+  beforeAll(async () => {
+    // Initialize ConfigManager with test config
+    await configManager.initialize();
+
+    // Check if test endpoint already exists
+    try {
+      const config = configManager.getConfig();
+      const existingEndpoint = config.endpoints.find(ep => ep.id === 'test-endpoint');
+
+      if (!existingEndpoint) {
+        // Add test endpoint only if it doesn't exist
+        await configManager.addEndpoint({
+          id: 'test-endpoint',
+          name: 'Test Endpoint',
+          baseUrl: 'http://localhost:3000/v1',
+          apiKey: 'test-key',
+          models: [
+            {
+              id: 'gpt-oss-120b',
+              name: 'GPT-OSS 120B',
+              maxTokens: 4096,
+              enabled: true
+            }
+          ],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+
+      // Set as current endpoint
+      await configManager.setCurrentEndpoint('test-endpoint');
+      await configManager.setCurrentModel('gpt-oss-120b');
+    } catch (error) {
+      // If config doesn't exist, create it
+      await configManager.addEndpoint({
+        id: 'test-endpoint',
+        name: 'Test Endpoint',
+        baseUrl: 'http://localhost:3000/v1',
+        apiKey: 'test-key',
+        models: [
+          {
+            id: 'gpt-oss-120b',
+            name: 'GPT-OSS 120B',
+            maxTokens: 4096,
+            enabled: true
+          }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      await configManager.setCurrentEndpoint('test-endpoint');
+      await configManager.setCurrentModel('gpt-oss-120b');
+    }
+  });
+
   beforeEach(() => {
-    // Create client with mock endpoint
-    client = new LLMClient({
-      name: 'test',
-      baseURL: 'http://localhost:3000/v1',
-      apiKey: 'test-key',
-      model: 'gpt-oss-120b',
-      maxTokens: 4096,
-    });
+    // Create client (will use ConfigManager settings)
+    client = new LLMClient();
   });
 
   describe('preprocessMessages for gpt-oss models', () => {

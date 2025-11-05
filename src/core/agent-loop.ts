@@ -23,6 +23,7 @@ export interface AgentLoopConfig {
   verbose?: boolean;
   enableLLMJudge?: boolean;
   timeout?: number; // milliseconds
+  contextGatherer?: ContextGatherer; // Allow injecting custom ContextGatherer for testing
 }
 
 export class AgentLoopController {
@@ -42,7 +43,7 @@ export class AgentLoopController {
     this.verbose = config.verbose || false;
     this.timeout = config.timeout;
 
-    this.contextGatherer = new ContextGatherer();
+    this.contextGatherer = config.contextGatherer || new ContextGatherer();
     this.actionExecutor = new ActionExecutor(llmClient, availableTools);
     this.workVerifier = new WorkVerifier(config.enableLLMJudge ? llmClient : undefined);
   }

@@ -3,18 +3,18 @@
     "task": "timeout-1",
     "layer": "standard-tools",
     "success": false,
-    "executionTime": 1,
+    "executionTime": 0,
     "complexity": 2,
-    "timestamp": "2025-11-05T03:40:23.958Z",
+    "timestamp": "2025-11-05T04:07:11.074Z",
     "error": "No tool specified for execution"
   },
   {
     "task": "integration-moderate",
     "layer": "sdk-dynamic",
     "success": true,
-    "executionTime": 1,
+    "executionTime": 0,
     "complexity": 7,
-    "timestamp": "2025-11-05T03:40:23.961Z"
+    "timestamp": "2025-11-05T04:07:11.076Z"
   },
   {
     "task": "integration-complex",
@@ -22,7 +22,7 @@
     "success": true,
     "executionTime": 1,
     "complexity": 9,
-    "timestamp": "2025-11-05T03:40:23.963Z"
+    "timestamp": "2025-11-05T04:07:11.078Z"
   },
   {
     "task": "integration-meta",
@@ -30,7 +30,7 @@
     "success": false,
     "executionTime": 0,
     "complexity": 10,
-    "timestamp": "2025-11-05T03:40:23.965Z",
+    "timestamp": "2025-11-05T04:07:11.079Z",
     "error": "No appropriate skill found for task"
   }
 ]
