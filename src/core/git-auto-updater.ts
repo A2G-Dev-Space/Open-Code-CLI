@@ -42,6 +42,13 @@ export class GitAutoUpdater {
     try {
       // Check if repo directory exists
       if (!fs.existsSync(this.repoDir)) {
+        // First run: Show immediate feedback
+        console.log();
+        console.log(chalk.cyan('🔧 First Run Detected'));
+        console.log(chalk.white('   Setting up automatic updates...'));
+        console.log(chalk.dim('   This will take 1-2 minutes (downloading, building)'));
+        console.log();
+
         // First run: clone and setup
         await this.initialSetup();
       } else {
@@ -58,7 +65,10 @@ export class GitAutoUpdater {
    * First run: Clone repository and setup npm link
    */
   private async initialSetup(): Promise<void> {
-    const spinner = ora('Setting up auto-update (first run)...').start();
+    const spinner = ora({
+      text: chalk.cyan('Step 1/4: Cloning repository from GitHub...'),
+      spinner: 'dots',
+    }).start();
 
     try {
       logger.info('Initial setup started', { repoDir: this.repoDir, repoUrl: this.repoUrl });
@@ -71,7 +81,6 @@ export class GitAutoUpdater {
       }
 
       // Clone repository
-      spinner.text = 'Cloning repository...';
       logger.debug('Cloning repository', { repoUrl: this.repoUrl, destination: this.repoDir });
 
       execSync(`git clone ${this.repoUrl} ${this.repoDir}`, {
@@ -80,9 +89,11 @@ export class GitAutoUpdater {
       });
 
       logger.info('Repository cloned successfully');
+      spinner.succeed(chalk.green('Step 1/4: Repository cloned successfully'));
 
       // Install dependencies
-      spinner.text = 'Installing dependencies...';
+      spinner.start(chalk.cyan('Step 2/4: Installing dependencies (npm install)...'));
+      spinner.text = chalk.cyan('Step 2/4: Installing dependencies (npm install)... This may take a while');
       logger.debug('Running npm install', { cwd: this.repoDir });
 
       execSync('npm install', {
@@ -91,8 +102,10 @@ export class GitAutoUpdater {
         encoding: 'utf-8',
       });
 
+      spinner.succeed(chalk.green('Step 2/4: Dependencies installed'));
+
       // Build project
-      spinner.text = 'Building project...';
+      spinner.start(chalk.cyan('Step 3/4: Building TypeScript project...'));
       logger.debug('Running npm run build', { cwd: this.repoDir });
 
       execSync('npm run build', {
@@ -101,8 +114,10 @@ export class GitAutoUpdater {
         encoding: 'utf-8',
       });
 
+      spinner.succeed(chalk.green('Step 3/4: Build completed'));
+
       // Create global link
-      spinner.text = 'Creating global link...';
+      spinner.start(chalk.cyan('Step 4/4: Creating global command link...'));
       logger.debug('Running npm link', { cwd: this.repoDir });
 
       execSync('npm link', {
@@ -111,20 +126,28 @@ export class GitAutoUpdater {
         encoding: 'utf-8',
       });
 
-      spinner.succeed('Auto-update setup complete!');
+      spinner.succeed(chalk.green('Step 4/4: Global link created'));
       logger.info('Initial setup completed successfully');
 
-      console.log(chalk.green('✨ OPEN-CLI is now linked globally'));
-      console.log(chalk.dim('   Future updates will be automatic on each run'));
+      console.log();
+      console.log(chalk.green.bold('✨ Setup Complete!'));
+      console.log(chalk.white('   OPEN-CLI is now ready to use'));
+      console.log(chalk.dim('   Updates will happen automatically on each run'));
       console.log();
     } catch (error: any) {
-      spinner.fail('Setup failed');
+      spinner.fail(chalk.red('Setup failed'));
       logger.error('Initial setup failed', error);
 
       // Log detailed error info
       if (error.stderr) {
         logger.error('Setup error output', { stderr: error.stderr.toString() });
       }
+
+      console.log();
+      console.log(chalk.red('❌ Installation failed'));
+      console.log(chalk.yellow('   Please check your network connection and try again'));
+      console.log(chalk.dim(`   Error: ${error.message}`));
+      console.log();
 
       throw error;
     }
@@ -171,11 +194,18 @@ export class GitAutoUpdater {
       // Changes detected - rebuild
       logger.info('Changes detected, rebuilding...', { pullOutput });
 
-      const spinner = ora('Updating to latest version...').start();
+      console.log();
+      console.log(chalk.cyan('📦 Update Available'));
+      console.log(chalk.white('   Updating to latest version...'));
+      console.log();
+
+      const spinner = ora({
+        text: chalk.cyan('Step 1/3: Installing dependencies...'),
+        spinner: 'dots',
+      }).start();
 
       try {
         // Install dependencies (in case package.json changed)
-        spinner.text = 'Installing dependencies...';
         logger.debug('Running npm install after update');
 
         execSync('npm install', {
@@ -184,8 +214,10 @@ export class GitAutoUpdater {
           encoding: 'utf-8',
         });
 
+        spinner.succeed(chalk.green('Step 1/3: Dependencies updated'));
+
         // Rebuild
-        spinner.text = 'Building project...';
+        spinner.start(chalk.cyan('Step 2/3: Building project...'));
         logger.debug('Running npm run build after update');
 
         execSync('npm run build', {
@@ -194,8 +226,10 @@ export class GitAutoUpdater {
           encoding: 'utf-8',
         });
 
+        spinner.succeed(chalk.green('Step 2/3: Build completed'));
+
         // Re-link (to ensure latest dist is linked)
-        spinner.text = 'Updating global link...';
+        spinner.start(chalk.cyan('Step 3/3: Updating global link...'));
         logger.debug('Running npm link after update');
 
         execSync('npm link', {
@@ -204,28 +238,39 @@ export class GitAutoUpdater {
           encoding: 'utf-8',
         });
 
-        spinner.succeed('Updated to latest version!');
+        spinner.succeed(chalk.green('Step 3/3: Global link updated'));
         logger.info('Auto-update completed successfully');
 
-        console.log(chalk.green('✨ CLI updated to latest version'));
+        console.log();
+        console.log(chalk.green.bold('✨ Update Complete!'));
+        console.log(chalk.white('   You are now running the latest version'));
         console.log();
       } catch (buildError: any) {
-        spinner.fail('Update failed');
+        spinner.fail(chalk.red('Update failed'));
         logger.error('Build/link failed after pull', buildError);
 
         // Try to rollback
         try {
           logger.info('Attempting to rollback');
+          console.log();
+          console.log(chalk.yellow('🔄 Rolling back to previous version...'));
+
           execSync('git reset --hard HEAD@{1}', {
             cwd: this.repoDir,
             stdio: 'pipe',
           });
+
           logger.info('Rollback successful');
-          console.log(chalk.yellow('⚠️  Update failed, rolled back to previous version'));
+          console.log(chalk.green('✓ Rollback successful'));
+          console.log(chalk.yellow('⚠️  Update failed, continuing with previous version'));
+          console.log();
         } catch (rollbackError) {
           logger.error('Rollback failed', rollbackError);
-          console.log(chalk.red('❌ Update and rollback failed'));
-          console.log(chalk.dim(`   You may need to manually fix: ${this.repoDir}`));
+          console.log();
+          console.log(chalk.red('❌ Update and rollback both failed'));
+          console.log(chalk.yellow('   Manual intervention may be required'));
+          console.log(chalk.dim(`   Repository: ${this.repoDir}`));
+          console.log();
         }
       }
     } catch (error: any) {
