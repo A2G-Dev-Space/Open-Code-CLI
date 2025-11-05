@@ -253,6 +253,23 @@ $ open --verbose
   - Network and API issues clearly identified
   - Complete visibility into update process with --debug flag
 
+### 2.7.4 Git-Based Auto-Update System
+- **Status**: ✅ Completed
+- **Date**: 2025-11-05
+- **Details**: [HISTORY_ALL.md#L2606-L2935](./HISTORY_ALL.md#L2606-L2935)
+- **Summary**: Replaced GitHub API-based updates with git clone/pull for no rate limits
+- **Key Changes**:
+  - **First Run**: git clone to ~/.open-cli/repo → npm install → npm build → npm link
+  - **Every Run**: git pull origin main → if changes detected → rebuild & relink
+  - **Local Changes Detection**: Skip update if user modified files in repo
+  - **Rollback**: Automatic rollback to previous commit on build failure
+- **Benefits**:
+  - ✅ No GitHub API rate limits (60/hour → unlimited)
+  - ✅ Always up-to-date automatically on every CLI run
+  - ✅ No authentication required for public repos
+  - ✅ Transparent user experience with progress indicators
+  - ✅ Safe with automatic rollback on failures
+
 ---
 
 ## ✅ Phase 3: Claude Code Agent Loop Architecture (100% Complete)

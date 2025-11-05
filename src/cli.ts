@@ -20,7 +20,7 @@ import { documentManager } from './core/document-manager.js';
 import { EndpointConfig, Message } from './types/index.js';
 // import { InteractiveApp } from './ui/components/InteractiveApp.js';
 import { PlanExecuteApp } from './ui/components/PlanExecuteApp.js';
-import { AutoUpdater } from './core/auto-updater.js';
+import { GitAutoUpdater } from './core/git-auto-updater.js';
 import { logger, LogLevel, setLogLevel } from './utils/logger.js';
 
 const program = new Command();
@@ -50,10 +50,10 @@ program
       logger.info('📝 Verbose mode enabled - detailed logging activated');
     }
 
-    // Auto-update check (unless disabled)
+    // Git-based auto-update (unless disabled)
     if (!options.noUpdate) {
-      const updater = new AutoUpdater();
-      await updater.run({ noUpdate: options.noUpdate, silent: false });
+      const updater = new GitAutoUpdater();
+      await updater.run({ noUpdate: options.noUpdate });
     }
 
     // ConfigManager 초기화 확인

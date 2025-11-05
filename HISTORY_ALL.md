@@ -2603,5 +2603,333 @@ $ open --debug
 
 ---
 
-*This document represents the complete implementation history of OPEN-CLI through Phase 2.7.3.*
+## Phase 2.7.4: Git-Based Auto-Update System (2025-11-05)
+
+### 📝 Problem Statement
+
+**Issue**: GitHub API rate limiting (60 requests/hour) causes "403 rate limit exceeded" errors during version checks, making auto-update unreliable.
+
+**User Feedback**: "403 rate limit exceeded 이거보다 훨씬 안정적인 방법이 필요한데.. curl 로 탐지는 안되나? private repo도 아닌데"
+
+**Why This Matters**:
+- GitHub API has strict rate limits (60/hour unauthenticated)
+- Public repositories don't need API authentication
+- git commands have no rate limits
+- More reliable and simpler approach
+
+### ✨ Implementation
+
+#### 1. New GitAutoUpdater Class
+
+**File**: `src/core/git-auto-updater.ts` (370 lines)
+
+**Architecture**:
+```typescript
+export class GitAutoUpdater {
+  private repoUrl = 'https://github.com/A2G-Dev-Space/Open-Code-CLI.git';
+  private repoDir = path.join(os.homedir(), '.open-cli', 'repo');
+
+  async run(options: { noUpdate?: boolean }) {
+    if (!fs.existsSync(this.repoDir)) {
+      // First run: clone and setup
+      await this.initialSetup();
+    } else {
+      // Subsequent runs: pull and update
+      await this.pullAndUpdate();
+    }
+  }
+}
+```
+
+#### 2. Initial Setup (First Run)
+
+**Flow**:
+```bash
+1. Create ~/.open-cli/repo directory
+2. git clone https://github.com/A2G-Dev-Space/Open-Code-CLI.git
+3. cd ~/.open-cli/repo && npm install
+4. npm run build
+5. npm link (creates global 'open' command)
+```
+
+**Code**:
+```typescript
+private async initialSetup(): Promise<void> {
+  const spinner = ora('Setting up auto-update (first run)...').start();
+
+  try {
+    // Clone repository
+    spinner.text = 'Cloning repository...';
+    execSync(`git clone ${this.repoUrl} ${this.repoDir}`, {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+    });
+
+    // Install dependencies
+    spinner.text = 'Installing dependencies...';
+    execSync('npm install', {
+      cwd: this.repoDir,
+      stdio: 'pipe',
+    });
+
+    // Build project
+    spinner.text = 'Building project...';
+    execSync('npm run build', {
+      cwd: this.repoDir,
+      stdio: 'pipe',
+    });
+
+    // Create global link
+    spinner.text = 'Creating global link...';
+    execSync('npm link', {
+      cwd: this.repoDir,
+      stdio: 'pipe',
+    });
+
+    spinner.succeed('Auto-update setup complete!');
+    console.log(chalk.green('✨ OPEN-CLI is now linked globally'));
+    console.log(chalk.dim('   Future updates will be automatic on each run'));
+  } catch (error) {
+    spinner.fail('Setup failed');
+    throw error;
+  }
+}
+```
+
+#### 3. Auto-Update (Every Run)
+
+**Flow**:
+```bash
+1. Check for local changes: git status --porcelain
+   - If changes exist → skip update (preserve user changes)
+2. Pull latest: git pull origin main
+3. Check output:
+   - "Already up to date" → no action needed
+   - Changes detected → rebuild
+4. If changes detected:
+   - npm install (update dependencies)
+   - npm run build
+   - npm link (refresh global command)
+```
+
+**Code**:
+```typescript
+private async pullAndUpdate(): Promise<void> {
+  try {
+    // Check git status first
+    const status = execSync('git status --porcelain', {
+      cwd: this.repoDir,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
+
+    if (status.trim() !== '') {
+      logger.warn('Local changes detected in repo directory');
+      console.log(chalk.yellow('⚠️  Local changes detected in ~/.open-cli/repo'));
+      console.log(chalk.dim('   Skipping auto-update to preserve changes'));
+      return;
+    }
+
+    // Pull latest changes
+    const pullOutput = execSync('git pull origin main', {
+      cwd: this.repoDir,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
+
+    // Check if there were any changes
+    if (pullOutput.includes('Already up to date')) {
+      logger.debug('Already up to date, no rebuild needed');
+      return;
+    }
+
+    // Changes detected - rebuild
+    const spinner = ora('Updating to latest version...').start();
+
+    execSync('npm install', { cwd: this.repoDir, stdio: 'pipe' });
+    execSync('npm run build', { cwd: this.repoDir, stdio: 'pipe' });
+    execSync('npm link', { cwd: this.repoDir, stdio: 'pipe' });
+
+    spinner.succeed('Updated to latest version!');
+    console.log(chalk.green('✨ CLI updated to latest version'));
+  } catch (error) {
+    // Don't throw - just log and continue
+    console.log(chalk.yellow('⚠️  Could not check for updates, continuing...'));
+  }
+}
+```
+
+#### 4. Rollback on Failure
+
+If build fails after pull, automatically rollback to previous commit:
+
+```typescript
+try {
+  execSync('npm install', { cwd: this.repoDir });
+  execSync('npm run build', { cwd: this.repoDir });
+  execSync('npm link', { cwd: this.repoDir });
+} catch (buildError) {
+  // Rollback to previous commit
+  try {
+    execSync('git reset --hard HEAD@{1}', { cwd: this.repoDir });
+    console.log(chalk.yellow('⚠️  Update failed, rolled back to previous version'));
+  } catch (rollbackError) {
+    console.log(chalk.red('❌ Update and rollback failed'));
+  }
+}
+```
+
+#### 5. Updated CLI Entry Point
+
+**File**: `src/cli.ts`
+
+**Changes**:
+```typescript
+// Before:
+import { AutoUpdater } from './core/auto-updater.js';
+const updater = new AutoUpdater();
+await updater.run({ noUpdate: options.noUpdate, silent: false });
+
+// After:
+import { GitAutoUpdater } from './core/git-auto-updater.js';
+const updater = new GitAutoUpdater();
+await updater.run({ noUpdate: options.noUpdate });
+```
+
+### 📊 Comparison: GitHub API vs Git Commands
+
+| Feature | GitHub API (Old) | Git Commands (New) |
+|---------|------------------|-------------------|
+| Rate Limit | 60 requests/hour | No limit |
+| Authentication | Required for private repos | Not required |
+| Reliability | ❌ Fails with 403 | ✅ Always works |
+| Speed | Fast (HTTP) | Fast (git protocol) |
+| Dependencies | axios, semver | git (usually pre-installed) |
+| Complexity | High (API parsing) | Low (git commands) |
+| User Experience | Silent updates | Transparent updates |
+
+### 🎯 Benefits
+
+1. **No Rate Limits**: git commands have no rate limits
+2. **Always Up-to-Date**: Updates automatically on every run
+3. **No API Keys**: No authentication required for public repos
+4. **Transparent**: Users see update progress
+5. **Safe**: Rollback on failure
+6. **Simple**: Pure git commands, no API parsing
+
+### 🔄 User Experience
+
+#### First Run:
+```bash
+$ open
+
+⠹ Setting up auto-update (first run)...
+  ✔ Cloning repository...
+  ✔ Installing dependencies...
+  ✔ Building project...
+  ✔ Creating global link...
+✨ OPEN-CLI is now linked globally
+   Future updates will be automatic on each run
+
+🚀 Starting Ink UI...
+```
+
+#### Subsequent Runs (No Updates):
+```bash
+$ open
+
+🚀 Starting Ink UI...
+```
+
+#### Subsequent Runs (With Updates):
+```bash
+$ open
+
+⠹ Updating to latest version...
+  ✔ Installing dependencies...
+  ✔ Building project...
+  ✔ Updating global link...
+✨ CLI updated to latest version
+
+🚀 Starting Ink UI...
+```
+
+#### When Local Changes Detected:
+```bash
+$ open
+
+⚠️  Local changes detected in ~/.open-cli/repo
+   Skipping auto-update to preserve changes
+
+🚀 Starting Ink UI...
+```
+
+### 🧪 Testing Scenarios
+
+1. **First Time Installation**:
+   - No ~/.open-cli/repo directory exists
+   - Expected: Clone, build, npm link
+
+2. **Already Up to Date**:
+   - git pull returns "Already up to date"
+   - Expected: No build, immediate start
+
+3. **Update Available**:
+   - New commits on main branch
+   - Expected: Pull, build, npm link, restart
+
+4. **Local Changes**:
+   - User modified files in ~/.open-cli/repo
+   - Expected: Skip update, preserve changes
+
+5. **Build Failure**:
+   - npm build fails after pull
+   - Expected: Rollback to previous commit
+
+6. **Network Failure**:
+   - git pull fails (no internet)
+   - Expected: Continue with current version
+
+### 📝 Files Modified
+
+1. **src/core/git-auto-updater.ts** (NEW - 370 lines)
+   - GitAutoUpdater class
+   - initialSetup() method
+   - pullAndUpdate() method
+   - Rollback logic
+   - Comprehensive logging
+
+2. **src/cli.ts** (Modified - 2 lines)
+   - Changed import from AutoUpdater to GitAutoUpdater
+   - Updated updater instantiation
+
+### 🚀 Migration Path
+
+**Old System** (Phase 2.5.1):
+- GitHub Releases API
+- Semver version comparison
+- Manual update flow
+- Backup/restore system
+- Tarball extraction
+
+**New System** (Phase 2.7.4):
+- git clone/pull
+- Automatic on every run
+- npm link for global updates
+- Rollback on failure
+- No rate limits
+
+**Backward Compatibility**:
+- Old auto-updater.ts kept for reference
+- Can be reverted if needed
+- No breaking changes to CLI
+
+### 🔗 Related Features
+
+- **Phase 2.5.1**: GitHub Release Auto-Update System (replaced)
+- **Phase 2.7.3**: Auto-Update Detailed Logging (still applicable)
+
+---
+
+*This document represents the complete implementation history of OPEN-CLI through Phase 2.7.4.*
 *For upcoming features and plans, see TODO_ALL.md.*
