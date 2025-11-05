@@ -88,6 +88,18 @@
   - Supports both Git and Tarball update methods
   - `--no-update` flag to skip checks
 
+### 2.5.2 Model Compatibility Layer (gpt-oss-120b/20b)
+- **Status**: ✅ Completed
+- **Date**: 2025-11-05
+- **Details**: [HISTORY_ALL.md#L1201-L1300](./HISTORY_ALL.md#L1201-L1300)
+- **Summary**: Fix Harmony format 422 error for gpt-oss models
+- **Key Features**:
+  - Automatic detection of gpt-oss-120b/20b models
+  - Adds required `content` field to assistant messages with tool_calls
+  - Preserves existing content or uses reasoning_content if available
+  - Case-insensitive model matching
+  - Works for both streaming and non-streaming API calls
+
 ### 2.1 Ink/React UI Implementation
 - **Status**: ✅ Completed
 - **Date**: 2024-12-25

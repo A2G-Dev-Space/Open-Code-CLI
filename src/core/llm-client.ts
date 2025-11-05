@@ -81,13 +81,47 @@ export class LLMClient {
   }
 
   /**
+   * Preprocess messages for model-specific requirements
+   *
+   * Handles model-specific quirks like Harmony format for gpt-oss models
+   */
+  private preprocessMessages(messages: Message[], modelId: string): Message[] {
+    // gpt-oss-120b / gpt-oss-20b: Harmony format handling
+    // These models require content field even when tool_calls are present
+    if (/^gpt-oss-(120b|20b)$/i.test(modelId)) {
+      return messages.map((msg) => {
+        // Check if this is an assistant message with tool_calls but no content
+        if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+          if (!msg.content || msg.content.trim() === '') {
+            // Add default content to satisfy Harmony format requirements
+            const toolNames = msg.tool_calls.map(tc => tc.function.name).join(', ');
+            return {
+              ...msg,
+              content: (msg as any).reasoning_content || `Calling tools: ${toolNames}`,
+            };
+          }
+        }
+        return msg;
+      });
+    }
+
+    // Default: return messages as-is for standard OpenAI-compatible models
+    return messages;
+  }
+
+  /**
    * Chat Completion API 호출 (Non-streaming)
    */
   async chatCompletion(options: Partial<LLMRequestOptions>): Promise<LLMResponse> {
     try {
+      // Preprocess messages for model-specific requirements
+      const modelId = options.model || this.model;
+      const processedMessages = options.messages ?
+        this.preprocessMessages(options.messages, modelId) : [];
+
       const requestBody = {
-        model: options.model || this.model,
-        messages: options.messages || [],
+        model: modelId,
+        messages: processedMessages,
         temperature: options.temperature ?? 0.7,
         max_tokens: options.max_tokens,
         stream: false,
@@ -109,9 +143,14 @@ export class LLMClient {
     options: Partial<LLMRequestOptions>
   ): AsyncGenerator<LLMStreamChunk, void, unknown> {
     try {
+      // Preprocess messages for model-specific requirements
+      const modelId = options.model || this.model;
+      const processedMessages = options.messages ?
+        this.preprocessMessages(options.messages, modelId) : [];
+
       const requestBody = {
-        model: options.model || this.model,
-        messages: options.messages || [],
+        model: modelId,
+        messages: processedMessages,
         temperature: options.temperature ?? 0.7,
         max_tokens: options.max_tokens,
         stream: true,

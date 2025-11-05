@@ -192,6 +192,10 @@ You: /docs search typescript
   - 원클릭 업데이트 (Git pull 또는 Tarball 다운로드)
   - 롤백 지원 (자동 백업 생성)
   - `--no-update` 플래그로 비활성화 가능
+- ✅ **Model Compatibility Layer** 🆕
+  - gpt-oss-120b/20b 모델 Harmony format 422 에러 해결
+  - tool_calls 메시지에 자동으로 content 필드 추가
+  - 모든 OpenAI 호환 모델과의 완벽한 호환성
 
 ### 🚧 개발 중 (Phase 2.5)
 
@@ -465,6 +469,15 @@ You: /docs search typescript
 - ✅ Multi-endpoint management
 - ✅ Local document system (Markdown knowledge base)
 - ✅ ESM migration
+- ✅ **GitHub Release Auto-Update System** 🆕
+  - Automatic version checking (GitHub Releases API)
+  - One-click updates (Git pull or Tarball download)
+  - Rollback support (automatic backup creation)
+  - `--no-update` flag to disable
+- ✅ **Model Compatibility Layer** 🆕
+  - Fixes Harmony format 422 errors for gpt-oss-120b/20b models
+  - Automatically adds content field to tool_calls messages
+  - Full compatibility with all OpenAI-compatible models
 
 ### 🚧 In Development (Phase 2.5)
 

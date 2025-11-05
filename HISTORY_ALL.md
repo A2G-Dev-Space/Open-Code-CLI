@@ -1107,5 +1107,113 @@ open-cli/
 
 ---
 
-*This document represents the complete implementation history of OPEN-CLI through Phase 2.*
+## Phase 2.5: Auto-Update & Agent Architecture (In Progress)
+
+### 2.5.1 GitHub Release Auto-Update System
+- **Status**: ✅ Completed
+- **Date**: 2025-11-05
+- **Priority**: P0 (Critical)
+
+#### Implementation Details
+
+**Core Module**: `src/core/auto-updater.ts`
+```typescript
+export class AutoUpdater {
+  async checkForUpdates(silent: boolean = false): Promise<UpdateCheckResult> {
+    const url = `${this.apiBaseUrl}/repos/${this.owner}/${this.repo}/releases/latest`;
+    const response = await axios.get(url);
+    const latestVersion = release.tag_name.replace(/^v/, '');
+
+    if (semver.gt(latestVersion, this.currentVersion)) {
+      return { hasUpdate: true, latestVersion, releaseInfo };
+    }
+  }
+
+  async performUpdate(releaseInfo: ReleaseInfo) {
+    if (isGitRepo) return await this.performGitUpdate();
+    else return await this.performTarballUpdate(releaseInfo);
+  }
+}
+```
+
+**Features Implemented**:
+- Automatic version checking on startup
+- GitHub Releases API integration
+- Semantic version comparison using semver
+- Git-based updates for development environments
+- Tarball-based updates for production deployments
+- Automatic backup creation before updates
+- Rollback capability on failure
+- Visual update notification UI
+- Skip version functionality
+- `--no-update` CLI flag support
+
+**UI Component**: `src/ui/UpdateNotification.tsx`
+- React-based Ink UI component
+- Displays version comparison
+- Shows changelog preview
+- Interactive confirmation prompts
+
+#### Testing
+- Comprehensive unit tests created
+- Network error handling tested
+- Version comparison edge cases covered
+- Rollback scenarios validated
+
+---
+
+### 2.5.2 Model Compatibility Layer
+- **Status**: ✅ Completed
+- **Date**: 2025-11-05
+- **Priority**: P1 (Important)
+
+#### Implementation Details
+
+**Problem**: gpt-oss-120b and gpt-oss-20b models return 422 format errors when assistant messages with tool_calls don't have a content field.
+
+**Solution**: Added preprocessMessages method to LLMClient
+```typescript
+private preprocessMessages(messages: Message[], modelId: string): Message[] {
+  if (/^gpt-oss-(120b|20b)$/i.test(modelId)) {
+    return messages.map((msg) => {
+      if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+        if (!msg.content || msg.content.trim() === '') {
+          const toolNames = msg.tool_calls.map(tc => tc.function.name).join(', ');
+          return {
+            ...msg,
+            content: (msg as any).reasoning_content || `Calling tools: ${toolNames}`,
+          };
+        }
+      }
+      return msg;
+    });
+  }
+  return messages;
+}
+```
+
+**Features**:
+- Automatic detection of gpt-oss models
+- Case-insensitive model name matching
+- Adds required content field to tool call messages
+- Preserves existing content if present
+- Uses reasoning_content field if available
+- Applied to both streaming and non-streaming methods
+
+#### Testing
+- Created comprehensive test suite in `test/core/llm-client.test.ts`
+- Tests for model pattern matching
+- Tests for content field generation
+- Tests for edge cases (empty tool_calls, mixed messages)
+- Case-insensitive model name tests
+
+#### Impact
+- Resolves 422 format errors for gpt-oss models
+- Maintains backward compatibility with OpenAI models
+- No performance impact on non-gpt-oss models
+- Quick implementation (1-2 hours) chosen over full adapter pattern
+
+---
+
+*This document represents the complete implementation history of OPEN-CLI through Phase 2.5 (ongoing).*
 *For upcoming features and plans, see TODO_ALL.md.*
