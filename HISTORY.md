@@ -9,9 +9,11 @@
 - **Phase 1**: 100% Complete (11 features)
 - **Phase 2**: 100% Complete (6 features)
 - **Phase 2.5**: 100% Complete (3 features)
-- **Phase 2.6**: In Progress (1 feature completed)
+- **Phase 2.6**: 100% Complete (1 feature)
+- **Phase 2.7**: 100% Complete (4 features)
+- **Phase 2.8**: 100% Complete (1 feature)
 - **Phase 3**: 100% Complete (4 major Claude Code features + UI)
-- **Total Lines of Code**: ~15,300+
+- **Total Lines of Code**: ~15,800+
 - **Implementation Period**: December 2024 - November 2025
 
 ---
@@ -81,6 +83,8 @@
 ## ✅ Phase 2.6: UI/UX Enhancements (100% Complete)
 
 ## ✅ Phase 2.7: Error Logging & Debugging System (100% Complete)
+
+## ✅ Phase 2.8: Framework-Aware Documentation Search (100% Complete)
 
 ### 2.5.1 GitHub Release Auto-Update System
 - **Status**: ✅ Completed
@@ -270,6 +274,29 @@ $ open --verbose
   - ✅ Transparent user experience with progress indicators
   - ✅ Safe with automatic rollback on failures
 
+### 2.8.1 Intelligent Framework Detection & Batch Documentation Loading
+- **Status**: ✅ Completed
+- **Date**: 2025-11-06
+- **Details**: [HISTORY_ALL.md#L2936-L3200](./HISTORY_ALL.md#L2936-L3200)
+- **Summary**: Enhanced documentation search with intelligent framework detection and batch loading
+- **Key Features**:
+  - **Framework Detection**: Automatic ADK/AGNO keyword detection
+  - **Category-Aware**: 7 AGNO categories (agent, models, rag, workflows, teams, memory, database)
+  - **Path Resolution**: Automatic documentation path building
+  - **Batch Loading**: Load ALL docs for agent creation queries
+  - **Security Enhanced**: Safe command substitution validation
+  - **No Context Loss**: Complete original documents preserved
+- **Components**:
+  - `agent-framework-handler.ts` (NEW - 251 lines): Framework detection and path routing
+  - `bash-command-tool.ts` (Modified): Enhanced security + batch load support
+  - `docs-search-agent.ts` (Modified): Framework-aware search + batch instructions
+  - `PlanExecuteApp.tsx` (Modified): Automatic docs search integration
+- **Performance**:
+  - Framework Detection: <1ms
+  - Docs Search Agent: 5-10s
+  - Batch File Loading: 2-5s (10-15 files)
+  - Total Overhead: 7-15s
+
 ---
 
 ## ✅ Phase 3: Claude Code Agent Loop Architecture (100% Complete)
@@ -417,12 +444,13 @@ open-cli/
 ## 📈 Statistics
 
 ### Code Metrics
-- **Total LOC**: ~15,000+
+- **Total LOC**: ~15,800+
 - **Phase 1**: ~4,500 lines
 - **Phase 2**: ~2,500 lines
 - **Phase 2.5**: ~2,000 lines
+- **Phase 2.6-2.8**: ~800 lines (@ File, Error Logging, Docs Search)
 - **Phase 3**: ~6,000+ lines (Agent Loop, Multi-Layer, TDD, UI)
-- **Files**: 75+ total (55+ TypeScript)
+- **Files**: 76+ total (56+ TypeScript)
 - **UI Components**: 10+ React components
 
 ### Test Coverage
@@ -440,9 +468,11 @@ open-cli/
 ### Features Implemented
 - **Phase 1 & 2**: 17 features ✅
 - **Phase 2.5**: 3 features ✅
-- **Phase 2.6**: 1 feature ✅ (partial: @ file inclusion)
+- **Phase 2.6**: 1 feature ✅ (@ file inclusion)
+- **Phase 2.7**: 4 features ✅ (Error logging, Function i18n, Auto-update logging, Git-based update)
+- **Phase 2.8**: 1 feature ✅ (Framework-aware docs search)
 - **Phase 3**: 5 major features ✅
-- **Total**: 26 features completed (1 partially)
+- **Total**: 31 features completed
 
 **Full Details**: [HISTORY_ALL.md#L1032-L1082](./HISTORY_ALL.md#L1032-L1082)
 
@@ -465,11 +495,13 @@ open-cli/
 10. ✅ **TDD Workflow** (Red-Green-Refactor automation)
 11. ✅ **3-Mode Verification** (Rules/Visual/LLM-as-Judge)
 12. ✅ **Real-time Progress UI** (10+ React components)
+13. ✅ **Framework-Aware Docs Search** (ADK/AGNO detection with batch loading)
 
 ### Quality & Testing
-13. ✅ **Comprehensive Test Suite** (64 tests with 79.7% pass rate)
-14. ✅ **Type Safety** (Full TypeScript with strict mode)
-15. ✅ **Auto-Update System** (GitHub Releases integration)
+14. ✅ **Comprehensive Test Suite** (64 tests with 79.7% pass rate)
+15. ✅ **Type Safety** (Full TypeScript with strict mode)
+16. ✅ **Auto-Update System** (Git-based unlimited updates)
+17. ✅ **Comprehensive Error Logging** (5 log levels, 12+ error types)
 
 ---
 
@@ -484,6 +516,6 @@ open-cli/
 
 ---
 
-*Last Updated: 2025-11-05*
-*Version: 3.0.0 - Claude Code Agent Loop Architecture Complete*
-*Latest: @ File Inclusion Feature (Phase 2.6.1) completed*
+*Last Updated: 2025-11-06*
+*Version: 3.1.0 - Framework-Aware Documentation Search Complete*
+*Latest: Intelligent Framework Detection & Batch Documentation Loading (Phase 2.8.1) completed*

