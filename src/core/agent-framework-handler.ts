@@ -1,0 +1,250 @@
+/**
+ * Agent Framework Handler
+ * 
+ * Handles framework-specific functionality:
+ * - Framework keyword detection (ADK, AGNO)
+ * - Documentation search trigger logic
+ * - Integration with docs search agent
+ */
+
+import { LLMClient } from './llm-client.js';
+import { Message } from '../types/index.js';
+import { executeDocsSearchAgent } from './docs-search-agent.js';
+import { logger } from '../utils/logger.js';
+
+/**
+ * Framework detection result
+ */
+export interface FrameworkDetection {
+  framework: 'adk' | 'agno' | null;
+  category: string | null;
+  basePath: string;
+  requiresBatchLoad: boolean; // Whether to load all files in the directory
+}
+
+/**
+ * AGNO category configuration
+ */
+interface AgnoCategoryConfig {
+  category: string;
+  keywords: string[];
+  requiresBatchLoad: boolean;
+}
+
+/**
+ * AGNO category mappings
+ */
+const AGNO_CATEGORIES: AgnoCategoryConfig[] = [
+  {
+    category: 'agent',
+    keywords: ['agent', '에이전트'],
+    requiresBatchLoad: true, // Will be checked against isAgentCreationQuery
+  },
+  {
+    category: 'models',
+    keywords: ['model', 'llm', '모델', 'gemini', 'openai', 'litellm'],
+    requiresBatchLoad: false,
+  },
+  {
+    category: 'rag',
+    keywords: ['rag', 'retrieval', '검색'],
+    requiresBatchLoad: false,
+  },
+  {
+    category: 'workflows',
+    keywords: ['workflow', '워크플로우'],
+    requiresBatchLoad: false,
+  },
+  {
+    category: 'teams',
+    keywords: ['team', '팀'],
+    requiresBatchLoad: false,
+  },
+  {
+    category: 'memory',
+    keywords: ['memory', '메모리'],
+    requiresBatchLoad: false,
+  },
+  {
+    category: 'database',
+    keywords: ['database', 'db', '데이터베이스'],
+    requiresBatchLoad: false,
+  },
+];
+
+/**
+ * Framework path constants
+ */
+export const FRAMEWORK_PATHS = {
+  adk: 'agent_framework/adk',
+  agno: 'agent_framework/agno',
+} as const;
+
+/**
+ * Get all framework paths for documentation
+ * @returns Array of framework path descriptions
+ */
+export function getFrameworkPathsForDocs(): Array<{ name: string; path: string }> {
+  return [
+    { name: 'ADK Agent', path: `${FRAMEWORK_PATHS.adk}/` },
+    { name: 'AGNO Agent', path: `${FRAMEWORK_PATHS.agno}/agent/` },
+    { name: 'AGNO Models', path: `${FRAMEWORK_PATHS.agno}/models/` },
+    { name: 'AGNO RAG', path: `${FRAMEWORK_PATHS.agno}/rag/` },
+    { name: 'AGNO Workflows', path: `${FRAMEWORK_PATHS.agno}/workflows/` },
+    { name: 'AGNO Teams', path: `${FRAMEWORK_PATHS.agno}/teams/` },
+    { name: 'AGNO Memory', path: `${FRAMEWORK_PATHS.agno}/memory/` },
+    { name: 'AGNO Database', path: `${FRAMEWORK_PATHS.agno}/database/` },
+  ];
+}
+
+/**
+ * Check if query is about agent creation or writing
+ * @param query User query string (should be lowercased)
+ * @returns true if query contains agent creation keywords
+ */
+function isAgentCreationQuery(query: string): boolean {
+  const creationKeywords = [
+    'agent', '에이전트',
+    '작성', '만들', 'create', 'write', '구현'
+  ];
+
+  return creationKeywords.some(keyword => query.includes(keyword));
+}
+
+/**
+ * Build AGNO framework path
+ */
+function buildAgnoPath(category: string | null): string {
+  if (!category) {
+    return FRAMEWORK_PATHS.agno;
+  }
+  return `${FRAMEWORK_PATHS.agno}/${category}`;
+}
+
+/**
+ * Detect AGNO category from query
+ */
+function detectAgnoCategory(query: string): AgnoCategoryConfig | null {
+  for (const config of AGNO_CATEGORIES) {
+    if (config.keywords.some(keyword => query.includes(keyword))) {
+      return config;
+    }
+  }
+  return null;
+}
+
+/**
+ * Detect framework keywords and return relevant directory path
+ * Supports both Korean and English keywords
+ * @param query User query string
+ * @returns Framework detection result with path and batch load requirements
+ */
+export function detectFrameworkPath(query: string): FrameworkDetection {
+  const lowerQuery = query.toLowerCase();
+
+  // ADK detection
+  if (lowerQuery.includes('adk')) {
+    return {
+      framework: 'adk',
+      category: null,
+      basePath: FRAMEWORK_PATHS.adk,
+      requiresBatchLoad: isAgentCreationQuery(lowerQuery),
+    };
+  }
+
+  // AGNO detection
+  if (lowerQuery.includes('agno')) {
+    const categoryConfig = detectAgnoCategory(lowerQuery);
+    
+    if (categoryConfig) {
+      const requiresBatchLoad = categoryConfig.requiresBatchLoad 
+        ? isAgentCreationQuery(lowerQuery)
+        : false;
+      
+      return {
+        framework: 'agno',
+        category: categoryConfig.category,
+        basePath: buildAgnoPath(categoryConfig.category),
+        requiresBatchLoad,
+      };
+    }
+
+    // Default to general agno
+    return {
+      framework: 'agno',
+      category: null,
+      basePath: FRAMEWORK_PATHS.agno,
+      requiresBatchLoad: false,
+    };
+  }
+
+  return {
+    framework: null,
+    category: null,
+    basePath: '',
+    requiresBatchLoad: false,
+  };
+}
+
+/**
+ * Check if query contains agent framework keywords
+ * Uses detectFrameworkPath internally for consistency
+ * @param query User query string
+ * @returns true if framework keywords (adk, agno) are detected
+ */
+export function shouldPerformDocsSearch(query: string): boolean {
+  const detection = detectFrameworkPath(query);
+  return detection.framework !== null;
+}
+
+/**
+ * Perform documentation search if framework keywords are detected
+ * @param llmClient LLM client instance
+ * @param query User query string
+ * @param currentMessages Current message array
+ * @returns Updated messages and whether docs search was performed
+ */
+export async function performDocsSearchIfNeeded(
+  llmClient: LLMClient,
+  query: string,
+  currentMessages: Message[]
+): Promise<{ messages: Message[]; performed: boolean }> {
+  // Check if docs search is needed
+  if (!shouldPerformDocsSearch(query)) {
+    return { messages: currentMessages, performed: false };
+  }
+
+  logger.info('📚 DocsSearch triggered', { query, context: 'agent-framework-handler' });
+  console.log(`📚 Searching documentation for: ${query.substring(0, 50)}...`);
+
+  const searchStartTime = Date.now();
+  const searchResult = await executeDocsSearchAgent(llmClient, query);
+  const searchDuration = Date.now() - searchStartTime;
+
+  if (searchResult.success && searchResult.result) {
+    logger.debug('DocsSearch completed successfully', {
+      resultLength: searchResult.result.length,
+      duration: `${searchDuration}ms`,
+      context: 'agent-framework-handler'
+    });
+
+    // Add docs search result to messages
+    const updatedMessages = [
+      ...currentMessages,
+      {
+        role: 'assistant' as const,
+        content: `[Documentation Search Complete]\n${searchResult.result}`,
+      },
+    ];
+
+    return { messages: updatedMessages, performed: true };
+  } else {
+    logger.warn('DocsSearch failed or returned no results', {
+      error: searchResult.error,
+      context: 'agent-framework-handler'
+    });
+
+    return { messages: currentMessages, performed: false };
+  }
+}
+

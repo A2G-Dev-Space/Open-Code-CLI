@@ -15,6 +15,7 @@ import { TodoExecutor } from '../../core/todo-executor.js';
 import { TodoPanel, TodoStatusBar } from '../TodoPanel.js';
 import { sessionManager } from '../../core/session-manager.js';
 import { initializeDocsDirectory } from '../../core/docs-search-agent.js';
+import { performDocsSearchIfNeeded } from '../../core/agent-framework-handler.js';
 import { FileBrowser } from './FileBrowser.js';
 import { detectAtTrigger, insertFilePaths } from '../hooks/atFileProcessor.js';
 import { loadFileList, FileItem } from '../hooks/useFileList.js';
@@ -217,10 +218,14 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
   const handleDirectMode = async (userMessage: string) => {
     // Direct mode - same as original InteractiveApp
     try {
+      // Perform docs search if framework keywords detected
+      const { messages: messagesWithDocs } =
+        await performDocsSearchIfNeeded(llmClient, userMessage, messages);
+
       const { FILE_TOOLS } = await import('../../tools/file-tools.js');
 
       const result = await llmClient.chatCompletionWithTools(
-        messages.concat({ role: 'user', content: userMessage }),
+        messagesWithDocs.concat({ role: 'user', content: userMessage }),
         FILE_TOOLS,
         5
       );

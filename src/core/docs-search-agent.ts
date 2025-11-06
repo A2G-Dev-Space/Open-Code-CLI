@@ -7,8 +7,17 @@
 import { LLMClient } from './llm-client.js';
 import { Message, ToolDefinition } from '../types/index.js';
 import { executeBashCommand, isCommandSafe, sanitizeCommand } from './bash-command-tool.js';
+import { detectFrameworkPath, getFrameworkPathsForDocs, FrameworkDetection } from './agent-framework-handler.js';
 import path from 'path';
 import os from 'os';
+
+/**
+ * Configuration constants
+ */
+const DOCS_SEARCH_MAX_ITERATIONS = 10;
+const DOCS_SEARCH_MAX_OUTPUT_LENGTH = 50000;
+const DOCS_SEARCH_LLM_TEMPERATURE = 0.3;
+const DOCS_SEARCH_LLM_MAX_TOKENS = 4000;
 
 /**
  * Bash command tool definition for LLM
@@ -32,6 +41,79 @@ const RUN_BASH_TOOL: ToolDefinition = {
 };
 
 /**
+ * Build framework-specific search hints and instructions
+ */
+function buildFrameworkHints(frameworkDetection: FrameworkDetection): {
+  searchHint: string;
+  batchLoadInstruction: string;
+} {
+  let searchHint = '';
+  let batchLoadInstruction = '';
+  
+  if (frameworkDetection.framework) {
+    const frameworkName = frameworkDetection.framework.toUpperCase();
+    const categoryInfo = frameworkDetection.category 
+      ? ` (category: ${frameworkDetection.category})` 
+      : '';
+    
+    searchHint = `\n\n**FRAMEWORK DETECTED**: ${frameworkName}${categoryInfo}\n**Target Path**: ${frameworkDetection.basePath}`;
+    
+    if (frameworkDetection.requiresBatchLoad) {
+      batchLoadInstruction = `\n\n**BATCH LOAD REQUIRED**: This query requires agent creation/writing. You MUST load ALL markdown files in the "${frameworkDetection.basePath}" directory using: cat $(find ${frameworkDetection.basePath} -name "*.md" -type f | sort)`;
+    }
+  }
+  
+  return { searchHint, batchLoadInstruction };
+}
+
+/**
+ * Build system prompt for documentation search
+ */
+function buildSystemPrompt(frameworkDetection: FrameworkDetection): string {
+  const { searchHint, batchLoadInstruction } = buildFrameworkHints(frameworkDetection);
+  
+  return `You are a documentation search expert for the ~/.open-cli/docs folder.
+
+**Your Mission**:
+Find information requested by the user in the ~/.open-cli/docs folder.${searchHint}${batchLoadInstruction}
+
+**Available Tools**:
+- run_bash: Execute bash commands in the docs directory
+
+**Useful Commands**:
+- ls: List files and directories (e.g., ls -la agent_framework/agno)
+- find: Search for files by name (e.g., find agent_framework/agno -name "*.md" -type f)
+- grep: Search file contents (e.g., grep -r "keyword" agent_framework/agno --include="*.md")
+- cat: Read FULL file contents (e.g., cat agent_framework/agno/agent/README.md)
+- Batch load: cat $(find path -name "*.md" -type f | sort) - Load all MD files in a directory
+
+**Documentation Structure**:
+- Documents are organized by functionality: each document covers ONE Class or ONE Function
+- Directory structure: agent_framework/{framework}/{category}/
+
+**Search Strategy**:
+1. Explore structure: Use ls or find to understand the directory structure
+2. Load full documents: Use cat to read COMPLETE files (NO chunking, NO head/tail unless file is >10000 lines)
+3. Batch load when required: For agent/workflow construction queries, load ALL files in the target directory
+
+**CRITICAL RULES**:
+- ⚠️ NO CHUNKING: ALWAYS load complete original documents - DO NOT use head/tail or truncate unless file is >10000 lines
+- ⚠️ NO CONTEXT LOSS: Each document is about one Class/Function - load the full original to preserve complete context
+- ⚠️ ORIGINAL DOCUMENTS: Always read the original document content as-is - do not summarize or truncate
+
+**Framework-Specific Paths**:
+${getFrameworkPathsForDocs().map(({ name, path }) => `- ${name}: ${path}`).join('\n')}
+
+**Important Rules**:
+- Maximum ${DOCS_SEARCH_MAX_ITERATIONS} tool calls to find information
+- Return ALL relevant content (don't summarize code examples)
+- Include file paths when referencing information
+- If information is not found, state "Information not found in documentation"
+
+**Current working directory**: ~/.open-cli/docs`;
+}
+
+/**
  * Execute Docs Search Agent
  * Uses sub-LLM with bash tools to search ~/.open-cli/docs
  */
@@ -40,38 +122,11 @@ export async function executeDocsSearchAgent(
   query: string
 ): Promise<{ success: boolean; result?: string; error?: string }> {
   try {
-    // System prompt: Documentation search expert
-    const systemPrompt = `You are a documentation search expert for the ~/.open-cli/docs folder.
-
-**Your Mission**:
-Find information requested by the user in the ~/.open-cli/docs folder.
-
-**Available Tools**:
-- run_bash: Execute bash commands in the docs directory
-
-**Useful Commands**:
-- ls: List files and directories (e.g., ls -la)
-- tree: Show directory structure (e.g., tree -L 2)
-- find: Search for files by name (e.g., find . -name "*.md" -type f)
-- grep: Search file contents (e.g., grep -r "keyword" . --include="*.md")
-- cat: Read file contents (e.g., cat README.md)
-- head/tail: Read first/last lines (e.g., head -20 file.md)
-
-**Search Strategy**:
-1. First, explore the folder structure (ls or tree)
-2. Find relevant files by filename (find)
-3. Search for keywords in file contents (grep)
-4. Read relevant sections from files (cat, head, tail)
-5. Synthesize information from multiple sources
-
-**Important Rules**:
-- Maximum 10 tool calls to find information
-- Summarize findings clearly and concisely
-- Include file paths when referencing information
-- If information is not found, state "Information not found in documentation"
-- Focus on finding the most relevant information
-
-**Current working directory**: ~/.open-cli/docs`;
+    // Detect framework-specific path and requirements
+    const frameworkDetection = detectFrameworkPath(query);
+    
+    // Build system prompt
+    const systemPrompt = buildSystemPrompt(frameworkDetection);
 
     // Initial messages
     const messages: Message[] = [
@@ -86,7 +141,7 @@ Find information requested by the user in the ~/.open-cli/docs folder.
     ];
 
     // Multi-iteration loop (max 10)
-    const maxIterations = 10;
+    const maxIterations = DOCS_SEARCH_MAX_ITERATIONS;
     let iteration = 0;
     let finalResult = '';
 
@@ -97,8 +152,8 @@ Find information requested by the user in the ~/.open-cli/docs folder.
       const response = await llmClient.chatCompletion({
         messages,
         tools: [RUN_BASH_TOOL],
-        temperature: 0.3, // Lower temperature for more focused search
-        max_tokens: 2000,
+        temperature: DOCS_SEARCH_LLM_TEMPERATURE, // Lower temperature for more focused search
+        max_tokens: DOCS_SEARCH_LLM_MAX_TOKENS, // Increased for comprehensive documentation synthesis
       });
 
       const assistantMessage = response.choices[0]?.message;
@@ -142,9 +197,11 @@ Find information requested by the user in the ~/.open-cli/docs folder.
             let toolResult: string;
             if (result.success) {
               toolResult = result.result || 'Command executed successfully (no output)';
-              // Truncate very long outputs
-              if (toolResult.length > 3000) {
-                toolResult = toolResult.substring(0, 2900) + '\n... (output truncated)';
+              // Increased truncation limit for batch loading complete documents
+              // Supports loading multiple complete markdown files without context loss
+              // 50000 characters should be enough for ~10-15 typical documentation files
+              if (toolResult.length > DOCS_SEARCH_MAX_OUTPUT_LENGTH) {
+                toolResult = toolResult.substring(0, DOCS_SEARCH_MAX_OUTPUT_LENGTH - 100) + '\n... (output truncated - too many files, consider loading specific subset)';
               }
             } else {
               toolResult = `Error: ${result.error}`;

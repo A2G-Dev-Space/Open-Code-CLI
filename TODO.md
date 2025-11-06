@@ -6,16 +6,16 @@
 
 ## 📊 Summary
 
-- **Total Features**: 21 (기존 14 + Claude Code 방법론 6 + Error Logging 1)
-- **Completed**: 9 features ✅
+- **Total Features**: 22 (기존 14 + Claude Code 방법론 6 + Error Logging 1 + Docs Search Enhancement 1)
+- **Completed**: 11 features ✅
 - **Partially Completed**: 1 feature 🚧
 - **In Progress**: 0 features
-- **Not Started**: 11 features
+- **Not Started**: 10 features
 - **Priority 0 (Critical)**: 2 remaining (4 completed)
-- **Priority 1 (Important)**: 9 remaining (3 completed)
+- **Priority 1 (Important)**: 7 remaining (5 completed)
 - **Priority 2 (Medium)**: 1.5 remaining (0.5 completed - @ file inclusion)
 - **Priority 3 (Low)**: 1 feature
-- **Estimated Remaining Time**: 7-9 weeks
+- **Estimated Remaining Time**: 6-8 weeks
 
 ---
 
@@ -147,6 +147,34 @@
 - **Details**: [TODO_ALL.md#L7282-L7381](./TODO_ALL.md#L7282-L7381)
 - **Summary**: 위험한 작업에 대한 명시적 승인 시스템
 
+### 21. Comprehensive Error Logging & Debugging System 🆕
+- **Time**: 1 day
+- **Status**: [x] Completed ✅
+- **Details**: [HISTORY_ALL.md#L1446-L2069](./HISTORY_ALL.md#L1446-L2069)
+- **Summary**: Detailed error classification and logging for debugging
+- **Completed**: 2025-11-05
+- **Key Features**:
+  - Logger system with 5 log levels (ERROR/WARN/INFO/DEBUG/VERBOSE)
+  - 12+ specific error types with detailed messages
+  - `--verbose` and `--debug` CLI flags
+  - Rich error display in UI with code, details, recovery hints
+  - HTTP request/response logging
+  - Tool execution tracking
+
+### 22. Framework-Aware Documentation Search Enhancement 🆕
+- **Time**: 1 day
+- **Status**: [x] Completed ✅
+- **Details**: [HISTORY_ALL.md#L2936-L3200](./HISTORY_ALL.md#L2936-L3200)
+- **Summary**: Enhanced docs search with framework detection and batch loading
+- **Completed**: 2025-11-06
+- **Key Features**:
+  - Automatic ADK/AGNO framework keyword detection
+  - 7 AGNO categories (agent, models, rag, workflows, teams, memory, database)
+  - Automatic documentation path resolution
+  - Batch loading for agent creation queries
+  - Enhanced bash command security with command substitution support
+  - No context loss - complete original documents preserved
+
 ---
 
 ## 📋 Priority 2 - Medium
@@ -256,6 +284,6 @@
 
 ---
 
-*Last Updated: 2025-11-05*
-*Version: 3.0.0 - Phase 1 & 2 Complete, 8 Major Features Implemented*
-*Latest: @ File Inclusion Feature (P2-2 partial) completed*
+*Last Updated: 2025-11-06*
+*Version: 3.1.0 - Phase 2.8 Complete: Framework-Aware Documentation Search*
+*Latest: Framework-Aware Documentation Search Enhancement (P1-22) completed*
