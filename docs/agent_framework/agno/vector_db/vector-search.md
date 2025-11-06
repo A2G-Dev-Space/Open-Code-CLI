@@ -1,0 +1,57 @@
+# Vector Search
+
+> Original Document: [Vector Search](https://docs.agno.com/examples/concepts/knowledge/search_type/vector-search.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:14.820Z
+
+---
+
+# Vector Search
+
+## Code
+
+```python vector_search.py theme={null}
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.pgvector import PgVector, SearchType
+
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
+# Load knowledge base using vector search
+vector_db = PgVector(table_name="recipes", db_url=db_url, search_type=SearchType.vector)
+knowledge = Knowledge(
+    name="Vector Search Knowledge Base",
+    vector_db=vector_db,
+)
+
+knowledge.add_content(
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf",
+)
+
+# Run a vector-based query
+results = vector_db.search("chicken coconut soup", limit=5)
+print("Vector Search Results:", results)
+```
+
+## Usage
+
+<Steps>
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno sqlalchemy psycopg pgvector
+    ```
+  </Step>
+
+  <Snippet file="run-pgvector-step.mdx" />
+
+  <Step title="Run the example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/search_type/vector_search.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/search_type/vector_search.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

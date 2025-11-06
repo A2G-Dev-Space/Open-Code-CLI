@@ -1,0 +1,52 @@
+# Hacker News
+
+> Original Document: [Hacker News](https://docs.agno.com/concepts/tools/toolkits/search/hackernews.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.092Z
+
+---
+
+# Hacker News
+
+**HackerNews** enables an Agent to search Hacker News website.
+
+## Example
+
+The following agent will write an engaging summary of the users with the top 2 stories on hackernews along with the stories.
+
+```python cookbook/tools/hackernews.py theme={null}
+from agno.agent import Agent
+from agno.tools.hackernews import HackerNewsTools
+
+agent = Agent(
+    name="Hackernews Team",
+    tools=[HackerNewsTools()],
+        markdown=True,
+)
+
+agent.print_response(
+    "Write an engaging summary of the "
+    "users with the top 2 stories on hackernews. "
+    "Please mention the stories as well.",
+)
+```
+
+## Toolkit Params
+
+| Parameter                 | Type   | Default | Description                    |
+| ------------------------- | ------ | ------- | ------------------------------ |
+| `enable_get_top_stories`  | `bool` | `True`  | Enables fetching top stories.  |
+| `enable_get_user_details` | `bool` | `True`  | Enables fetching user details. |
+| `all`                     | `bool` | `False` | Enables all functionality.     |
+
+## Toolkit Functions
+
+| Function                     | Description                                                                                                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_top_hackernews_stories` | Retrieves the top stories from Hacker News. Parameters include `num_stories` to specify the number of stories to return (default is 10). Returns the top stories in JSON format. |
+| `get_user_details`           | Retrieves the details of a Hacker News user by their username. Parameters include `username` to specify the user. Returns the user details in JSON format.                       |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/hackernews.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/hackernews_tools.py)

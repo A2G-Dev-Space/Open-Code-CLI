@@ -1,0 +1,224 @@
+# Custom FastAPI App with JWT Middleware
+
+> Original Document: [Custom FastAPI App with JWT Middleware](https://docs.agno.com/examples/agent-os/middleware/custom-fastapi-jwt.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.272Z
+
+---
+
+# Custom FastAPI App with JWT Middleware
+
+> Custom FastAPI application with JWT middleware for authentication and AgentOS integration
+
+This example demonstrates how to integrate JWT middleware with your custom FastAPI application and then add AgentOS functionality on top.
+
+## Code
+
+```python custom_fastapi_jwt.py theme={null}
+from datetime import datetime, timedelta, UTC
+
+import jwt
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.openai import OpenAIChat
+from agno.os import AgentOS
+from agno.os.middleware import JWTMiddleware
+from agno.tools.duckduckgo import DuckDuckGoTools
+from fastapi import FastAPI, Form, HTTPException
+
+# JWT Secret (use environment variable in production)
+JWT_SECRET = "a-string-secret-at-least-256-bits-long"
+
+# Setup database
+db = PostgresDb(db_url="postgresql+psycopg://ai:ai@localhost:5532/ai")
+
+# Create agent
+research_agent = Agent(
+    id="research-agent",
+    name="Research Agent",
+    model=OpenAIChat(id="gpt-4o"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+    markdown=True,
+)
+
+# Create custom FastAPI app
+app = FastAPI(
+    title="Example Custom App",
+    version="1.0.0",
+)
+
+# Add Agno JWT middleware to your custom FastAPI app
+app.add_middleware(
+    JWTMiddleware,
+    secret_key=JWT_SECRET,
+    excluded_route_paths=[
+        "/auth/login"
+    ],  # We don't want to validate the token for the login endpoint
+    validate=True,  # Set validate to False to skip token validation
+)
+
+
+# Custom routes that use JWT
+@app.post("/auth/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    """Login endpoint that returns JWT token"""
+    if username == "demo" and password == "password":
+        payload = {
+            "sub": "user_123",
+            "username": username,
+            "exp": datetime.now(UTC) + timedelta(hours=24),
+            "iat": datetime.now(UTC),
+        }
+        token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+        return {"access_token": token, "token_type": "bearer"}
+
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
+# Clean AgentOS setup with tuple middleware pattern! ✨
+agent_os = AgentOS(
+    description="JWT Protected AgentOS",
+    agents=[research_agent],
+    base_app=app,
+)
+
+# Get the final app
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    """
+    Run your AgentOS with JWT middleware applied to the entire app.
+
+    Test endpoints:
+    1. POST /auth/login - Login to get JWT token
+    2. GET /config - Protected route (requires JWT)
+    """
+    agent_os.serve(
+        app="custom_fastapi_jwt:app", port=7777, reload=True
+    )
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=your_openai_api_key
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai pyjwt ddgs "fastapi[standard]" uvicorn sqlalchemy pgvector psycopg python-multipart
+    ```
+  </Step>
+
+  <Step title="Setup PostgreSQL Database">
+    ```bash  theme={null}
+    # Using Docker
+    docker run -d \
+      --name agno-postgres \
+      -e POSTGRES_DB=ai \
+      -e POSTGRES_USER=ai \
+      -e POSTGRES_PASSWORD=ai \
+      -p 5532:5432 \
+      pgvector/pgvector:pg17
+    ```
+  </Step>
+
+  <Step title="Run Example">
+    ```bash  theme={null}
+    python custom_fastapi_jwt.py
+    ```
+  </Step>
+
+  <Step title="Test Authentication Flow">
+    **Step 1: Login to get JWT token**
+
+    ```bash  theme={null}
+    TOKEN=$(curl -X POST "http://localhost:7777/auth/login" \
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      -d "username=demo&password=password" \
+      | jq -r '.access_token')
+
+    echo "Token: $TOKEN"
+    ```
+
+    **Step 2: Test protected endpoints with token**
+
+    ```bash  theme={null}
+    # Test AgentOS config endpoint
+    curl -H "Authorization: Bearer $TOKEN" \
+      "http://localhost:7777/config"
+
+    # Test agent interaction
+    curl -X POST "http://localhost:7777/agents/research-agent/runs" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"message": "Search for information about FastAPI middleware"}'
+    ```
+
+    **Step 3: Test without token (should get 401)**
+
+    ```bash  theme={null}
+    curl "http://localhost:7777/config"
+    # Should return: {"detail": "Not authenticated"}
+    ```
+  </Step>
+
+  <Step title="Test on a browser">
+    1. **Visit the API docs**: [http://localhost:7777/docs](http://localhost:7777/docs)
+    2. **Login via form**: Try the `/auth/login` endpoint with `username=demo` and `password=password`
+    3. **Copy the token**: From the response, copy the `access_token` value
+    4. **Authorize in docs**: Click the "Authorize" button and paste `Bearer <your-token>`
+    5. **Test protected endpoints**: Try any AgentOS endpoint - they should now work
+  </Step>
+</Steps>
+
+## Authentication Flow
+
+<Steps>
+  <Step title="User Login">
+    Client sends credentials to `/auth/login`:
+
+    ```bash  theme={null}
+    POST /auth/login
+    Content-Type: application/x-www-form-urlencoded
+
+    username=demo&password=password
+    ```
+  </Step>
+
+  <Step title="Token Generation">
+    Server validates credentials and returns JWT:
+
+    ```json  theme={null}
+    {
+      "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+      "token_type": "bearer"
+    }
+    ```
+  </Step>
+
+  <Step title="Authenticated Requests">
+    Client includes token in Authorization header:
+
+    ```bash  theme={null}
+    Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+    ```
+  </Step>
+
+  <Step title="Middleware Validation">
+    JWT middleware validates token and allows/denies access
+  </Step>
+</Steps>
+
+## Developer Resources
+
+* [JWT Middleware Documentation](/agent-os/customize/middleware/jwt)
+* [Custom FastAPI Documentation](/agent-os/customize/custom-fastapi)
+* [FastAPI Security Documentation](https://fastapi.tiangolo.com/tutorial/security/)

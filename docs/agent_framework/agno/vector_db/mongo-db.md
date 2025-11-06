@@ -1,0 +1,72 @@
+# MongoDB
+
+> Original Document: [MongoDB](https://docs.agno.com/examples/concepts/vectordb/mongo-db/mongo-db.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:15.206Z
+
+---
+
+# MongoDB
+
+## Code
+
+```python cookbook/knowledge/vector_db/mongo_db/mongo_db.py theme={null}
+
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.mongodb import MongoDb
+
+mdb_connection_string = "mongodb://localhost:27017"
+knowledge = Knowledge(
+    vector_db=MongoDb(
+        collection_name="recipes",
+        db_url=mdb_connection_string,
+        search_index_name="recipes",
+    ),
+)
+
+knowledge.add_content(
+    name="Recipes",
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf",
+    metadata={"doc_type": "recipe_book"},
+)
+
+# Create and use the agent
+agent = Agent(knowledge=knowledge)
+agent.print_response("How to make Thai curry?", markdown=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U pymongo pypdf openai agno
+    ```
+  </Step>
+
+  <Step title="Run MongoDB">
+    ```bash  theme={null}
+    docker run -d \
+    --name local-mongo \
+    -p 27017:27017 \
+    -e MONGO_INITDB_ROOT_USERNAME=mongoadmin \
+    -e MONGO_INITDB_ROOT_PASSWORD=secret \
+    mongo
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/vector_db/mongo_db/mongo_db.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/vector_db/mongo_db/mongo_db.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

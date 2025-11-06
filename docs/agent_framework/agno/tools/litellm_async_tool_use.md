@@ -1,0 +1,62 @@
+# Async Tool Use
+
+> Original Document: [Async Tool Use](https://docs.agno.com/examples/models/litellm/async_tool_use.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:15.917Z
+
+---
+
+# Async Tool Use
+
+## Code
+
+```python cookbook/models/litellm/async_tool_use.py theme={null}
+import asyncio
+
+from agno.agent import Agent
+from agno.models.litellm import LiteLLM
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+agent = Agent(
+    model=LiteLLM(
+        id="gpt-5-mini",
+        name="LiteLLM",
+    ),
+    markdown=True,
+    tools=[DuckDuckGoTools()],
+)
+
+# Ask a question that would likely trigger tool use
+asyncio.run(agent.aprint_response("What is happening in France?"))
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export LITELLM_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U litellm agno ddgs
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/litellm/async_tool_use.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/litellm/async_tool_use.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

@@ -1,0 +1,45 @@
+# Sleep
+
+> Original Document: [Sleep](https://docs.agno.com/concepts/tools/toolkits/local/sleep.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:13.937Z
+
+---
+
+# Sleep
+
+## Example
+
+The following agent will use the `sleep` tool to pause execution for a given number of seconds.
+
+```python cookbook/tools/sleep_tools.py theme={null}
+from agno.agent import Agent
+from agno.tools.sleep import SleepTools
+
+# Create an Agent with the Sleep tool
+agent = Agent(tools=[SleepTools()], name="Sleep Agent")
+
+# Example 1: Sleep for 2 seconds
+agent.print_response("Sleep for 2 seconds")
+
+# Example 2: Sleep for a longer duration
+agent.print_response("Sleep for 5 seconds")
+```
+
+## Toolkit Params
+
+| Parameter      | Type   | Default | Description                                |
+| -------------- | ------ | ------- | ------------------------------------------ |
+| `enable_sleep` | `bool` | `True`  | Enables sleep functionality                |
+| `all`          | `bool` | `False` | Enables all functionality when set to True |
+
+## Toolkit Functions
+
+| Function | Description                                        |
+| -------- | -------------------------------------------------- |
+| `sleep`  | Pauses execution for a specified number of seconds |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/sleep.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/sleep_tools.py)

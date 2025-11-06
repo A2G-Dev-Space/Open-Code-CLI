@@ -1,0 +1,74 @@
+# Agent with Storage
+
+> Original Document: [Agent with Storage](https://docs.agno.com/examples/models/lmstudio/storage.md)
+> Category: rag
+> Downloaded: 2025-11-06T11:51:16.294Z
+
+---
+
+# Agent with Storage
+
+## Code
+
+```python cookbook/models/lmstudio/db.py theme={null}
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.lmstudio import LMStudio
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Setup the database
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+db = PostgresDb(db_url=db_url)
+
+agent = Agent(
+    model=LMStudio(id="qwen2.5-7b-instruct-1m"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install LM Studio">
+    Install LM Studio from [here](https://lmstudio.ai/download) and download the
+    model you want to use.
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U sqlalchemy psycopg ddgs agno
+    ```
+  </Step>
+
+  <Step title="Run PgVector">
+    ```bash  theme={null}
+    docker run -d \
+      -e POSTGRES_DB=ai \
+      -e POSTGRES_USER=ai \
+      -e POSTGRES_PASSWORD=ai \
+      -e PGDATA=/var/lib/postgresql/data/pgdata \
+      -v pgvolume:/var/lib/postgresql/data \
+      -p 5532:5432 \
+      --name pgvector \
+      agnohq/pgvector:16
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/lmstudio/db.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook\models\lmstudio\db.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

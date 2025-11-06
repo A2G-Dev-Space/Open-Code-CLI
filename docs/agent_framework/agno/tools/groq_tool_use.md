@@ -1,0 +1,62 @@
+# Agent with Tools
+
+> Original Document: [Agent with Tools](https://docs.agno.com/examples/models/groq/tool_use.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:15.834Z
+
+---
+
+# Agent with Tools
+
+## Code
+
+```python cookbook/models/groq/tool_use.py theme={null}
+from agno.agent import Agent
+from agno.models.groq import Groq
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.newspaper4k import Newspaper4kTools
+
+agent = Agent(
+    model=Groq(id="llama-3.3-70b-versatile"),
+    tools=[DuckDuckGoTools(), Newspaper4kTools()],
+    description="You are a senior NYT researcher writing an article on a topic.",
+    instructions=[
+        "For a given topic, search for the top 5 links.",
+        "Then read each URL and extract the article text, if a URL isn't available, ignore it.",
+        "Analyse and prepare an NYT worthy article based on the information.",
+    ],
+    markdown=True,
+    add_datetime_to_context=True,
+)
+agent.print_response("Simulation theory", stream=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export GROQ_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U groq ddgs newspaper4k lxml_html_clean agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/groq/tool_use.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/groq/tool_use.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

@@ -1,0 +1,32 @@
+# Model
+
+> Original Document: [Model](https://docs.agno.com/reference/models/model.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:17.324Z
+
+---
+
+# Model
+
+The Model class is the base class for all models in Agno. It provides common functionality and parameters that are inherited by specific model implementations like OpenAIChat, Claude, etc.
+
+## Parameters
+
+| Parameter           | Type                              | Default  | Description                                                                             |
+| ------------------- | --------------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `id`                | `str`                             | Required | The id/name of the model to use                                                         |
+| `name`              | `Optional[str]`                   | `None`   | The display name of the model                                                           |
+| `provider`          | `Optional[str]`                   | `None`   | The provider of the model                                                               |
+| `frequency_penalty` | `Optional[float]`                 | `None`   | Penalizes new tokens based on their frequency in the text so far                        |
+| `presence_penalty`  | `Optional[float]`                 | `None`   | Penalizes new tokens based on whether they appear in the text so far                    |
+| `response_format`   | `Optional[str]`                   | `None`   | The format of the response                                                              |
+| `seed`              | `Optional[int]`                   | `None`   | Random seed for deterministic sampling                                                  |
+| `stop`              | `Optional[Union[str, List[str]]]` | `None`   | Up to 4 sequences where the API will stop generating further tokens                     |
+| `stream`            | `bool`                            | `True`   | Whether to stream the response                                                          |
+| `temperature`       | `Optional[float]`                 | `None`   | Controls randomness in the model's output                                               |
+| `top_p`             | `Optional[float]`                 | `None`   | Controls diversity via nucleus sampling                                                 |
+| `max_tokens`        | `Optional[int]`                   | `None`   | Maximum number of tokens to generate                                                    |
+| `request_params`    | `Optional[Dict[str, Any]]`        | `None`   | Additional parameters to include in the request                                         |
+| `cache_response`    | `bool`                            | `False`  | Enable caching of model responses to avoid redundant API calls                          |
+| `cache_ttl`         | `Optional[int]`                   | `None`   | Time-to-live for cached model responses, in seconds. If None, cache never expires       |
+| `cache_dir`         | `Optional[str]`                   | `None`   | Directory path for storing cached model responses. If None, uses default cache location |

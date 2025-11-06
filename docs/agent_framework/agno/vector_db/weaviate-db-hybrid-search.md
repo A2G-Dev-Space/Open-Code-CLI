@@ -1,0 +1,112 @@
+# Weaviate Hybrid Search
+
+> Original Document: [Weaviate Hybrid Search](https://docs.agno.com/examples/concepts/vectordb/weaviate-db/weaviate-db-hybrid-search.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:15.240Z
+
+---
+
+# Weaviate Hybrid Search
+
+## Code
+
+```python cookbook/knowledge/vector_db/weaviate_db/weaviate_db_hybrid_search.py theme={null}
+import typer
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.search import SearchType
+from agno.vectordb.weaviate import Distance, VectorIndex, Weaviate
+from rich.prompt import Prompt
+
+vector_db = Weaviate(
+    collection="recipes",
+    search_type=SearchType.hybrid,
+    vector_index=VectorIndex.HNSW,
+    distance=Distance.COSINE,
+    local=False,  # Set to True if using Weaviate Cloud and False if using local instance
+    # Adjust alpha for hybrid search (0.0-1.0, default is 0.5), where 0 is pure keyword search, 1 is pure vector search
+    hybrid_search_alpha=0.6,
+)
+
+knowledge_base = Knowledge(
+    name="Weaviate Hybrid Search",
+    description="A knowledge base for Weaviate hybrid search",
+    vector_db=vector_db,
+)
+
+knowledge_base.add_content(
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf",
+)
+
+
+def weaviate_agent(user: str = "user"):
+    agent = Agent(
+        user_id=user,
+        knowledge=knowledge_base,
+        search_knowledge=True,
+    )
+
+    while True:
+        message = Prompt.ask(f"[bold] :sunglasses: {user} [/bold]")
+        if message in ("exit", "bye"):
+            break
+        agent.print_response(message)
+
+
+if __name__ == "__main__":
+    typer.run(weaviate_agent)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U weaviate-client typer rich pypdf openai agno
+    ```
+  </Step>
+
+  <Step title="Setup Weaviate">
+    <CodeGroup>
+      ```bash Weaviate Cloud theme={null}
+      # 1. Create account at https://console.weaviate.cloud/
+      # 2. Create a cluster and copy the "REST endpoint" and "Admin" API Key
+      # 3. Set environment variables:
+      export WCD_URL="your-cluster-url" 
+      export WCD_API_KEY="your-api-key"
+      # 4. Set local=False in the code
+      ```
+
+      ```bash Local Development theme={null}
+      # 1. Install Docker from https://docs.docker.com/get-docker/
+      # 2. Run Weaviate locally:
+      docker run -d \
+          -p 8080:8080 \
+          -p 50051:50051 \
+          --name weaviate \
+          cr.weaviate.io/semitechnologies/weaviate:1.28.4
+      # 3. Set local=True in the code
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/vector_db/weaviate_db/weaviate_db_hybrid_search.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/vector_db/weaviate_db/weaviate_db_hybrid_search.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

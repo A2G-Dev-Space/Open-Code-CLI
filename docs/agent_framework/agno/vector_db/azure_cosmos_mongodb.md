@@ -1,0 +1,60 @@
+# Azure Cosmos DB MongoDB vCore Agent Knowledge
+
+> Original Document: [Azure Cosmos DB MongoDB vCore Agent Knowledge](https://docs.agno.com/concepts/vectordb/azure_cosmos_mongodb.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:14.151Z
+
+---
+
+# Azure Cosmos DB MongoDB vCore Agent Knowledge
+
+## Setup
+
+Follow the instructions in the [Azure Cosmos DB Setup Guide](https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore) to get the connection string.
+
+Install MongoDB packages:
+
+```shell  theme={null}
+pip install "pymongo[srv]"
+```
+
+## Example
+
+```python agent_with_knowledge.py theme={null}
+import urllib.parse
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.mongodb import MongoDb
+
+# Azure Cosmos DB MongoDB connection string
+"""
+Example connection strings:
+"mongodb+srv://<username>:<encoded_password>@cluster0.mongocluster.cosmos.azure.com/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000"
+"""
+mdb_connection_string = f"mongodb+srv://<username>:<encoded_password>@cluster0.mongocluster.cosmos.azure.com/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000"
+
+knowledge_base = Knowledge(
+    vector_db=MongoDb(
+        collection_name="recipes",
+        db_url=mdb_connection_string,
+        search_index_name="recipes",
+        cosmos_compatibility=True,
+    ),
+)
+
+knowledge.add_content(
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf"
+)
+
+# Create and use the agent
+agent = Agent(knowledge=knowledge_base)
+agent.print_response("How to make Thai curry?", markdown=True)
+```
+
+## Azure Cosmos DB MongoDB vCore Params
+
+<Snippet file="vectordb_mongodb_params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook (Sync)](https://github.com/agno-agi/agno/blob/main/cookbook/knowledge/vector_db/mongo_db/cosmos_mongodb_vcore.py)

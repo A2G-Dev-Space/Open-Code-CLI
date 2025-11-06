@@ -1,0 +1,84 @@
+# WhatsApp Agent with Media Support
+
+> Original Document: [WhatsApp Agent with Media Support](https://docs.agno.com/examples/agent-os/interfaces/whatsapp/agent_with_media.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.262Z
+
+---
+
+# WhatsApp Agent with Media Support
+
+> WhatsApp agent that analyzes images, videos, and audio using multimodal AI
+
+## Code
+
+```python cookbook/os/interfaces/whatsapp/agent_with_media.py theme={null}
+from agno.agent import Agent
+from agno.db.sqlite import SqliteDb
+from agno.models.google import Gemini
+from agno.os.app import AgentOS
+from agno.os.interfaces.whatsapp import Whatsapp
+
+agent_db = SqliteDb(db_file="tmp/persistent_memory.db")
+media_agent = Agent(
+    name="Media Agent",
+    model=Gemini(id="gemini-2.0-flash"),
+    db=agent_db,
+    add_history_to_context=True,
+    num_history_runs=3,
+    add_datetime_to_context=True,
+    markdown=True,
+)
+
+agent_os = AgentOS(
+    agents=[media_agent],
+    interfaces=[Whatsapp(agent=media_agent)],
+)
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    agent_os.serve(app="agent_with_media:app", reload=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
+    export WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
+    export WHATSAPP_WEBHOOK_URL=your_webhook_url
+    export WHATSAPP_VERIFY_TOKEN=your_verify_token
+    export GOOGLE_API_KEY=your_google_api_key
+    export APP_ENV=development
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno
+    ```
+  </Step>
+
+  <Step title="Run Example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/os/interfaces/whatsapp/agent_with_media.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/os/interfaces/whatsapp/agent_with_media.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Key Features
+
+* **Multimodal AI**: Gemini 2.0 Flash for image, video, and audio processing
+* **Image Analysis**: Object recognition, scene understanding, text extraction
+* **Video Processing**: Content analysis and summarization
+* **Audio Support**: Voice message transcription and response
+* **Context Integration**: Combines media analysis with conversation history

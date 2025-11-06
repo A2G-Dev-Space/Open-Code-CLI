@@ -1,0 +1,112 @@
+# In-Memory Database Storage
+
+> Original Document: [In-Memory Database Storage](https://docs.agno.com/examples/concepts/agent/session/07_in_memory_db.md)
+> Category: memory
+> Downloaded: 2025-11-06T11:51:14.499Z
+
+---
+
+# In-Memory Database Storage
+
+This example demonstrates how to use an in-memory database for session storage, enabling conversation history and context management without requiring a persistent database setup.
+
+## Code
+
+```python 07_in_memory_db.py theme={null}
+"""This example shows how to use an in-memory database.
+
+With this you will be able to store sessions, user memories, etc. without setting up a database.
+Keep in mind that in production setups it is recommended to use a database.
+"""
+
+from agno.agent import Agent
+from agno.db.in_memory import InMemoryDb
+from agno.models.openai import OpenAIChat
+from rich.pretty import pprint
+
+# Setup the in-memory database
+db = InMemoryDb()
+
+agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini"),
+    # Use the in-memory database. All db features will be available.
+    db=db,
+    # Set add_history_to_context=true to add the previous chat history to the context sent to the Model.
+    add_history_to_context=True,
+    # Number of historical responses to add to the messages.
+    num_history_runs=3,
+    description="You are a helpful assistant that always responds in a polite, upbeat and positive manner.",
+)
+
+# -*- Create a run
+agent.print_response("Share a 2 sentence horror story", stream=True)
+# -*- Print the messages in the memory
+pprint(
+    [
+        m.model_dump(include={"role", "content"})
+        for m in agent.get_messages_for_session()
+    ]
+)
+
+# -*- Ask a follow up question that continues the conversation
+agent.print_response("What was my first message?", stream=True)
+# -*- Print the messages in the memory
+pprint(
+    [
+        m.model_dump(include={"role", "content"})
+        for m in agent.get_messages_for_session()
+    ]
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai rich
+    ```
+  </Step>
+
+  <Step title="Export your OpenAI API key">
+    <CodeGroup>
+      ```bash Mac/Linux theme={null}
+        export OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+
+      ```bash Windows theme={null}
+        $Env:OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a Python file">
+    Create a Python file and add the above code.
+
+    ```bash  theme={null}
+    touch 07_in_memory_db.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python 07_in_memory_db.py
+      ```
+
+      ```bash Windows theme={null}
+      python 07_in_memory_db.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Find All Cookbooks">
+    Explore all the available cookbooks in the Agno repository. Click the link below to view the code on GitHub:
+
+    <Link href="https://github.com/agno-agi/agno/tree/main/cookbook/agents/session" target="_blank">
+      Agno Cookbooks on GitHub
+    </Link>
+  </Step>
+</Steps>

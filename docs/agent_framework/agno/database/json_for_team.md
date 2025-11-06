@@ -1,0 +1,80 @@
+# JSON for Team
+
+> Original Document: [JSON for Team](https://docs.agno.com/examples/concepts/db/json/json_for_team.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:14.549Z
+
+---
+
+# JSON for Team
+
+Agno supports using local JSON files as a storage backend for Teams using the `JsonDb` class.
+
+## Usage
+
+```python json_for_team.py theme={null}
+"""
+Run: `pip install openai ddgs newspaper4k lxml_html_clean agno` to install the dependencies
+"""
+
+from typing import List
+
+from agno.agent import Agent
+from agno.db.json import JsonDb
+from agno.models.openai import OpenAIChat
+from agno.team import Team
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.hackernews import HackerNewsTools
+from pydantic import BaseModel
+
+# Setup the JSON database
+db = JsonDb(db_path="tmp/json_db")
+
+
+class Article(BaseModel):
+    title: str
+    summary: str
+    reference_links: List[str]
+
+
+hn_researcher = Agent(
+    name="HackerNews Researcher",
+    model=OpenAIChat("gpt-5-mini"),
+    role="Gets top stories from hackernews.",
+    tools=[HackerNewsTools()],
+)
+
+web_searcher = Agent(
+    name="Web Searcher",
+    model=OpenAIChat("gpt-5-mini"),
+    role="Searches the web for information on a topic",
+    tools=[DuckDuckGoTools()],
+    add_datetime_to_context=True,
+)
+
+
+hn_team = Team(
+    name="HackerNews Team",
+    model=OpenAIChat("gpt-5-mini"),
+    members=[hn_researcher, web_searcher],
+    db=db,
+    instructions=[
+        "First, search hackernews for what the user is asking about.",
+        "Then, ask the web searcher to search for each story to get more information.",
+        "Finally, provide a thoughtful and engaging summary.",
+    ],
+    output_schema=Article,
+    markdown=True,
+    show_members_responses=True,
+)
+
+hn_team.print_response("Write an article about the top 2 stories on hackernews")
+```
+
+## Params
+
+<Snippet file="db-json-params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/blob/main/cookbook/db/json_db/json_for_team.py)

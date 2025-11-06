@@ -1,0 +1,20 @@
+# PIIDetectionGuardrail
+
+> Original Document: [PIIDetectionGuardrail](https://docs.agno.com/reference/hooks/pii-guardrail.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:17.228Z
+
+---
+
+# PIIDetectionGuardrail
+
+## Parameters
+
+| Parameter                  | Type   | Default | Description                                                                           |
+| -------------------------- | ------ | ------- | ------------------------------------------------------------------------------------- |
+| `mask_pii`                 | `bool` | `False` | Whether to mask the PII in the input, rather than raising an error.                   |
+| `enable_ssn_check`         | `bool` | `True`  | Whether to check for Social Security Numbers.                                         |
+| `enable_credit_card_check` | `bool` | `True`  | Whether to check for credit cards.                                                    |
+| `enable_email_check`       | `bool` | `True`  | Whether to check for emails.                                                          |
+| `enable_phone_check`       | `bool` | `True`  | Whether to check for phone numbers.                                                   |
+| `custom_patterns`          | `dict` | `{}`    | A dictionary of custom PII patterns to detect. This is added to the default patterns. |

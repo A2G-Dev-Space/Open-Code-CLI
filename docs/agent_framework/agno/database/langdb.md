@@ -1,0 +1,62 @@
+# LangDB
+
+> Original Document: [LangDB](https://docs.agno.com/concepts/models/langdb.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:13.747Z
+
+---
+
+# LangDB
+
+[LangDB](https://langdb.ai/) is an AI Gateway for seamless access to 350+ LLMs. Secure, govern, and optimize AI Traffic across LLMs using OpenAI-Compatible APIs.
+
+For detailed integration instructions, see the [LangDB Agno documentation](https://docs.langdb.ai/getting-started/working-with-agent-frameworks/working-with-agno).
+
+## Authentication
+
+Set your `LANGDB_API_KEY` environment variable. Get your key from [here](https://app.langdb.ai/settings/api_keys).
+
+<CodeGroup>
+  ```bash Mac theme={null}
+  export LANGDB_API_KEY=***
+  export LANGDB_PROJECT_ID=***
+
+  ```
+
+  ```bash Windows theme={null}
+  setx LANGDB_API_KEY ***
+  setx LANGDB_PROJECT_ID ***
+  ```
+</CodeGroup>
+
+## Example
+
+Use `LangDB` with your `Agent`:
+
+<CodeGroup>
+  ```python agent.py theme={null}
+  from agno.agent import Agent
+  from agno.models.langdb import LangDB
+
+  agent = Agent(
+      model=LangDB(id="gpt-5-mini"),
+      markdown=True
+  )
+
+  # Print the response in the terminal
+  agent.print_response("Share a 2 sentence horror story.")
+
+  ```
+</CodeGroup>
+
+## Params
+
+| Parameter  | Type            | Default                      | Description                                                   |
+| ---------- | --------------- | ---------------------------- | ------------------------------------------------------------- |
+| `id`       | `str`           | `"gpt-4o-mini"`              | The id of the model to use through LangDB                     |
+| `name`     | `str`           | `"LangDB"`                   | The name of the model                                         |
+| `provider` | `str`           | `"LangDB"`                   | The provider of the model                                     |
+| `api_key`  | `Optional[str]` | `None`                       | The API key for LangDB (defaults to LANGDB\_API\_KEY env var) |
+| `base_url` | `str`           | `"https://api.langdb.ai/v1"` | The base URL for the LangDB API                               |
+
+`LangDB` also supports the params of [OpenAI](/reference/models/openai).

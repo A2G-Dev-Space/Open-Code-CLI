@@ -1,0 +1,104 @@
+# Weaviate
+
+> Original Document: [Weaviate](https://docs.agno.com/examples/concepts/vectordb/weaviate-db/weaviate-db.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:15.232Z
+
+---
+
+# Weaviate
+
+## Code
+
+```python cookbook/knowledge/vector_db/weaviate_db/weaviate_db.py theme={null}
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.search import SearchType
+from agno.vectordb.weaviate import Weaviate
+from agno.vectordb.weaviate.index import Distance, VectorIndex
+
+vector_db = Weaviate(
+    collection="vectors",
+    search_type=SearchType.vector,
+    vector_index=VectorIndex.HNSW,
+    distance=Distance.COSINE,
+    local=False,  # Set to True if using Weaviate locally
+)
+
+# Create Knowledge Instance with Weaviate
+knowledge = Knowledge(
+    name="Basic SDK Knowledge Base",
+    description="Agno 2.0 Knowledge Implementation with Weaviate",
+    vector_db=vector_db,
+)
+
+knowledge.add_content(
+    name="Recipes",
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf",
+    metadata={"doc_type": "recipe_book"},
+    skip_if_exists=True,
+)
+
+# Create and use the agent
+agent = Agent(knowledge=knowledge)
+agent.print_response("List down the ingredients to make Massaman Gai", markdown=True)
+
+# Delete operations
+vector_db.delete_by_name("Recipes")
+# or
+vector_db.delete_by_metadata({"doc_type": "recipe_book"})
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U weaviate-client pypdf openai agno
+    ```
+  </Step>
+
+  <Step title="Setup Weaviate">
+    <CodeGroup>
+      ```bash Weaviate Cloud theme={null}
+      # 1. Create account at https://console.weaviate.cloud/
+      # 2. Create a cluster and copy the "REST endpoint" and "Admin" API Key
+      # 3. Set environment variables:
+      export WCD_URL="your-cluster-url" 
+      export WCD_API_KEY="your-api-key"
+      # 4. Set local=False in the code
+      ```
+
+      ```bash Local Development theme={null}
+      # 1. Install Docker from https://docs.docker.com/get-docker/
+      # 2. Run Weaviate locally:
+      docker run -d \
+          -p 8080:8080 \
+          -p 50051:50051 \
+          --name weaviate \
+          cr.weaviate.io/semitechnologies/weaviate:1.28.4
+      # 3. Set local=True in the code
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/vector_db/weaviate_db/weaviate_db.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/vector_db/weaviate_db/weaviate_db.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

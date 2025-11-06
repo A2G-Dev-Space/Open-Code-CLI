@@ -1,0 +1,84 @@
+# Upstash
+
+> Original Document: [Upstash](https://docs.agno.com/examples/concepts/vectordb/upstash-db/upstash-db.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:15.226Z
+
+---
+
+# Upstash
+
+## Code
+
+```python cookbook/knowledge/vector_db/upstash_db/upstash_db.py theme={null}
+import os
+
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.upstashdb import UpstashVectorDb
+
+# How to connect to an Upstash Vector index
+# - Create a new index in Upstash Console with the correct dimension
+# - Fetch the URL and token from Upstash Console
+# - Replace the values below or use environment variables
+
+vector_db = UpstashVectorDb(
+    url=os.getenv("UPSTASH_VECTOR_REST_URL"),
+    token=os.getenv("UPSTASH_VECTOR_REST_TOKEN"),
+)
+
+# Initialize Upstash DB
+knowledge = Knowledge(
+    name="Basic SDK Knowledge Base",
+    description="Agno 2.0 Knowledge Implementation with Upstash Vector DB",
+    vector_db=vector_db,
+)
+
+# Add content with metadata
+knowledge.add_content(
+    name="Recipes",
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf",
+    metadata={"doc_type": "recipe_book"},
+)
+
+# Create and use the agent
+agent = Agent(knowledge=knowledge)
+agent.print_response("How to make Pad Thai?", markdown=True)
+
+
+vector_db.delete_by_name("Recipes")
+# or
+vector_db.delete_by_metadata({"doc_type": "recipe_book"})
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U upstash-vector pypdf openai agno
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export UPSTASH_VECTOR_REST_URL="your-upstash-vector-rest-url"
+    export UPSTASH_VECTOR_REST_TOKEN="your-upstash-vector-rest-token"
+    export OPENAI_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/vector_db/upstash_db/upstash_db.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/vector_db/upstash_db/upstash_db.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

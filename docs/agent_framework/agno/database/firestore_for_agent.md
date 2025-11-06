@@ -1,0 +1,49 @@
+# Firestore for Agent
+
+> Original Document: [Firestore for Agent](https://docs.agno.com/examples/concepts/db/firestore/firestore_for_agent.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:14.542Z
+
+---
+
+# Firestore for Agent
+
+Agno supports using Firestore as a storage backend for Agents using the `FirestoreDb` class.
+
+## Usage
+
+You need to provide a `project_id` parameter to the `FirestoreDb` class. Firestore will connect automatically using your Google Cloud credentials.
+
+```python firestore_for_agent.py theme={null}
+from agno.agent import Agent
+from agno.db.firestore import FirestoreDb
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+PROJECT_ID = "agno-os-test"  # Use your project ID here
+
+# Setup the Firestore database
+db = FirestoreDb(project_id=PROJECT_ID)
+
+agent = Agent(
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+```
+
+## Prerequisites
+
+1. Ensure your gcloud project is enabled with Firestore. Reference [Firestore documentation](https://cloud.google.com/firestore/docs/create-database-server-client-library)
+2. Install dependencies: `pip install openai google-cloud-firestore agno`
+3. Make sure your gcloud project is set up and you have the necessary permissions to access Firestore
+
+## Params
+
+<Snippet file="db-firestore-params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/blob/main/cookbook/db/firestore/firestore_for_agent.py)

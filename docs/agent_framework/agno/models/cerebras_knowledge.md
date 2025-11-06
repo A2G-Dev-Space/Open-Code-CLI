@@ -1,0 +1,71 @@
+# Agent with Knowledge Base
+
+> Original Document: [Agent with Knowledge Base](https://docs.agno.com/examples/models/cerebras/knowledge.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:15.411Z
+
+---
+
+# Agent with Knowledge Base
+
+## Code
+
+```python cookbook/models/cerebras/basic_knowledge.py theme={null}
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.models.cerebras import Cerebras
+from agno.vectordb.pgvector import PgVector
+
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
+knowledge = Knowledge(
+    vector_db=PgVector(table_name="recipes", db_url=db_url),
+)
+# Add content to the knowledge
+knowledge.add_content(
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf"
+)
+
+agent = Agent(model=Cerebras(id="llama-4-scout-17b-16e-instruct"), knowledge=knowledge)
+agent.print_response("How to make Thai curry?", markdown=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export CEREBRAS_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno ddgs sqlalchemy pgvector pypdf cerebras_cloud_sdk
+    ```
+  </Step>
+
+  <Step title="Start your Postgres server">
+    Ensure your Postgres server is running and accessible at the connection string used in `db_url`.
+  </Step>
+
+  <Step title="Run Agent (first time)">
+    The first run will load and index the PDF. This may take a while.
+
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/cerebras/basic_knowledge.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/cerebras/basic_knowledge.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Subsequent Runs">
+    After the first run, comment out or remove `knowledge_base.load(recreate=True)` to avoid reloading the PDF each time.
+  </Step>
+</Steps>

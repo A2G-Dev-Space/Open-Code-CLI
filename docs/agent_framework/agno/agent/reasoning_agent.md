@@ -1,0 +1,95 @@
+# WhatsApp Reasoning Finance Agent
+
+> Original Document: [WhatsApp Reasoning Finance Agent](https://docs.agno.com/examples/agent-os/interfaces/whatsapp/reasoning_agent.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.285Z
+
+---
+
+# WhatsApp Reasoning Finance Agent
+
+> WhatsApp agent with advanced reasoning and financial analysis capabilities
+
+## Code
+
+```python cookbook/os/interfaces/whatsapp/reasoning_agent.py theme={null}
+from agno.agent import Agent
+from agno.db.sqlite import SqliteDb
+from agno.models.anthropic.claude import Claude
+from agno.os.app import AgentOS
+from agno.os.interfaces.whatsapp import Whatsapp
+from agno.tools.thinking import ThinkingTools
+from agno.tools.yfinance import YFinanceTools
+
+agent_db = SqliteDb(db_file="tmp/persistent_memory.db")
+
+reasoning_finance_agent = Agent(
+    name="Reasoning Finance Agent",
+    model=Claude(id="claude-3-7-sonnet-latest"),
+    db=agent_db,
+    tools=[
+        ThinkingTools(add_instructions=True),
+        YFinanceTools(
+            stock_price=True,
+            analyst_recommendations=True,
+            company_info=True,
+            company_news=True,
+        ),
+    ],
+    instructions="Use tables to display data. When you use thinking tools, keep the thinking brief.",
+    add_datetime_to_context=True,
+    markdown=True,
+)
+
+agent_os = AgentOS(
+    agents=[reasoning_finance_agent],
+    interfaces=[Whatsapp(agent=reasoning_finance_agent)],
+)
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    agent_os.serve(app="reasoning_agent:app", reload=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
+    export WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
+    export WHATSAPP_WEBHOOK_URL=your_webhook_url
+    export WHATSAPP_VERIFY_TOKEN=your_verify_token
+    export ANTHROPIC_API_KEY=your_anthropic_api_key
+    export APP_ENV=development
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno yfinance
+    ```
+  </Step>
+
+  <Step title="Run Example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/os/interfaces/whatsapp/reasoning_agent.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/os/interfaces/whatsapp/reasoning_agent.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Key Features
+
+* **Advanced Reasoning**: ThinkingTools for step-by-step financial analysis
+* **Real-time Data**: Stock prices, analyst recommendations, company news
+* **Claude Powered**: Superior analytical and reasoning capabilities
+* **Structured Output**: Well-formatted tables and financial insights
+* **Market Intelligence**: Comprehensive company analysis and recommendations

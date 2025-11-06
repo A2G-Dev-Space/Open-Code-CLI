@@ -1,0 +1,66 @@
+# Db
+
+> Original Document: [Db](https://docs.agno.com/examples/models/ollama/db.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:16.261Z
+
+---
+
+# Db
+
+## Code
+
+```python cookbook/models/ollama/db.py theme={null}
+"""Run `pip install ddgs sqlalchemy ollama` to install dependencies."""
+
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.ollama import Ollama
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Setup the database
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+db = PostgresDb(db_url=db_url)
+
+agent = Agent(
+    model=Ollama(id="llama3.1:8b"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install Ollama">
+    Follow the [Ollama installation guide](https://github.com/ollama/ollama?tab=readme-ov-file#macos) and run:
+
+    ```bash  theme={null}
+    ollama pull llama3.1:8b
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U ollama agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/ollama/db.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/ollama/db.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

@@ -1,0 +1,54 @@
+# Singlestore for Agent
+
+> Original Document: [Singlestore for Agent](https://docs.agno.com/examples/concepts/db/singlestore/singlestore_for_agent.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:14.598Z
+
+---
+
+# Singlestore for Agent
+
+Agno supports using Singlestore as a storage backend for Agents using the `SingleStoreDb` class.
+
+## Usage
+
+Obtain the credentials for Singlestore from [here](https://portal.singlestore.com/)
+
+```python singlestore_for_agent.py theme={null}
+from os import getenv
+
+from agno.agent import Agent
+from agno.db.singlestore.singlestore import SingleStoreDb
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Configure SingleStore DB connection
+USERNAME = getenv("SINGLESTORE_USERNAME")
+PASSWORD = getenv("SINGLESTORE_PASSWORD")
+HOST = getenv("SINGLESTORE_HOST")
+PORT = getenv("SINGLESTORE_PORT")
+DATABASE = getenv("SINGLESTORE_DATABASE")
+
+db_url = (
+    f"mysql+pymysql://{USERNAME}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}?charset=utf8mb4"
+)
+
+db = SingleStoreDb(db_url=db_url)
+
+# Create an agent with SingleStore db
+agent = Agent(
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+
+```
+
+## Params
+
+<Snippet file="db-singlestore-params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/db/singlestore/singlestore_for_agent.py)

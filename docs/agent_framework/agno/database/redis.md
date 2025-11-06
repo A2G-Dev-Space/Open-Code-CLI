@@ -1,0 +1,45 @@
+# Redis
+
+> Original Document: [Redis](https://docs.agno.com/concepts/db/redis.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:13.608Z
+
+---
+
+# Redis
+
+> Learn to use Redis as a database for your Agents
+
+Agno supports using [Redis](https://redis.io/) as a database with the `RedisDb` class.
+
+## Usage
+
+### Run Redis
+
+Install [docker desktop](https://docs.docker.com/desktop/install/mac-install/) and run **Redis** on port **6379** using:
+
+```bash  theme={null}
+docker run -d \
+  --name my-redis \
+  -p 6379:6379 \
+  redis
+```
+
+```python redis_for_agent.py theme={null}
+from agno.agent import Agent
+from agno.db.redis import RedisDb
+
+# Initialize Redis db (use the right db_url for your setup)
+db = RedisDb(db_url="redis://localhost:6379")
+
+# Create agent with Redis db
+agent = Agent(db=db)
+```
+
+## Params
+
+<Snippet file="db-redis-params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/db/redis/redis_for_agent.py)

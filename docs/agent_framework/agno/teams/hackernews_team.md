@@ -1,0 +1,96 @@
+# HackerNews Team
+
+> Original Document: [HackerNews Team](https://docs.agno.com/examples/use-cases/teams/hackernews_team.md)
+> Category: teams
+> Downloaded: 2025-11-06T11:51:17.009Z
+
+---
+
+# HackerNews Team
+
+This example shows how to create a HackerNews team that can aggregate, curate, and discuss trending topics from HackerNews.
+
+## Code
+
+```python cookbook/examples/teams/coordinate_mode/hackernews_team.py theme={null}
+from typing import List
+
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.team import Team
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.hackernews import HackerNewsTools
+from agno.tools.newspaper4k import Newspaper4kTools
+from pydantic import BaseModel
+
+
+class Article(BaseModel):
+    title: str
+    summary: str
+    reference_links: List[str]
+
+
+hn_researcher = Agent(
+    name="HackerNews Researcher",
+    model=OpenAIChat("gpt-5-mini"),
+    role="Gets top stories from hackernews.",
+    tools=[HackerNewsTools()],
+)
+
+web_searcher = Agent(
+    name="Web Searcher",
+    model=OpenAIChat("gpt-5-mini"),
+    role="Searches the web for information on a topic",
+    tools=[DuckDuckGoTools()],
+    add_datetime_to_context=True,
+)
+
+article_reader = Agent(
+    name="Article Reader",
+    role="Reads articles from URLs.",
+    tools=[Newspaper4kTools()],
+)
+
+
+hn_team = Team(
+    name="HackerNews Team",
+    model=OpenAIChat("gpt-5-mini"),
+    members=[hn_researcher, web_searcher, article_reader],
+    instructions=[
+        "First, search hackernews for what the user is asking about.",
+        "Then, ask the article reader to read the links for the stories to get more information.",
+        "Important: you must provide the article reader with the links to read.",
+        "Then, ask the web searcher to search for each story to get more information.",
+        "Finally, provide a thoughtful and engaging summary.",
+    ],
+    output_schema=Article,
+    markdown=True,
+    show_members_responses=True,
+)
+
+hn_team.print_response("Write an article about the top 2 stories on hackernews")
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install required libraries">
+    ```bash  theme={null}
+    pip install agno ddgs newspaper4k lxml_html_clean
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=****
+    ```
+  </Step>
+
+  <Step title="Run the agent">
+    ```bash  theme={null}
+    python cookbook/examples/teams/hackernews_team.py
+    ```
+  </Step>
+</Steps>

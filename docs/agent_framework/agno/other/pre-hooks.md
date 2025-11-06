@@ -1,0 +1,25 @@
+# Pre-hooks
+
+> Original Document: [Pre-hooks](https://docs.agno.com/reference/hooks/pre-hooks.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:17.237Z
+
+---
+
+# Pre-hooks
+
+## Parameters
+
+Running a pre-hook is handled automatically during the Agent or Team run. These are the parameters that will be injected:
+
+| Parameter       | Type                       | Default  | Description                                                                  |
+| --------------- | -------------------------- | -------- | ---------------------------------------------------------------------------- |
+| `agent`         | `Agent`                    | Required | The Agent that is running the pre-hook. Only present in Agent runs.          |
+| `team`          | `Team`                     | Required | The Team that is running the pre-hook. Only present in Team runs.            |
+| `run_input`     | `RunInput`                 | Required | The input provided to the Agent or Team when invoking the run.               |
+| `session`       | `AgentSession`             | Required | The `AgentSession` or `TeamSession` object representing the current session. |
+| `session_state` | `Optional[Dict[str, Any]]` | `None`   | The session state of the current session.                                    |
+| `dependencies`  | `Optional[Dict[str, Any]]` | `None`   | The dependencies of the current run.                                         |
+| `metadata`      | `Optional[Dict[str, Any]]` | `None`   | The metadata of the current run.                                             |
+| `user_id`       | `Optional[str]`            | `None`   | The contextual user ID, if any.                                              |
+| `debug_mode`    | `Optional[bool]`           | `None`   | Whether the debug mode is enabled.                                           |

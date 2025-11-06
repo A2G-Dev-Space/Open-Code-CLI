@@ -1,0 +1,57 @@
+# Basic
+
+> Original Document: [Basic](https://docs.agno.com/examples/models/llama_cpp/basic.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:15.975Z
+
+---
+
+# Basic
+
+## Code
+
+```python cookbook/models/llama_cpp/basic.py theme={null}
+from agno.agent import Agent, RunOutput  # noqa
+from agno.models.llama_cpp import LlamaCpp
+
+agent = Agent(model=LlamaCpp(id="ggml-org/gpt-oss-20b-GGUF"), markdown=True)
+
+# Get the response in a variable
+# run: RunOutput = agent.run("Share a 2 sentence horror story")
+# print(run.content)
+
+# Print the response in the terminal
+agent.print_response("Share a 2 sentence horror story")
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install LlamaCpp">
+    Follow the [LlamaCpp installation guide](https://github.com/ggerganov/llama.cpp) and start the server:
+
+    ```bash  theme={null}
+    llama-server -hf ggml-org/gpt-oss-20b-GGUF --ctx-size 0 --jinja -ub 2048 -b 2048
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/llama_cpp/basic.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/llama_cpp/basic.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

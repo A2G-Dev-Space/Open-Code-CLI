@@ -1,0 +1,30 @@
+# Ollama Tools
+
+> Original Document: [Ollama Tools](https://docs.agno.com/reference/models/ollama_tools.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:17.330Z
+
+---
+
+# Ollama Tools
+
+The Ollama Tools model provides access to the Ollama models and passes tools in XML format to the model.
+
+## Parameters
+
+| Parameter    | Type                          | Default                    | Description                                                  |
+| ------------ | ----------------------------- | -------------------------- | ------------------------------------------------------------ |
+| `id`         | `str`                         | `"llama3.2"`               | The name of the Ollama model to use                          |
+| `name`       | `str`                         | `"OllamaTools"`            | The name of the model                                        |
+| `provider`   | `str`                         | `"Ollama"`                 | The provider of the model                                    |
+| `host`       | `str`                         | `"http://localhost:11434"` | The host URL for the Ollama server                           |
+| `timeout`    | `Optional[int]`               | `None`                     | Request timeout in seconds                                   |
+| `format`     | `Optional[str]`               | `None`                     | The format to return the response in (e.g., "json")          |
+| `options`    | `Optional[Dict[str, Any]]`    | `None`                     | Additional model options (temperature, top\_p, etc.)         |
+| `keep_alive` | `Optional[Union[float, str]]` | `None`                     | How long to keep the model loaded (e.g., "5m", 3600 seconds) |
+| `template`   | `Optional[str]`               | `None`                     | The prompt template to use                                   |
+| `system`     | `Optional[str]`               | `None`                     | System message to use                                        |
+| `raw`        | `Optional[bool]`              | `None`                     | Whether to return raw response without formatting            |
+| `stream`     | `bool`                        | `True`                     | Whether to stream the response                               |
+
+This model passes tools in XML format instead of JSON for better compatibility with certain models.

@@ -1,0 +1,77 @@
+# Lumalabs
+
+> Original Document: [Lumalabs](https://docs.agno.com/concepts/tools/toolkits/others/lumalabs.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.049Z
+
+---
+
+# Lumalabs
+
+**LumaLabTools** enables an Agent to generate media using the [Lumalabs platform](https://lumalabs.ai/dream-machine).
+
+## Prerequisites
+
+```shell  theme={null}
+export LUMAAI_API_KEY=***
+```
+
+The following example requires the `lumaai` library. To install the Lumalabs client, run the following command:
+
+```shell  theme={null}
+pip install -U lumaai
+```
+
+## Example
+
+The following agent will use Lumalabs to generate any video requested by the user.
+
+```python cookbook/tools/lumalabs_tool.py theme={null}
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools.lumalab import LumaLabTools
+
+luma_agent = Agent(
+    name="Luma Video Agent",
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[LumaLabTools()],  # Using the LumaLab tool we created
+    markdown=True,
+    debug_mode=True,
+        instructions=[
+        "You are an agent designed to generate videos using the Luma AI API.",
+        "You can generate videos in two ways:",
+        "1. Text-to-Video Generation:",
+        "2. Image-to-Video Generation:",
+        "Choose the appropriate function based on whether the user provides image URLs or just a text prompt.",
+        "The video will be displayed in the UI automatically below your response, so you don't need to show the video URL in your response.",
+    ],
+    system_message=(
+        "Use generate_video for text-to-video requests and image_to_video for image-based "
+        "generation. Don't modify default parameters unless specifically requested. "
+        "Always provide clear feedback about the video generation status."
+    ),
+)
+
+luma_agent.run("Generate a video of a car in a sky")
+```
+
+## Toolkit Params
+
+| Parameter               | Type   | Default | Description                                          |
+| ----------------------- | ------ | ------- | ---------------------------------------------------- |
+| `api_key`               | `str`  | `None`  | If you want to manually supply the Lumalabs API key. |
+| `enable_generate_video` | `bool` | `True`  | Enable the generate\_video functionality.            |
+| `enable_image_to_video` | `bool` | `True`  | Enable the image\_to\_video functionality.           |
+| `all`                   | `bool` | `False` | Enable all functionality.                            |
+
+## Toolkit Functions
+
+| Function         | Description                                                           |
+| ---------------- | --------------------------------------------------------------------- |
+| `generate_video` | Generate a video from a prompt.                                       |
+| `image_to_video` | Generate a video from a prompt, a starting image and an ending image. |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/lumalabs.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/lumalabs_tools.py)

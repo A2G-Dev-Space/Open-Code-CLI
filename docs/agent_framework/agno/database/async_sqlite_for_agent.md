@@ -1,0 +1,47 @@
+# Async Sqlite for Agent
+
+> Original Document: [Async Sqlite for Agent](https://docs.agno.com/examples/concepts/db/sqlite/async_sqlite_for_agent.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:14.663Z
+
+---
+
+# Async Sqlite for Agent
+
+Agno supports using Sqlite asynchronously as a storage backend for Agents, with the `AsyncSqliteDb` class.
+
+## Usage
+
+```python async_sqlite_for_agent.py theme={null}
+"""
+Run `pip install openai ddgs sqlalchemy aiosqlite` to install dependencies.
+"""
+import asyncio
+
+from agno.agent import Agent
+from agno.db.sqlite import AsyncSqliteDb
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Initialize AsyncSqliteDb
+db = AsyncSqliteDb(db_file="agent_storage.db")
+
+agent = Agent(
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+    add_datetime_to_context=True,
+)
+
+
+asyncio.run(agent.aprint_response("How many people live in Canada?"))
+asyncio.run(agent.aprint_response("What is their national anthem called?"))
+
+```
+
+## Params
+
+<Snippet file="db-async-sqlite-params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/blob/main/cookbook/db/sqlite/async_sqlite/async_sqlite_for_agent.py)

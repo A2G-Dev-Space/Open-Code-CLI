@@ -1,0 +1,57 @@
+# MCP enabled AgentOS
+
+> Original Document: [MCP enabled AgentOS](https://docs.agno.com/agent-os/mcp/mcp.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:13.527Z
+
+---
+
+# MCP enabled AgentOS
+
+> Learn how to enable MCP functionality in your AgentOS
+
+Model Context Protocol (MCP) gives Agents the ability to interact with external systems through a standardized interface.
+To turn your AgentOS into an MCP server, you can set `enable_mcp_server=True` when creating your AgentOS instance.
+
+```python enable_mcp_example.py theme={null}
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.anthropic import Claude
+from agno.os import AgentOS
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Setup the database
+db = PostgresDb(db_url="postgresql+psycopg://ai:ai@localhost:5532/ai")
+
+# Create your agents
+web_research_agent = Agent(
+    name="Web Research Agent",
+    model=Claude(id="claude-sonnet-4-0"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    markdown=True,
+)
+
+# Setup AgentOS with MCP enabled
+agent_os = AgentOS(
+    description="Example app with MCP enabled",
+    agents=[web_research_agent],
+    enable_mcp_server=True,  # This enables a LLM-friendly MCP server at /mcp
+)
+
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    # Your MCP server will be available at http://localhost:7777/mcp
+    agent_os.serve(app="enable_mcp_example:app", reload=True)
+```
+
+Once enabled, your AgentOS will expose an MCP server at the `/mcp` endpoint that provides:
+
+* Access to your AgentOS configuration
+* Information about available agents, teams, and workflows
+* The ability to run agents, teams, and workflows
+* The ability to create and delete sessions
+* The ability to create, update, and delete memories
+
+See here for a [full example](/examples/agent-os/mcp/enable_mcp_example).

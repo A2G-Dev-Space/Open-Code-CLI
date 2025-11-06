@@ -1,0 +1,64 @@
+# Image Agent
+
+> Original Document: [Image Agent](https://docs.agno.com/examples/models/dashscope/image_agent.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:15.529Z
+
+---
+
+# Image Agent
+
+## Code
+
+```python cookbook/models/dashscope/image_agent.py theme={null}
+from agno.agent import Agent
+from agno.media import Image
+from agno.models.dashscope import DashScope
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+agent = Agent(
+    model=DashScope(id="qwen-vl-plus"),
+    tools=[DuckDuckGoTools()],
+    markdown=True,
+)
+
+agent.print_response(
+    "Analyze this image in detail and tell me what you see. Also search for more information about the subject.",
+    images=[
+        Image(
+            url="https://upload.wikimedia.org/wikipedia/commons/0/0c/GoldenGateBridge-001.jpg"
+        )
+    ],
+    stream=True,
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export DASHSCOPE_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno ddgs
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/dashscope/image_agent.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/dashscope/image_agent.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

@@ -1,0 +1,55 @@
+# Agent with Tools
+
+> Original Document: [Agent with Tools](https://docs.agno.com/examples/models/nebius/tool_use.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:16.186Z
+
+---
+
+# Agent with Tools
+
+## Code
+
+```python cookbook/models/nebius/tool_use.py theme={null}
+from agno.agent import Agent
+from agno.models.nebius import Nebius
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+agent = Agent(
+    model=Nebius(id="meta/llama-3.3-70b-instruct"),
+    tools=[DuckDuckGoTools()],
+        markdown=True,
+)
+
+agent.print_response("Whats happening in France?", stream=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export NEBIUS_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U openai ddgs agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/nebius/tool_use.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/nebius/tool_use.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

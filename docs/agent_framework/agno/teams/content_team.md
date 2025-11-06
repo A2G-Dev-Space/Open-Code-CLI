@@ -1,0 +1,70 @@
+# Content Team
+
+> Original Document: [Content Team](https://docs.agno.com/examples/use-cases/teams/content_team.md)
+> Category: teams
+> Downloaded: 2025-11-06T11:51:16.989Z
+
+---
+
+# Content Team
+
+This example shows how to create a content creation team with specialized researchers and writers using the `coordinate` mode.
+
+## Code
+
+```python cookbook/examples/teams/coordinate_mode/content_team.py theme={null}
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.team import Team
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Create individual specialized agents
+researcher = Agent(
+    name="Researcher",
+    role="Expert at finding information",
+    tools=[DuckDuckGoTools()],
+    model=OpenAIChat(id="gpt-5-mini"),
+)
+
+writer = Agent(
+    name="Writer",
+    role="Expert at writing clear, engaging content",
+    model=OpenAIChat(id="gpt-5-mini"),
+)
+
+# Create a team with these agents
+content_team = Team(
+    name="Content Team",
+    members=[researcher, writer],
+    instructions="You are a team of researchers and writers that work together to create high-quality content.",
+    model=OpenAIChat(id="gpt-5-mini"),
+    show_members_responses=True,
+)
+
+# Run the team with a task
+content_team.print_response("Create a short article about quantum computing")
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install required libraries">
+    ```bash  theme={null}
+    pip install agno ddgs
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=****
+    ```
+  </Step>
+
+  <Step title="Run the agent">
+    ```bash  theme={null}
+    python cookbook/examples/teams/content_team.py
+    ```
+  </Step>
+</Steps>

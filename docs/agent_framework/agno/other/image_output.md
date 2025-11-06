@@ -1,0 +1,53 @@
+# Image Model Output
+
+> Original Document: [Image Model Output](https://docs.agno.com/concepts/multimodal/images/image_output.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:13.813Z
+
+---
+
+# Image Model Output
+
+> Learn how to use images from models as output with Agno agents.
+
+Similar to providing image inputs, you can also get image outputs from an agent. Take a look at the [compatibility matrix](/concepts/models/compatibility#multimodal-support) to see which models support image as output.
+
+## Image Output Modality
+
+The following example demonstrates how some models can directly generate images as part of their response.
+
+```python image_agent.py theme={null}
+from io import BytesIO
+
+from agno.agent import Agent, RunOutput  # noqa
+from agno.models.google import Gemini
+from PIL import Image
+
+# No system message should be provided
+agent = Agent(
+    model=Gemini(
+        id="gemini-2.0-flash-exp-image-generation",
+        response_modalities=["Text", "Image"], # This means to generate both images and text
+    )
+)
+
+# Print the response in the terminal
+run_response = agent.run("Make me an image of a cat in a tree.")
+
+if run_response and isinstance(run_response, RunOutput) and run_response.images:
+    for image_response in run_response.images:
+        image_bytes = image_response.content
+        if image_bytes:
+            image = Image.open(BytesIO(image_bytes))
+            image.show()
+            # Save the image to a file
+            # image.save("generated_image.png")
+else:
+    print("No images found in run response")
+```
+
+<Check>You can find all generated images in the `RunOutput.images` list.</Check>
+
+## Developer Resources
+
+* View more [Examples](/examples/models/gemini/image_generation)

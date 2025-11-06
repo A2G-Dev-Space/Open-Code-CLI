@@ -1,0 +1,111 @@
+# Create Your First AgentOS
+
+> Original Document: [Create Your First AgentOS](https://docs.agno.com/agent-os/creating-your-first-os.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:13.491Z
+
+---
+
+# Create Your First AgentOS
+
+> Quick setup guide to get your first AgentOS instance running locally
+
+Get started with AgentOS by setting up a minimal local instance.
+This guide will have you running your first agent in minutes, with optional paths to add advanced features through our examples.
+
+<Check>
+  AgentOS is a FastAPI app that you can run locally or in your cloud. If you want to build AgentOS using an existing FastAPI app, check out the [Custom FastAPI App](/agent-os/customize/custom-fastapi) guide.
+</Check>
+
+## Prerequisites
+
+* Python 3.9+
+* An LLM provider API key (e.g., `OPENAI_API_KEY`)
+
+## Installation
+
+Create and activate a virtual environment:
+
+<CodeGroup>
+  ```bash Mac theme={null}
+  # Create virtual environment
+  python -m venv venv
+
+  # Activate virtual environment
+  source venv/bin/activate
+  ```
+
+  ```bash Windows theme={null}
+  # Create virtual environment
+  python -m venv venv
+
+  # Activate virtual environment
+  venv\Scripts\activate
+  ```
+</CodeGroup>
+
+Install dependencies:
+
+```bash  theme={null}
+pip install -U agno "fastapi[standard]" uvicorn openai
+```
+
+## Minimal Setup
+
+Create `my_os.py`:
+
+```python  theme={null}
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.os import AgentOS
+
+assistant = Agent(
+    name="Assistant",
+    model=OpenAIChat(id="gpt-5-mini"),
+    instructions=["You are a helpful AI assistant."],
+    markdown=True,
+)
+
+agent_os = AgentOS(
+    id="my-first-os",
+    description="My first AgentOS",
+    agents=[assistant],
+)
+
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    # Default port is 7777; change with port=...
+    agent_os.serve(app="my_os:app", reload=True)
+```
+
+## Running Your OS
+
+Start your AgentOS:
+
+```bash  theme={null}
+python my_os.py
+```
+
+Access your running instance:
+
+* **App Interface**: `http://localhost:7777` - Use this URL when connecting to the AgentOS control plane
+* **API Documentation**: `http://localhost:7777/docs` - Interactive API documentation and testing
+* **Configuration**: `http://localhost:7777/config` - View AgentOS configuration
+* **API Reference**: View the [AgentOS API documentation](/reference-api/overview) for programmatic access
+
+## Connecting to the Control Plane
+
+With your AgentOS now running locally (`http://localhost:7777`), you can connect it to the AgentOS control plane for a enhanced management experience. The control plane provides a centralized interface to interact with your agents, manage knowledge bases, track sessions, and monitor performance.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Connect to Control Plane" icon="link" href="/agent-os/connecting-your-os">
+    Connect your running OS to the AgentOS control plane interface
+  </Card>
+
+  <Card title="Browse Examples" icon="code" href="/examples/agent-os/demo">
+    Explore comprehensive examples for advanced AgentOS configurations
+  </Card>
+</CardGroup>

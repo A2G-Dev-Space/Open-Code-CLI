@@ -1,0 +1,56 @@
+# Spider
+
+> Original Document: [Spider](https://docs.agno.com/concepts/tools/toolkits/web_scrape/spider.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.137Z
+
+---
+
+# Spider
+
+**SpiderTools** is an open source web Scraper & Crawler that returns LLM-ready data. To start using Spider, you need an API key from the [Spider dashboard](https://spider.cloud).
+
+## Prerequisites
+
+The following example requires the `spider-client` library.
+
+```shell  theme={null}
+pip install -U spider-client
+```
+
+## Example
+
+The following agent will run a search query to get the latest news in USA and scrape the first search result. The agent will return the scraped data in markdown format.
+
+```python cookbook/tools/spider_tools.py theme={null}
+from agno.agent import Agent
+from agno.tools.spider import SpiderTools
+
+agent = Agent(tools=[SpiderTools()])
+agent.print_response('Can you scrape the first search result from a search on "news in USA"?', markdown=True)
+```
+
+## Toolkit Params
+
+| Parameter         | Type             | Default | Description                                             |
+| ----------------- | ---------------- | ------- | ------------------------------------------------------- |
+| `max_results`     | `Optional[int]`  | `None`  | Default maximum number of results.                      |
+| `url`             | `Optional[str]`  | `None`  | Default URL for operations.                             |
+| `optional_params` | `Optional[dict]` | `None`  | Additional parameters for operations.                   |
+| `enable_search`   | `bool`           | `True`  | Enable web search functionality.                        |
+| `enable_scrape`   | `bool`           | `True`  | Enable web scraping functionality.                      |
+| `enable_crawl`    | `bool`           | `True`  | Enable web crawling functionality.                      |
+| `all`             | `bool`           | `False` | Enable all tools. Overrides individual flags when True. |
+
+## Toolkit Functions
+
+| Function | Description                                                                                                                                                                                        |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search` | Searches the web for the given query. Parameters include `query` (str) for the search query and `max_results` (int, default=5) for maximum results. Returns search results in JSON format.         |
+| `scrape` | Scrapes the content of a webpage. Parameters include `url` (str) for the URL of the webpage to scrape. Returns markdown of the webpage.                                                            |
+| `crawl`  | Crawls the web starting from a URL. Parameters include `url` (str) for the URL to crawl and `limit` (Optional\[int], default=10) for maximum pages to crawl. Returns crawl results in JSON format. |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/spider.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/spider_tools.py)

@@ -1,0 +1,63 @@
+# Could Not Connect To Docker
+
+> Original Document: [Could Not Connect To Docker](https://docs.agno.com/faq/could-not-connect-to-docker.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:17.031Z
+
+---
+
+# Could Not Connect To Docker
+
+If you have Docker up and running and get the following error, please read on:
+
+```bash  theme={null}
+ERROR    Could not connect to docker. Please confirm docker is installed and running
+ERROR    Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+```
+
+## Quick fix
+
+Create the `/var/run/docker.sock` symlink using:
+
+```shell  theme={null}
+sudo ln -s "$HOME/.docker/run/docker.sock" /var/run/docker.sock
+```
+
+In 99% of the cases, this should work. If it doesnt, try:
+
+```shell  theme={null}
+sudo chown $USER /var/run/docker.sock
+```
+
+## Full details
+
+Agno uses [docker-py](https://github.com/docker/docker-py) to run containers, and if the `/var/run/docker.sock` is missing or has incorrect permissions, it cannot connect to docker.
+
+**To fix, please create the `/var/run/docker.sock` file using:**
+
+```shell  theme={null}
+sudo ln -s "$HOME/.docker/run/docker.sock" /var/run/docker.sock
+```
+
+If that does not work, check the permissions using `ls -l /var/run/docker.sock`.
+
+If the `/var/run/docker.sock` does not exist, check if the `$HOME/.docker/run/docker.sock` file is missing. If its missing, please reinstall Docker.
+
+**If none of this works and the `/var/run/docker.sock` exists:**
+
+* Give your user permissions to the `/var/run/docker.sock` file:
+
+```shell  theme={null}
+sudo chown $USER /var/run/docker.sock
+```
+
+* Give your user permissions to the docker group:
+
+```shell  theme={null}
+sudo usermod -a -G docker $USER
+```
+
+## More info
+
+* [Docker-py Issue](https://github.com/docker/docker-py/issues/3059#issuecomment-1294369344)
+* [Stackoverflow answer](https://stackoverflow.com/questions/48568172/docker-sock-permission-denied/56592277#56592277)

@@ -1,0 +1,66 @@
+# OpenAI Key Request While Using Other Models
+
+> Original Document: [OpenAI Key Request While Using Other Models](https://docs.agno.com/faq/openai-key-request-for-other-models.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:17.040Z
+
+---
+
+# OpenAI Key Request While Using Other Models
+
+If you see a request for an OpenAI API key but haven't explicitly configured OpenAI, it's because Agno uses OpenAI models by default in several places, including:
+
+* The default model when unspecified in `Agent`
+* The default embedder is OpenAIEmbedder with VectorDBs, unless specified
+
+## Quick fix: Configure a Different Model
+
+It is best to specify the model for the agent explicitly, otherwise it would default to `OpenAIChat`.
+
+For example, to use Google's Gemini instead of OpenAI:
+
+```python  theme={null}
+from agno.agent import Agent, RunOutput
+from agno.models.google import Gemini
+
+agent = Agent(
+    model=Gemini(id="gemini-1.5-flash"),
+    markdown=True,
+)
+
+# Print the response in the terminal
+agent.print_response("Share a 2 sentence horror story.")
+```
+
+For more details on configuring different model providers, check our [models documentation](/concepts/models)
+
+## Quick fix: Configure a Different Embedder
+
+The same applies to embeddings. If you want to use a different embedder instead of `OpenAIEmbedder`, configure it explicitly.
+
+For example, to use Google's Gemini as an embedder, use `GeminiEmbedder`:
+
+```python  theme={null}
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.pgvector import PgVector
+from agno.knowledge.embedder.google import GeminiEmbedder
+
+# Embed sentence in database
+embeddings = GeminiEmbedder().get_embedding("The quick brown fox jumps over the lazy dog.")
+
+# Print the embeddings and their dimensions
+print(f"Embeddings: {embeddings[:5]}")
+print(f"Dimensions: {len(embeddings)}")
+
+# Use an embedder in a knowledge base
+knowledge = Knowledge(
+    vector_db=PgVector(
+        db_url="postgresql+psycopg://ai:ai@localhost:5532/ai",
+        table_name="gemini_embeddings",
+        embedder=GeminiEmbedder(),
+    ),
+    max_results=2,
+)
+```
+
+For more details on configuring different model providers, check our [Embeddings documentation](/concepts/knowledge/embedder/)

@@ -1,0 +1,75 @@
+# Image Input Bytes Content
+
+> Original Document: [Image Input Bytes Content](https://docs.agno.com/examples/models/together/image_agent_bytes.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:16.697Z
+
+---
+
+# Image Input Bytes Content
+
+## Code
+
+```python cookbook/models/together/image_agent_bytes.py theme={null}
+from pathlib import Path
+
+from agno.agent import Agent
+from agno.media import Image
+from agno.models.together import Together
+
+agent = Agent(
+    model=Together(id="meta-llama/Llama-Vision-Free"),
+    markdown=True,
+)
+
+image_path = Path(__file__).parent.joinpath("sample.jpg")
+
+# Read the image file content as bytes
+image_bytes = image_path.read_bytes()
+
+agent.print_response(
+    "Tell me about this image",
+    images=[
+        Image(content=image_bytes),
+    ],
+    stream=True,
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export TOGETHER_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U openai agno
+    ```
+  </Step>
+
+  <Step title="Add sample image">
+    Add a sample image file:
+
+    ```bash  theme={null}
+    # Add your sample.jpg file to examples/models/together/together/ directory
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/together/image_agent_bytes.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/together/image_agent_bytes.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

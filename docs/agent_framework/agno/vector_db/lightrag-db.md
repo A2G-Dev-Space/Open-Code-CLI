@@ -1,0 +1,100 @@
+# LightRAG
+
+> Original Document: [LightRAG](https://docs.agno.com/examples/concepts/vectordb/lightrag/lightrag-db.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:15.167Z
+
+---
+
+# LightRAG
+
+## Code
+
+```python cookbook/knowledge/vector_db/lightrag/lightrag.py theme={null}
+
+from os import getenv
+
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.knowledge.reader.wikipedia_reader import WikipediaReader
+from agno.vectordb.lightrag import LightRag
+
+vector_db = LightRag(
+    api_key=getenv("LIGHTRAG_API_KEY"),
+)
+
+knowledge = Knowledge(
+    name="My Pinecone Knowledge Base",
+    description="This is a knowledge base that uses a Pinecone Vector DB",
+    vector_db=vector_db,
+)
+
+
+
+knowledge.add_content(
+    name="Recipes",
+    path="cookbook/knowledge/testing_resources/cv_1.pdf",
+    metadata={"doc_type": "recipe_book"},
+)
+
+
+knowledge.add_content(
+    name="Recipes",
+    topics=["Manchester United"],
+    reader=WikipediaReader(),
+)
+
+
+knowledge.add_content(
+    name="Recipes",
+    url="https://en.wikipedia.org/wiki/Manchester_United_F.C.",
+)
+
+
+agent = Agent(
+    knowledge=knowledge,
+    search_knowledge=True,
+    read_chat_history=False,
+)
+
+
+
+agent.print_response("What skills does Jordan Mitchell have?", markdown=True)
+
+
+agent.print_response(
+    "In what year did Manchester United change their name?", markdown=True
+)
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U lightrag pypdf openai agno
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export LIGHTRAG_API_KEY="your-lightrag-api-key"
+    export OPENAI_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/vector_db/lightrag/lightrag.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/vector_db/lightrag/lightrag.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

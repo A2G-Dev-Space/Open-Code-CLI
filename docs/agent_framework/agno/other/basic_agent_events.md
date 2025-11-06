@@ -1,0 +1,117 @@
+# Basic Agent Events Handling
+
+> Original Document: [Basic Agent Events Handling](https://docs.agno.com/examples/concepts/agent/events/basic_agent_events.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.330Z
+
+---
+
+# Basic Agent Events Handling
+
+This example demonstrates how to handle and monitor various agent events during execution, including run lifecycle events, tool calls, and content streaming.
+
+## Code
+
+```python basic_agent_events.py theme={null}
+import asyncio
+
+from agno.agent import RunEvent
+from agno.agent.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+finance_agent = Agent(
+    id="finance-agent",
+    name="Finance Agent",
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[DuckDuckGoTools()],
+)
+
+
+async def run_agent_with_events(prompt: str):
+    content_started = False
+    async for run_output_event in finance_agent.arun(
+        prompt,
+        stream=True,
+        stream_events=True,
+    ):
+        if run_output_event.event in [RunEvent.run_started, RunEvent.run_completed]:
+            print(f"\nEVENT: {run_output_event.event}")
+
+        if run_output_event.event in [RunEvent.tool_call_started]:
+            print(f"\nEVENT: {run_output_event.event}")
+            print(f"TOOL CALL: {run_output_event.tool.tool_name}")  # type: ignore
+            print(f"TOOL CALL ARGS: {run_output_event.tool.tool_args}")  # type: ignore
+
+        if run_output_event.event in [RunEvent.tool_call_completed]:
+            print(f"\nEVENT: {run_output_event.event}")
+            print(f"TOOL CALL: {run_output_event.tool.tool_name}")  # type: ignore
+            print(f"TOOL CALL RESULT: {run_output_event.tool.result}")  # type: ignore
+
+        if run_output_event.event in [RunEvent.run_content]:
+            if not content_started:
+                print("\nCONTENT:")
+                content_started = True
+            else:
+                print(run_output_event.content, end="")
+
+
+if __name__ == "__main__":
+    asyncio.run(
+        run_agent_with_events(
+            "What is the price of Apple stock?",
+        )
+    )
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai ddgs
+    ```
+  </Step>
+
+  <Step title="Export your OpenAI API key">
+    <CodeGroup>
+      ```bash Mac/Linux theme={null}
+        export OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+
+      ```bash Windows theme={null}
+        $Env:OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a Python file">
+    Create a Python file and add the above code.
+
+    ```bash  theme={null}
+    touch basic_agent_events.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python basic_agent_events.py
+      ```
+
+      ```bash Windows theme={null}
+      python basic_agent_events.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Find All Cookbooks">
+    Explore all the available cookbooks in the Agno repository. Click the link below to view the code on GitHub:
+
+    <Link href="https://github.com/agno-agi/agno/tree/main/cookbook/agents/events" target="_blank">
+      Agno Cookbooks on GitHub
+    </Link>
+  </Step>
+</Steps>

@@ -1,0 +1,96 @@
+# Generate Image with Intermediate Steps
+
+> Original Document: [Generate Image with Intermediate Steps](https://docs.agno.com/examples/concepts/agent/multimodal/generate_image_with_intermediate_steps.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.432Z
+
+---
+
+# Generate Image with Intermediate Steps
+
+This example demonstrates how to create an agent that generates images using DALL-E while streaming during the image creation process.
+
+## Code
+
+```python generate_image_with_intermediate_steps.py theme={null}
+from typing import Iterator
+
+from agno.agent import Agent, RunOutputEvent
+from agno.models.openai import OpenAIChat
+from agno.tools.dalle import DalleTools
+from agno.utils.common import dataclass_to_dict
+from rich.pretty import pprint
+
+image_agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[DalleTools()],
+    description="You are an AI agent that can create images using DALL-E.",
+    instructions=[
+        "When the user asks you to create an image, use the DALL-E tool to create an image.",
+        "The DALL-E tool will return an image URL.",
+        "Return the image URL in your response in the following format: `![image description](image URL)`",
+    ],
+    markdown=True,
+)
+
+run_stream: Iterator[RunOutputEvent] = image_agent.run(
+    "Create an image of a yellow siamese cat",
+    stream=True,
+    stream_events=True,
+)
+for chunk in run_stream:
+    pprint(dataclass_to_dict(chunk, exclude={"messages"}))
+    print("---" * 20)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai rich
+    ```
+  </Step>
+
+  <Step title="Export your OpenAI API key">
+    <CodeGroup>
+      ```bash Mac/Linux theme={null}
+        export OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+
+      ```bash Windows theme={null}
+        $Env:OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a Python file">
+    Create a Python file and add the above code.
+
+    ```bash  theme={null}
+    touch generate_image_with_intermediate_steps.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python generate_image_with_intermediate_steps.py
+      ```
+
+      ```bash Windows theme={null}
+      python generate_image_with_intermediate_steps.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Find All Cookbooks">
+    Explore all the available cookbooks in the Agno repository. Click the link below to view the code on GitHub:
+
+    <Link href="https://github.com/agno-agi/agno/tree/main/cookbook/agents/multimodal" target="_blank">
+      Agno Cookbooks on GitHub
+    </Link>
+  </Step>
+</Steps>

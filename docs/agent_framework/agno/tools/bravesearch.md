@@ -1,0 +1,61 @@
+# Brave Search
+
+> Original Document: [Brave Search](https://docs.agno.com/concepts/tools/toolkits/search/bravesearch.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.065Z
+
+---
+
+# Brave Search
+
+**BraveSearch** enables an Agent to search the web for information using the Brave search engine.
+
+## Prerequisites
+
+The following examples requires the `brave-search` library.
+
+```shell  theme={null}
+pip install -U brave-search
+```
+
+```shell  theme={null}
+export BRAVE_API_KEY=***
+```
+
+## Example
+
+```python cookbook/tools/bravesearch_tools.py theme={null}
+from agno.agent import Agent
+from agno.tools.bravesearch import BraveSearchTools
+
+agent = Agent(
+    tools=[BraveSearchTools()],
+    description="You are a news agent that helps users find the latest news.",
+    instructions=[
+        "Given a topic by the user, respond with 4 latest news items about that topic."
+    ],
+    )
+agent.print_response("AI Agents", markdown=True)
+
+```
+
+## Toolkit Params
+
+| Parameter             | Type            | Default | Description                                                                    |
+| --------------------- | --------------- | ------- | ------------------------------------------------------------------------------ |
+| `api_key`             | `Optional[str]` | `None`  | Brave API key. If not provided, will use BRAVE\_API\_KEY environment variable. |
+| `fixed_max_results`   | `Optional[int]` | `None`  | A fixed number of maximum results.                                             |
+| `fixed_language`      | `Optional[str]` | `None`  | A fixed language for the search results.                                       |
+| `enable_brave_search` | `bool`          | `True`  | Enable or disable the brave\_search function.                                  |
+| `all`                 | `bool`          | `False` | Enable all available functions in the toolkit.                                 |
+
+## Toolkit Functions
+
+| Function       | Description                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brave_search` | Searches Brave for a specified query. Parameters include `query` (str) for the search term, `max_results` (int, default=5) for the maximum number of results, `country` (str, default="US") for the country code for search results, and `search_lang` (str, default="en") for the language of the search results. Returns a JSON formatted string containing the search results. |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/bravesearch.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/bravesearch_tools.py)

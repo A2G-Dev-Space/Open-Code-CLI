@@ -1,0 +1,57 @@
+# SerperApi
+
+> Original Document: [SerperApi](https://docs.agno.com/concepts/tools/toolkits/search/serper.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.088Z
+
+---
+
+# SerperApi
+
+**SerperApiTools** enable an Agent to search Google for a query.
+
+## Prerequisites
+
+The following example requires an API key from [SerperApi](https://serper.dev/).
+
+```shell  theme={null}
+export SERPER_API_KEY=***
+```
+
+## Example
+
+The following agent will search Google for the query: "Whats happening in the USA" and share results.
+
+```python cookbook/tools/serper_tools.py theme={null}
+from agno.agent import Agent
+from agno.tools.serper import SerperTools
+
+agent = Agent(tools=[SerperTools(location="us")])
+agent.print_response("Whats happening in the USA?", markdown=True)
+```
+
+## Toolkit Params
+
+| Parameter               | Type   | Default | Description                               |
+| ----------------------- | ------ | ------- | ----------------------------------------- |
+| `api_key`               | `str`  | -       | API key for authentication purposes.      |
+| `location`              | `str`  | `"us"`  | Location to search from.                  |
+| `enable_search`         | `bool` | `True`  | Enable the search functionality.          |
+| `enable_search_news`    | `bool` | `True`  | Enable the search\_news functionality.    |
+| `enable_search_scholar` | `bool` | `True`  | Enable the search\_scholar functionality. |
+| `enable_scrape_webpage` | `bool` | `True`  | Enable the scrape\_webpage functionality. |
+| `all`                   | `bool` | `False` | Enable all functionality.                 |
+
+## Toolkit Functions
+
+| Function         | Description                                        |
+| ---------------- | -------------------------------------------------- |
+| `search_google`  | This function searches Google for a query.         |
+| `search_news`    | This function searches Google News for a query.    |
+| `search_scholar` | This function searches Google Scholar for a query. |
+| `scrape_webpage` | This function scrapes a webpage for a query.       |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/serper.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/serper_tools.py)

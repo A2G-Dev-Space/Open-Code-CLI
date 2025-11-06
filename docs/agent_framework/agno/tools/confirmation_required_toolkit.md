@@ -1,0 +1,121 @@
+# Confirmation Required with Toolkit
+
+> Original Document: [Confirmation Required with Toolkit](https://docs.agno.com/examples/concepts/agent/human_in_the_loop/confirmation_required_toolkit.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.354Z
+
+---
+
+# Confirmation Required with Toolkit
+
+This example demonstrates human-in-the-loop functionality using toolkit-based tools that require confirmation. It shows how to handle user confirmation when working with pre-built tool collections like YFinanceTools.
+
+## Code
+
+```python confirmation_required_toolkit.py theme={null}
+"""🤝 Human-in-the-Loop: Adding User Confirmation to Tool Calls
+
+This example shows how to implement human-in-the-loop functionality in your Agno tools.
+It shows how to:
+- Handle user confirmation during tool execution
+- Gracefully cancel operations based on user choice
+
+Some practical applications:
+- Confirming sensitive operations before execution
+- Reviewing API calls before they're made
+- Validating data transformations
+- Approving automated actions in critical systems
+
+Run `pip install openai httpx rich agno` to install dependencies.
+"""
+
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools import tool
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.utils import pprint
+from rich.console import Console
+from rich.prompt import Prompt
+
+console = Console()
+
+agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[DuckDuckGoTools(requires_confirmation_tools=["get_current_stock_price"])],
+    markdown=True,
+)
+
+run_response = agent.run("What is the current stock price of Apple?")
+if run_response.is_paused:  # Or agent.run_response.is_paused
+    for tool in run_response.tools_requiring_confirmation:  # type: ignore
+        # Ask for confirmation
+        console.print(
+            f"Tool name [bold blue]{tool.tool_name}({tool.tool_args})[/] requires confirmation."
+        )
+        message = (
+            Prompt.ask("Do you want to continue?", choices=["y", "n"], default="y")
+            .strip()
+            .lower()
+        )
+
+        if message == "n":
+            tool.confirmed = False
+        else:
+            # We update the tools in place
+            tool.confirmed = True
+
+    run_response = agent.continue_run(run_response=run_response)
+    pprint.pprint_run_response(run_response)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai ddgs rich
+    ```
+  </Step>
+
+  <Step title="Export your OpenAI API key">
+    <CodeGroup>
+      ```bash Mac/Linux theme={null}
+        export OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+
+      ```bash Windows theme={null}
+        $Env:OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a Python file">
+    Create a Python file and add the above code.
+
+    ```bash  theme={null}
+    touch confirmation_required_toolkit.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python confirmation_required_toolkit.py
+      ```
+
+      ```bash Windows   theme={null}
+      python confirmation_required_toolkit.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Find All Cookbooks">
+    Explore all the available cookbooks in the Agno repository. Click the link below to view the code on GitHub:
+
+    <Link href="https://github.com/agno-agi/agno/tree/main/cookbook/agents/human_in_the_loop" target="_blank">
+      Agno Cookbooks on GitHub
+    </Link>
+  </Step>
+</Steps>

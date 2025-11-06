@@ -1,0 +1,42 @@
+# JSON for Agent
+
+> Original Document: [JSON for Agent](https://docs.agno.com/examples/concepts/db/json/json_for_agent.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:14.557Z
+
+---
+
+# JSON for Agent
+
+Agno supports using local JSON files as a storage backend for Agents using the `JsonDb` class.
+
+## Usage
+
+```python json_for_agent.py theme={null}
+"""Run `pip install ddgs openai` to install dependencies."""
+
+from agno.agent import Agent
+from agno.db.json import JsonDb
+from agno.models.openai import OpenAIChat
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Setup the JSON database
+db = JsonDb(db_path="tmp/json_db")
+
+agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+```
+
+## Params
+
+<Snippet file="db-json-params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/blob/main/cookbook/db/json_db/json_for_agent.py)

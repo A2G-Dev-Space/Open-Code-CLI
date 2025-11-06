@@ -1,0 +1,29 @@
+# Gemini
+
+> Original Document: [Gemini](https://docs.agno.com/reference/models/gemini.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:17.373Z
+
+---
+
+# Gemini
+
+The Gemini model provides access to Google's Gemini models.
+
+## Parameters
+
+| Parameter            | Type                       | Default              | Description                                                      |
+| -------------------- | -------------------------- | -------------------- | ---------------------------------------------------------------- |
+| `id`                 | `str`                      | `"gemini-1.5-flash"` | The id of the Gemini model to use                                |
+| `name`               | `str`                      | `"Gemini"`           | The name of the model                                            |
+| `provider`           | `str`                      | `"Google"`           | The provider of the model                                        |
+| `api_key`            | `Optional[str]`            | `None`               | The API key for Google AI (defaults to GOOGLE\_API\_KEY env var) |
+| `generation_config`  | `Optional[Dict[str, Any]]` | `None`               | Generation configuration parameters for the model                |
+| `safety_settings`    | `Optional[List[Dict]]`     | `None`               | Safety settings to filter content                                |
+| `tools`              | `Optional[List[Dict]]`     | `None`               | Tools available to the model                                     |
+| `tool_config`        | `Optional[Dict[str, Any]]` | `None`               | Configuration for tool use                                       |
+| `system_instruction` | `Optional[str]`            | `None`               | System instruction for the model                                 |
+| `cached_content`     | `Optional[str]`            | `None`               | Cached content identifier for context caching                    |
+| `request_params`     | `Optional[Dict[str, Any]]` | `None`               | Additional parameters to include in the request                  |
+| `client_params`      | `Optional[Dict[str, Any]]` | `None`               | Additional parameters for client configuration                   |
+| `thinking_enabled`   | `Optional[bool]`           | `None`               | Whether to enable thinking mode for supported models             |

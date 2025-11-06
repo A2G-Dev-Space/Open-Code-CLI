@@ -1,0 +1,57 @@
+# Agent with Tools
+
+> Original Document: [Agent with Tools](https://docs.agno.com/examples/models/azure/openai/tool_use.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:16.210Z
+
+---
+
+# Agent with Tools
+
+## Code
+
+```python cookbook/models/azure/openai/tool_use.py theme={null}
+from agno.agent import Agent
+from agno.models.azure import AzureOpenAI
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+agent = Agent(
+    model=AzureOpenAI(id="gpt-5-mini"),
+    tools=[DuckDuckGoTools()],
+    markdown=True,
+)
+
+agent.print_response("Whats happening in France?", stream=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export AZURE_OPENAI_API_KEY=xxx
+    export AZURE_OPENAI_ENDPOINT=xxx
+    export AZURE_DEPLOYMENT=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U openai agno ddgs
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/azure/openai/tool_use.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/azure/openai/tool_use.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

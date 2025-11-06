@@ -1,0 +1,47 @@
+# Understanding Server Parameters
+
+> Original Document: [Understanding Server Parameters](https://docs.agno.com/concepts/tools/mcp/server-params.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:13.880Z
+
+---
+
+# Understanding Server Parameters
+
+> Understanding how to configure the server parameters for the MCPTools and MultiMCPTools classes
+
+The recommended way to configure `MCPTools` is to use the `command` or `url` parameters.
+
+Alternatively, you can use the `server_params` parameter with `MCPTools` to configure the connection to the MCP server in more detail.
+
+When using the **stdio** transport, the `server_params` parameter should be an instance of `StdioServerParameters`. It contains the following keys:
+
+* `command`: The command to run the MCP server.
+  * Use `npx` for mcp servers that can be installed via npm (or `node` if running on Windows).
+  * Use `uvx` for mcp servers that can be installed via uvx.
+  * Use custom binary executables (e.g., `./my-server`, `../usr/local/bin/my-server`, or binaries in your PATH).
+* `args`: The arguments to pass to the MCP server.
+* `env`: Optional environment variables to pass to the MCP server. Remember to include all current environment variables in the `env` dictionary. If `env` is not provided, the current environment variables will be used.
+  e.g.
+
+```python  theme={null}
+{
+    **os.environ,
+    "GOOGLE_MAPS_API_KEY": os.getenv("GOOGLE_MAPS_API_KEY"),
+}
+```
+
+When using the **SSE** transport, the `server_params` parameter should be an instance of `SSEClientParams`. It contains the following fields:
+
+* `url`: The URL of the MCP server.
+* `headers`: Headers to pass to the MCP server (optional).
+* `timeout`: Timeout for the connection to the MCP server (optional).
+* `sse_read_timeout`: Timeout for the SSE connection itself (optional).
+
+When using the **Streamable HTTP** transport, the `server_params` parameter should be an instance of `StreamableHTTPClientParams`. It contains the following fields:
+
+* `url`: The URL of the MCP server.
+* `headers`: Headers to pass to the MCP server (optional).
+* `timeout`: Timeout for the connection to the MCP server (optional).
+* `sse_read_timeout`: how long (in seconds) the client will wait for a new event before disconnecting. All other HTTP operations are controlled by `timeout` (optional).
+* `terminate_on_close`: Whether to terminate the connection when the client is closed (optional).

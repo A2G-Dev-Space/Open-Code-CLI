@@ -1,0 +1,49 @@
+# In-Memory Storage for Teams
+
+> Original Document: [In-Memory Storage for Teams](https://docs.agno.com/examples/concepts/db/in_memory/in_memory_for_team.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:14.588Z
+
+---
+
+# In-Memory Storage for Teams
+
+Example using `InMemoryDb` with teams for multi-agent coordination.
+
+## Usage
+
+```python  theme={null}
+from agno.agent import Agent
+from agno.db.in_memory import InMemoryDb
+from agno.models.openai import OpenAIChat
+from agno.team import Team
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.hackernews import HackerNewsTools
+
+# Create team members
+hn_researcher = Agent(
+    name="HackerNews Researcher",
+    model=OpenAIChat("gpt-5-mini"),
+    tools=[HackerNewsTools()],
+)
+
+web_searcher = Agent(
+    name="Web Searcher", 
+    model=OpenAIChat("gpt-5-mini"),
+    tools=[DuckDuckGoTools()],
+)
+
+# Setup team with in-memory database
+db = InMemoryDb()
+team = Team(
+    name="Research Team",
+    members=[hn_researcher, web_searcher],
+    db=db,
+)
+
+team.print_response("Find top AI news")
+```
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/blob/main/cookbook/db/in_memory/in_memory_storage_for_team.py)

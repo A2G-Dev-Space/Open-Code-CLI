@@ -1,0 +1,45 @@
+# Semantic Chunking
+
+> Original Document: [Semantic Chunking](https://docs.agno.com/concepts/knowledge/chunking/semantic-chunking.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:13.661Z
+
+---
+
+# Semantic Chunking
+
+Semantic chunking is a method of splitting documents into smaller chunks by analyzing semantic similarity between text segments using embeddings. It uses the chonkie library to identify natural breakpoints where the semantic meaning changes significantly, based on a configurable similarity threshold. This helps preserve context and meaning better than fixed-size chunking by ensuring semantically related content stays together in the same chunk, while splitting occurs at meaningful topic transitions.
+
+```python  theme={null}
+import asyncio
+from agno.agent import Agent
+from agno.knowledge.chunking.semantic import SemanticChunking
+from agno.knowledge.knowledge import Knowledge
+from agno.knowledge.reader.pdf_reader import PDFReader
+from agno.vectordb.pgvector import PgVector
+
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
+knowledge = Knowledge(
+    vector_db=PgVector(table_name="recipes_semantic_chunking", db_url=db_url),
+)
+asyncio.run(knowledge.add_content_async(
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf",
+    reader=PDFReader(
+        name="Semantic Chunking Reader",
+        chunking_strategy=SemanticChunking(similarity_threshold=0.5),
+    ),
+))
+
+agent = Agent(
+    knowledge=knowledge,
+    search_knowledge=True,
+)
+
+agent.print_response("How to make Thai curry?", markdown=True)
+
+```
+
+## Semantic Chunking Params
+
+<Snippet file="chunking-semantic.mdx" />

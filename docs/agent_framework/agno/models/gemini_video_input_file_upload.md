@@ -1,0 +1,93 @@
+# Video Input (File Upload)
+
+> Original Document: [Video Input (File Upload)](https://docs.agno.com/examples/models/gemini/video_input_file_upload.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:15.791Z
+
+---
+
+# Video Input (File Upload)
+
+## Code
+
+```python cookbook/models/google/gemini/video_input_file_upload.py theme={null}
+import time
+from pathlib import Path
+
+from agno.agent import Agent
+from agno.media import Video
+from agno.models.google import Gemini
+from agno.utils.log import logger
+
+model = Gemini(id="gemini-2.0-flash-exp")
+agent = Agent(
+    model=model,
+    markdown=True,
+)
+
+# Please download a sample video file to test this Agent
+# Run: `wget https://storage.googleapis.com/generativeai-downloads/images/GreatRedSpot.mp4` to download a sample video
+video_path = Path(__file__).parent.joinpath("samplevideo.mp4")
+video_file = None
+remote_file_name = f"files/{video_path.stem.lower().replace('_', '')}"
+try:
+    video_file = model.get_client().files.get(name=remote_file_name)
+except Exception as e:
+    logger.info(f"Error getting file {video_path.stem}: {e}")
+    pass
+
+# Upload the video file if it doesn't exist
+if not video_file:
+    try:
+        logger.info(f"Uploading video: {video_path}")
+        video_file = model.get_client().files.upload(
+            file=video_path,
+            config=dict(name=video_path.stem, display_name=video_path.stem),
+        )
+
+        # Check whether the file is ready to be used.
+        while video_file.state.name == "PROCESSING":
+            time.sleep(2)
+            video_file = model.get_client().files.get(name=video_file.name)
+
+        logger.info(f"Uploaded video: {video_file}")
+    except Exception as e:
+        logger.error(f"Error uploading video: {e}")
+
+if __name__ == "__main__":
+    agent.print_response(
+        "Tell me about this video",
+        videos=[Video(content=video_file)],
+        stream=True,
+    )
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export GOOGLE_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U google-genai agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/google/gemini/video_input_file_upload.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/google/gemini/video_input_file_upload.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

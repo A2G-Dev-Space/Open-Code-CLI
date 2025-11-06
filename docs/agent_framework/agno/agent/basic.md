@@ -1,0 +1,81 @@
+# Basic Slack Agent
+
+> Original Document: [Basic Slack Agent](https://docs.agno.com/examples/agent-os/interfaces/slack/basic.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.543Z
+
+---
+
+# Basic Slack Agent
+
+> Create a basic AI agent that integrates with Slack for conversations
+
+## Code
+
+```python cookbook/os/interfaces/slack/basic.py theme={null}
+from agno.agent import Agent
+from agno.db.sqlite import SqliteDb
+from agno.models.openai import OpenAIChat
+from agno.os import AgentOS
+from agno.os.interfaces.slack import Slack
+
+agent_db = SqliteDb(session_table="agent_sessions", db_file="tmp/persistent_memory.db")
+
+basic_agent = Agent(
+    name="Basic Agent",
+    model=OpenAIChat(id="gpt-5-mini"),
+    db=agent_db,
+    add_history_to_context=True,
+    num_history_runs=3,
+    add_datetime_to_context=True,
+)
+
+agent_os = AgentOS(
+    agents=[basic_agent],
+    interfaces=[Slack(agent=basic_agent)],
+)
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    agent_os.serve(app="basic:app", reload=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export SLACK_TOKEN=xoxb-your-bot-user-token
+    export SLACK_SIGNING_SECRET=your-signing-secret
+    export OPENAI_API_KEY=your_openai_api_key
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno
+    ```
+  </Step>
+
+  <Step title="Run Example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/os/interfaces/slack/basic.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/os/interfaces/slack/basic.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Key Features
+
+* **Slack Integration**: Responds to direct messages and channel mentions
+* **Conversation History**: Maintains context with last 3 interactions
+* **Persistent Memory**: SQLite database for session storage
+* **DateTime Context**: Time-aware responses
+* **GPT-4o Powered**: Intelligent conversational capabilities

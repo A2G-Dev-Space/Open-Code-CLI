@@ -1,0 +1,28 @@
+# StepOutput
+
+> Original Document: [StepOutput](https://docs.agno.com/reference/workflows/step_output.md)
+> Category: workflows
+> Downloaded: 2025-11-06T11:51:17.360Z
+
+---
+
+# StepOutput
+
+| Parameter       | Type                                                              | Default | Description                                                     |
+| --------------- | ----------------------------------------------------------------- | ------- | --------------------------------------------------------------- |
+| `step_name`     | `Optional[str]`                                                   | `None`  | Step identification name                                        |
+| `step_id`       | `Optional[str]`                                                   | `None`  | Unique step identifier                                          |
+| `step_type`     | `Optional[str]`                                                   | `None`  | Type of step (e.g., "Loop", "Condition", "Parallel")            |
+| `executor_type` | `Optional[str]`                                                   | `None`  | Type of executor: "agent", "team", or "function"                |
+| `executor_name` | `Optional[str]`                                                   | `None`  | Name of the executor                                            |
+| `content`       | `Optional[Union[str, Dict[str, Any], List[Any], BaseModel, Any]]` | `None`  | Primary output (can be any format)                              |
+| `step_run_id`   | `Optional[str]`                                                   | `None`  | Link to the run ID of the step execution                        |
+| `images`        | `Optional[List[Image]]`                                           | `None`  | Media outputs - images (new or passed-through)                  |
+| `videos`        | `Optional[List[Video]]`                                           | `None`  | Media outputs - videos (new or passed-through)                  |
+| `audio`         | `Optional[List[Audio]]`                                           | `None`  | Media outputs - audio (new or passed-through)                   |
+| `files`         | `Optional[List[File]]`                                            | `None`  | File outputs (new or passed-through)                            |
+| `metrics`       | `Optional[Metrics]`                                               | `None`  | Execution metrics and metadata                                  |
+| `success`       | `bool`                                                            | `True`  | Execution success status                                        |
+| `error`         | `Optional[str]`                                                   | `None`  | Error message if execution failed                               |
+| `stop`          | `bool`                                                            | `False` | Request early workflow termination                              |
+| `steps`         | `Optional[List[StepOutput]]`                                      | `None`  | Nested step outputs for composite steps (Loop, Condition, etc.) |

@@ -1,0 +1,90 @@
+# Agent with Memory
+
+> Original Document: [Agent with Memory](https://docs.agno.com/examples/models/perplexity/memory.md)
+> Category: memory
+> Downloaded: 2025-11-06T11:51:16.553Z
+
+---
+
+# Agent with Memory
+
+## Code
+
+```python cookbook/models/perplexity/memory.py theme={null}
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.perplexity import Perplexity
+from rich.pretty import pprint
+
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+agent = Agent(
+    model=Perplexity(id="sonar-pro"),
+    # Store the memories and summary in a database
+    db=PostgresDb(db_url=db_url),
+    enable_user_memories=True,
+    enable_session_summaries=True,
+)
+
+# -*- Share personal information
+agent.print_response("My name is john billings?", stream=True)
+# -*- Print memories and summary
+if agent.db:
+    pprint(agent.get_user_memories(user_id="test_user"))
+    pprint(
+        agent.get_session(session_id="test_session").summary  # type: ignore
+    )
+
+# -*- Share personal information
+agent.print_response("I live in nyc?", stream=True)
+# -*- Print memories and summary
+if agent.db:
+    pprint(agent.get_user_memories(user_id="test_user"))
+    pprint(
+        agent.get_session(session_id="test_session").summary  # type: ignore
+    )
+
+# -*- Share personal information
+agent.print_response("I'm going to a concert tomorrow?", stream=True)
+# -*- Print memories and summary
+if agent.db:
+    pprint(agent.get_user_memories(user_id="test_user"))
+    pprint(
+        agent.get_session(session_id="test_session").summary  # type: ignore
+    )
+
+# Ask about the conversation
+agent.print_response(
+    "What have we been talking about, do you know my name?", stream=True
+)
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export PERPLEXITY_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai sqlalchemy psycopg pgvector
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/perplexity/memory.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/perplexity/memory.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

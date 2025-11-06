@@ -1,0 +1,72 @@
+# Remove Vectors
+
+> Original Document: [Remove Vectors](https://docs.agno.com/examples/concepts/knowledge/basic-operations/remove-vectors.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:14.704Z
+
+---
+
+# Remove Vectors
+
+## Code
+
+```python 10_remove_vectors.py theme={null}
+import asyncio
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.pgvector import PgVector
+
+# Create Knowledge Instance
+knowledge = Knowledge(
+    name="Basic SDK Knowledge Base",
+    description="Agno 2.0 Knowledge Implementation",
+    vector_db=PgVector(
+        table_name="vectors", db_url="postgresql+psycopg://ai:ai@localhost:5532/ai"
+    ),
+)
+
+asyncio.run(
+    knowledge.add_content_async(
+        name="CV",
+        path="cookbook/knowledge/testing_resources/cv_1.pdf",
+        metadata={"user_tag": "Engineering Candidates"},
+    )
+)
+
+
+knowledge.remove_vectors_by_metadata({"user_tag": "Engineering Candidates"})
+
+# Add from local file to the knowledge base
+asyncio.run(
+    knowledge.add_content_async(
+        name="CV",
+        path="cookbook/knowledge/testing_resources/cv_1.pdf",
+        metadata={"user_tag": "Engineering Candidates"},
+    )
+)
+
+knowledge.remove_vectors_by_name("CV")
+```
+
+## Usage
+
+<Steps>
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno sqlalchemy psycopg pgvector
+    ```
+  </Step>
+
+  <Snippet file="run-pgvector-step.mdx" />
+
+  <Step title="Run the example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/basic_operations/10_remove_vectors.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/basic_operations/10_remove_vectors.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

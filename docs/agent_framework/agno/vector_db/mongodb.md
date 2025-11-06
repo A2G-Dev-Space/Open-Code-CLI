@@ -1,0 +1,109 @@
+# MongoDB Agent Knowledge
+
+> Original Document: [MongoDB Agent Knowledge](https://docs.agno.com/concepts/vectordb/mongodb.md)
+> Category: vector_db
+> Downloaded: 2025-11-06T11:51:14.170Z
+
+---
+
+# MongoDB Agent Knowledge
+
+## Setup
+
+Follow the instructions in the [MongoDB Setup Guide](https://www.mongodb.com/docs/atlas/getting-started/) to get connection string
+
+Install MongoDB packages
+
+```shell  theme={null}
+pip install "pymongo[srv]"
+```
+
+## Example
+
+```python agent_with_knowledge.py theme={null}
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.mongodb import MongoDb
+
+# MongoDB Atlas connection string
+"""
+Example connection strings:
+"mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority"
+"mongodb://localhost/?directConnection=true"
+"""
+mdb_connection_string = ""
+
+knowledge_base = Knowledge(
+    vector_db=MongoDb(
+        collection_name="recipes",
+        db_url=mdb_connection_string,
+        wait_until_index_ready_in_seconds=60,
+        wait_after_insert_in_seconds=300
+    ),
+)  # adjust wait_after_insert_in_seconds and wait_until_index_ready_in_seconds to your needs
+
+if __name__ == "__main__":
+    knowledge_base.add_content(
+        url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf"
+    )
+
+    agent = Agent(knowledge=knowledge_base)
+    agent.print_response("How to make Thai curry?", markdown=True)
+```
+
+<Card title="Async Support ⚡">
+  <div className="mt-2">
+    <p>
+      MongoDB also supports asynchronous operations, enabling concurrency and leading to better performance.
+    </p>
+
+    ```python async_mongodb.py theme={null}
+    import asyncio
+
+    from agno.agent import Agent
+    from agno.knowledge.knowledge import Knowledge
+    from agno.vectordb.mongodb import MongoDb
+
+    # MongoDB Atlas connection string
+    """
+    Example connection strings:
+    "mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority"
+    "mongodb://localhost:27017/agno?authSource=admin"
+    """
+    mdb_connection_string = "mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority"
+
+    knowledge_base = Knowledge(
+        vector_db=MongoDb(
+            collection_name="recipes",
+            db_url=mdb_connection_string,
+        ),
+    )
+
+    # Create and use the agent
+    agent = Agent(knowledge=knowledge_base)
+
+    if __name__ == "__main__":
+        # Load knowledge base asynchronously
+        asyncio.run(knowledge_base.add_content_async(
+                url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf"
+            )
+        )
+
+        # Create and use the agent asynchronously
+        asyncio.run(agent.aprint_response("How to make Thai curry?", markdown=True))
+    ```
+
+    <Tip className="mt-4">
+      Use <code>aload()</code> and <code>aprint\_response()</code> methods with <code>asyncio.run()</code> for non-blocking operations in high-throughput applications.
+    </Tip>
+  </div>
+</Card>
+
+## MongoDB Params
+
+<Snippet file="vectordb_mongodb_params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook (Sync)](https://github.com/agno-agi/agno/blob/main/cookbook/knowledge/vector_db/mongo_db/mongo_db.py)
+* View [Cookbook (Async)](https://github.com/agno-agi/agno/blob/main/cookbook/knowledge/vector_db/mongo_db/async_mongo_db.py)

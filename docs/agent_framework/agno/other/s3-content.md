@@ -1,0 +1,97 @@
+# S3 Content
+
+> Original Document: [S3 Content](https://docs.agno.com/examples/concepts/knowledge/remote-content/s3-content.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.822Z
+
+---
+
+# S3 Content
+
+This example shows how to add content from an Amazon S3 bucket to your knowledge base. This allows you to process documents stored in cloud storage without downloading them locally.
+
+## Code
+
+```python s3.py   theme={null}
+import asyncio
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.knowledge.knowledge import Knowledge
+from agno.knowledge.remote_content.remote_content import S3Content
+from agno.vectordb.pgvector import PgVector
+
+contents_db = PostgresDb(
+    db_url="postgresql+psycopg://ai:ai@localhost:5532/ai",
+    knowledge_table="knowledge_contents",
+)
+
+# Create Knowledge Instance
+knowledge = Knowledge(
+    name="Basic SDK Knowledge Base",
+    description="Agno 2.0 Knowledge Implementation",
+    contents_db=contents_db,
+    vector_db=PgVector(
+        table_name="vectors", db_url="postgresql+psycopg://ai:ai@localhost:5532/ai"
+    ),
+)
+
+# Add from S3 bucket
+asyncio.run(
+    knowledge.add_content_async(
+        name="S3 PDF",
+        remote_content=S3Content(
+            bucket_name="agno-public", key="recipes/ThaiRecipes.pdf"
+        ),
+        metadata={"remote_content": "S3"},
+    )
+)
+
+agent = Agent(
+    name="My Agent",
+    description="Agno 2.0 Agent Implementation",
+    knowledge=knowledge,
+    search_knowledge=True,
+    debug_mode=True,
+)
+
+agent.print_response(
+    "What is the best way to make a Thai curry?",
+    markdown=True,
+)
+```
+
+## Usage
+
+<Steps>
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno sqlalchemy psycopg pgvector boto3
+    ```
+  </Step>
+
+  <Step title="Configure AWS credentials">
+    Set up your AWS credentials using one of these methods:
+
+    * AWS CLI: `aws configure`
+    * Environment variables: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+    * IAM roles (if running on AWS infrastructure)
+  </Step>
+
+  <Snippet file="run-pgvector-step.mdx" />
+
+  <Step title="Run the example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/knowledge/basic_operations/06_from_s3.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/knowledge/basic_operations/06_from_s3.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Params
+
+<Snippet file="s3-remote-content-params.mdx" />

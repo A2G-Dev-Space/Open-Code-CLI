@@ -1,0 +1,56 @@
+# Postgres for Agent
+
+> Original Document: [Postgres for Agent](https://docs.agno.com/examples/concepts/db/postgres/postgres_for_agent.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:14.586Z
+
+---
+
+# Postgres for Agent
+
+Agno supports using PostgreSQL as a storage backend for Agents using the `PostgresDb` class.
+
+## Usage
+
+### Run PgVector
+
+Install [docker desktop](https://docs.docker.com/desktop/install/mac-install/) and run **PgVector** on port **5532** using:
+
+```bash  theme={null}
+docker run -d \
+  -e POSTGRES_DB=ai \
+  -e POSTGRES_USER=ai \
+  -e POSTGRES_PASSWORD=ai \
+  -e PGDATA=/var/lib/postgresql/data/pgdata \
+  -v pgvolume:/var/lib/postgresql/data \
+  -p 5532:5432 \
+  --name pgvector \
+  agnohq/pgvector:16
+```
+
+```python postgres_for_agent.py theme={null}
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
+db = PostgresDb(db_url=db_url)
+
+agent = Agent(
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+
+```
+
+## Params
+
+<Snippet file="db-postgres-params.mdx" />
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/db/postgres/postgres_for_agent.py)

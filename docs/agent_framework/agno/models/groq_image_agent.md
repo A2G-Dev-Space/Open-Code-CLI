@@ -1,0 +1,57 @@
+# Image Agent
+
+> Original Document: [Image Agent](https://docs.agno.com/examples/models/groq/image_agent.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:16.146Z
+
+---
+
+# Image Agent
+
+## Code
+
+```python cookbook/models/groq/image_agent.py theme={null}
+from agno.agent import Agent
+from agno.media import Image
+from agno.models.groq import Groq
+
+agent = Agent(model=Groq(id="meta-llama/llama-4-scout-17b-16e-instruct"))
+
+agent.print_response(
+    "Tell me about this image",
+    images=[
+        Image(url="https://upload.wikimedia.org/wikipedia/commons/f/f2/LPU-v1-die.jpg"),
+    ],
+    stream=True,
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export GROQ_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U groq agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/groq/image_agent.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/groq/image_agent.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

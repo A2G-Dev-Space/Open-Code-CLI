@@ -1,0 +1,139 @@
+# Collaboration Team
+
+> Original Document: [Collaboration Team](https://docs.agno.com/examples/use-cases/teams/discussion_team.md)
+> Category: teams
+> Downloaded: 2025-11-06T11:51:16.999Z
+
+---
+
+# Collaboration Team
+
+This example shows how to create a collaboration team that allows multiple agents to work together on research topics using the `collaborate` mode. In Collaborate Mode, all team members are given the same task and the team leader synthesizes their outputs into a cohesive response.
+
+## Code
+
+```python cookbook/examples/teams/collaborate_mode/collaboration_team.py theme={null}
+import asyncio
+from pathlib import Path
+from textwrap import dedent
+
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.team import Team
+from agno.tools.arxiv import ArxivTools
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.googlesearch import GoogleSearchTools
+from agno.tools.hackernews import HackerNewsTools
+
+arxiv_download_dir = Path(__file__).parent.joinpath("tmp", "arxiv_pdfs__{session_id}")
+arxiv_download_dir.mkdir(parents=True, exist_ok=True)
+
+reddit_researcher = Agent(
+    name="Reddit Researcher",
+    role="Research a topic on Reddit",
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[DuckDuckGoTools()],
+    add_name_to_context=True,
+    instructions=dedent("""
+    You are a Reddit researcher.
+    You will be given a topic to research on Reddit.
+    You will need to find the most relevant posts on Reddit.
+    """),
+)
+
+hackernews_researcher = Agent(
+    name="HackerNews Researcher",
+    model=OpenAIChat("gpt-5-mini"),
+    role="Research a topic on HackerNews.",
+    tools=[HackerNewsTools()],
+    add_name_to_context=True,
+    instructions=dedent("""
+    You are a HackerNews researcher.
+    You will be given a topic to research on HackerNews.
+    You will need to find the most relevant posts on HackerNews.
+    """),
+)
+
+academic_paper_researcher = Agent(
+    name="Academic Paper Researcher",
+    model=OpenAIChat("gpt-5-mini"),
+    role="Research academic papers and scholarly content",
+    tools=[GoogleSearchTools(), ArxivTools(download_dir=arxiv_download_dir)],
+    add_name_to_context=True,
+    instructions=dedent("""
+    You are a academic paper researcher.
+    You will be given a topic to research in academic literature.
+    You will need to find relevant scholarly articles, papers, and academic discussions.
+    Focus on peer-reviewed content and citations from reputable sources.
+    Provide brief summaries of key findings and methodologies.
+    """),
+)
+
+twitter_researcher = Agent(
+    name="Twitter Researcher",
+    model=OpenAIChat("gpt-5-mini"),
+    role="Research trending discussions and real-time updates",
+    tools=[DuckDuckGoTools()],
+    add_name_to_context=True,
+    instructions=dedent("""
+    You are a Twitter/X researcher.
+    You will be given a topic to research on Twitter/X.
+    You will need to find trending discussions, influential voices, and real-time updates.
+    Focus on verified accounts and credible sources when possible.
+    Track relevant hashtags and ongoing conversations.
+    """),
+)
+
+
+agent_team = Team(
+    name="Discussion Team",
+    delegate_task_to_all_members=True,
+    model=OpenAIChat("gpt-5-mini"),
+    members=[
+        reddit_researcher,
+        hackernews_researcher,
+        academic_paper_researcher,
+        twitter_researcher,
+    ],
+    instructions=[
+        "You are a discussion master.",
+        "You have to stop the discussion when you think the team has reached a consensus.",
+    ],
+    markdown=True,
+    show_members_responses=True,
+)
+
+if __name__ == "__main__":
+    asyncio.run(
+        agent_team.aprint_response(
+            input="Start the discussion on the topic: 'What is the best way to learn to code?'",
+            stream=True,
+            stream_events=True,
+        )
+    )
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install required libraries">
+    ```bash  theme={null}
+    pip install agno arxiv pypdf pycountry
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=****
+    ```
+  </Step>
+
+  <Step title="Run the agent">
+    ```bash  theme={null}
+    python cookbook/examples/teams/collaboration_team.py
+    ```
+  </Step>
+</Steps>

@@ -1,0 +1,127 @@
+# Agent Metrics and Performance Monitoring
+
+> Original Document: [Agent Metrics and Performance Monitoring](https://docs.agno.com/examples/concepts/agent/other/agent_metrics.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.458Z
+
+---
+
+# Agent Metrics and Performance Monitoring
+
+This example demonstrates how to collect and analyze agent metrics including message-level metrics, run metrics, and session metrics for performance monitoring.
+
+## Code
+
+```python agent_metrics.py theme={null}
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.openai import OpenAIChat
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.utils import pprint
+
+agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[DuckDuckGoTools(stock_price=True)],
+    markdown=True,
+    session_id="test-session-metrics",
+    db=PostgresDb(db_url="postgresql+psycopg://ai:ai@localhost:5532/ai"),
+)
+
+# Get the run response directly from the non-streaming call
+run_response = agent.run("What is the stock price of NVDA")
+print("Tool execution completed successfully!")
+
+# Print metrics per message
+if run_response and run_response.messages:
+    for message in run_response.messages:
+        if message.role == "assistant":
+            if message.content:
+                print(
+                    f"Message: {message.content[:100]}..."
+                )  # Truncate for readability
+            elif message.tool_calls:
+                print(f"Tool calls: {len(message.tool_calls)} tool call(s)")
+            print("---" * 5, "Message Metrics", "---" * 5)
+            if message.metrics:
+                pprint(message.metrics)
+            else:
+                print("No metrics available for this message")
+            print("---" * 20)
+
+# Print the run metrics
+print("---" * 5, "Run Metrics", "---" * 5)
+if run_response and run_response.metrics:
+    pprint(run_response.metrics)
+else:
+    print("No run metrics available")
+
+# Print the session metrics
+print("---" * 5, "Session Metrics", "---" * 5)
+try:
+    session_metrics = agent.get_session_metrics()
+    if session_metrics:
+        pprint(session_metrics)
+    else:
+        print("No session metrics available")
+except Exception as e:
+    print(f"Error getting session metrics: {e}")
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai ddgs psycopg
+    ```
+  </Step>
+
+  <Step title="Setup PostgreSQL">
+    ```bash  theme={null}
+    # Make sure PostgreSQL is running
+    # Update connection string in the code as needed
+    ```
+  </Step>
+
+  <Step title="Export your OpenAI API key">
+    <CodeGroup>
+      ```bash Mac/Linux theme={null}
+        export OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+
+      ```bash Windows theme={null}
+        $Env:OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a Python file">
+    Create a Python file and add the above code.
+
+    ```bash  theme={null}
+    touch agent_metrics.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python agent_metrics.py
+      ```
+
+      ```bash Windows theme={null}
+      python agent_metrics.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Find All Cookbooks">
+    Explore all the available cookbooks in the Agno repository. Click the link below to view the code on GitHub:
+
+    <Link href="https://github.com/agno-agi/agno/tree/main/cookbook/agents/other" target="_blank">
+      Agno Cookbooks on GitHub
+    </Link>
+  </Step>
+</Steps>

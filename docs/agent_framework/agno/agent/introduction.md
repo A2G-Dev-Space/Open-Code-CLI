@@ -1,0 +1,102 @@
+# Slack
+
+> Original Document: [Slack](https://docs.agno.com/agent-os/interfaces/slack/introduction.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:13.757Z
+
+---
+
+# Slack
+
+> Host agents as Slack Applications.
+
+Use the Slack interface to serve Agents or Teams on Slack. It mounts Slack event routes on a FastAPI app and sends responses back to Slack threads.
+
+## Setup Steps
+
+Follow the Slack setup guide in the [cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/agent_os/interfaces/slack/README.md).
+
+You will need:
+
+* `SLACK_TOKEN` (Bot User OAuth Token)
+* `SLACK_SIGNING_SECRET` (App Signing Secret)
+* An ngrok tunnel (for local development) and event subscriptions pointing to `/slack/events`
+
+## Example Usage
+
+Create an agent, expose it with the `Slack` interface, and serve via `AgentOS`:
+
+```python basic.py theme={null}
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.os import AgentOS
+from agno.os.interfaces.slack import Slack
+
+basic_agent = Agent(
+    name="Basic Agent",
+    model=OpenAIChat(id="gpt-5-mini"), # Ensure OPENAI_API_KEY is set
+    add_history_to_context=True,
+    num_history_runs=3,
+    add_datetime_to_context=True,
+)
+
+agent_os = AgentOS(
+    agents=[basic_agent],
+    interfaces=[Slack(agent=basic_agent)],
+)
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    agent_os.serve(app="basic:app", port=8000, reload=True)
+```
+
+You can also use the full example at `cookbook/agent_os/interfaces/slack/basic.py`.
+
+## Core Components
+
+* `Slack` (interface): Wraps an Agno `Agent` or `Team` for Slack integration via FastAPI.
+* `AgentOS.serve`: Serves the FastAPI app using Uvicorn.
+
+## `Slack` Interface
+
+Main entry point for Agno Slack applications.
+
+### Initialization Parameters
+
+| Parameter | Type              | Default | Description            |
+| --------- | ----------------- | ------- | ---------------------- |
+| `agent`   | `Optional[Agent]` | `None`  | Agno `Agent` instance. |
+| `team`    | `Optional[Team]`  | `None`  | Agno `Team` instance.  |
+
+Provide `agent` or `team`.
+
+### Key Method
+
+| Method       | Parameters               | Return Type | Description                                        |
+| ------------ | ------------------------ | ----------- | -------------------------------------------------- |
+| `get_router` | `use_async: bool = True` | `APIRouter` | Returns the FastAPI router and attaches endpoints. |
+
+## Endpoints
+
+Mounted under the `/slack` prefix:
+
+### `POST /slack/events`
+
+* Handles all Slack events (URL verification, messages, app mentions)
+* Verifies Slack signature on each request
+* Uses thread timestamps as session IDs for per-thread context
+* Streams responses back into the originating thread (splits long messages)
+
+## Testing the Integration
+
+1. Run your app locally: `python <my-app>.py` (ensure ngrok is running)
+2. Invite the bot to a channel: `/invite @YourAppName`
+3. Mention the bot in a channel: `@YourAppName hello`
+4. Open a DM with the bot and send a message
+
+## Troubleshooting
+
+* Verify `SLACK_TOKEN` and `SLACK_SIGNING_SECRET` are set
+* Confirm the bot is installed and invited to the channel
+* Check ngrok URL and event subscription path (`/slack/events`)
+* Review application logs for signature failures or permission errors

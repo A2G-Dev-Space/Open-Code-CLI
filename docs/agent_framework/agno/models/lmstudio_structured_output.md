@@ -1,0 +1,79 @@
+# Agent with Structured Outputs
+
+> Original Document: [Agent with Structured Outputs](https://docs.agno.com/examples/models/lmstudio/structured_output.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:16.010Z
+
+---
+
+# Agent with Structured Outputs
+
+## Code
+
+```python cookbook/models/lmstudio/structured_output.py theme={null}
+import asyncio
+from typing import List
+
+from agno.agent import Agent
+from agno.models.lmstudio import LMStudio
+from pydantic import BaseModel, Field
+
+
+class MovieScript(BaseModel):
+    name: str = Field(..., description="Give a name to this movie")
+    setting: str = Field(
+        ..., description="Provide a nice setting for a blockbuster movie."
+    )
+    ending: str = Field(
+        ...,
+        description="Ending of the movie. If not available, provide a happy ending.",
+    )
+    genre: str = Field(
+        ...,
+        description="Genre of the movie. If not available, select action, thriller or romantic comedy.",
+    )
+    characters: List[str] = Field(..., description="Name of characters for this movie.")
+    storyline: str = Field(
+        ..., description="3 sentence storyline for the movie. Make it exciting!"
+    )
+
+
+# Agent that returns a structured output
+structured_output_agent = Agent(
+    model=LMStudio(id="qwen2.5-7b-instruct-1m"),
+    description="You write movie scripts.",
+    output_schema=MovieScript,
+)
+
+# Run the agent synchronously
+structured_output_agent.print_response("
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install LM Studio">
+    Install LM Studio from [here](https://lmstudio.ai/download) and download the
+    model you want to use.
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/lmstudio/structured_output.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/lmstudio/structured_output.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

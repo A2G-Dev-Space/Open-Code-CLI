@@ -1,0 +1,64 @@
+# Nvidia
+
+> Original Document: [Nvidia](https://docs.agno.com/concepts/models/nvidia.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:13.771Z
+
+---
+
+# Nvidia
+
+> Learn how to use Nvidia models in Agno.
+
+NVIDIA offers a suite of high-performance language models optimized for advanced NLP tasks.
+These models are part of the NeMo framework, which provides tools for training, fine-tuning
+and deploying state-of-the-art models efficiently. NVIDIA’s language models are designed to
+handle large-scale workloads with GPU acceleration for faster inference and training.
+We recommend experimenting with NVIDIA’s models to find the best fit for your application.
+
+Explore NVIDIA’s models [here](https://build.nvidia.com/models).
+
+## Authentication
+
+Set your `NVIDIA_API_KEY` environment variable. Get your key [from Nvidia here](https://build.nvidia.com/explore/discover).
+
+<CodeGroup>
+  ```bash Mac theme={null}
+  export NVIDIA_API_KEY=***
+  ```
+
+  ```bash Windows theme={null}
+  setx NVIDIA_API_KEY ***
+  ```
+</CodeGroup>
+
+## Example
+
+Use `Nvidia` with your `Agent`:
+
+<CodeGroup>
+  ```python agent.py theme={null}
+  from agno.agent import Agent
+  from agno.models.nvidia import Nvidia
+
+  agent = Agent(model=Nvidia(), markdown=True)
+
+  # Print the response in the terminal
+  agent.print_response("Share a 2 sentence horror story")
+
+  ```
+</CodeGroup>
+
+<Note> View more examples [here](/examples/models/nvidia/basic). </Note>
+
+## Parameters
+
+| Parameter  | Type            | Default                                    | Description                                                   |
+| ---------- | --------------- | ------------------------------------------ | ------------------------------------------------------------- |
+| `id`       | `str`           | `"nvidia/llama-3.1-nemotron-70b-instruct"` | The id of the NVIDIA model to use                             |
+| `name`     | `str`           | `"NVIDIA"`                                 | The name of the model                                         |
+| `provider` | `str`           | `"NVIDIA"`                                 | The provider of the model                                     |
+| `api_key`  | `Optional[str]` | `None`                                     | The API key for NVIDIA (defaults to NVIDIA\_API\_KEY env var) |
+| `base_url` | `str`           | `"https://integrate.api.nvidia.com/v1"`    | The base URL for the NVIDIA API                               |
+
+`NVIDIA` extends the OpenAI-compatible interface and supports most parameters from the [OpenAI model](/concepts/models/openai).

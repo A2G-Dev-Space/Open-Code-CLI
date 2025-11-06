@@ -1,0 +1,140 @@
+# Enable AgentOS MCP
+
+> Original Document: [Enable AgentOS MCP](https://docs.agno.com/examples/agent-os/mcp/enable_mcp_example.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.268Z
+
+---
+
+# Enable AgentOS MCP
+
+> Complete AgentOS setup with MCP support enabled
+
+## Code
+
+```python cookbook/agent_os/mcp/enable_mcp_example.py theme={null}
+
+from agno.agent import Agent
+from agno.db.sqlite import SqliteDb
+from agno.models.anthropic import Claude
+from agno.os import AgentOS
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Setup the database
+db = SqliteDb(db_file="tmp/agentos.db")
+
+# Setup basic research agent
+web_research_agent = Agent(
+    id="web-research-agent",
+    name="Web Research Agent",
+    model=Claude(id="claude-sonnet-4-0"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+    num_history_runs=3,
+    add_datetime_to_context=True,
+    enable_session_summaries=True,
+    markdown=True,
+)
+
+# Setup our AgentOS with MCP enabled
+agent_os = AgentOS(
+    description="Example app with MCP enabled",
+    agents=[web_research_agent],
+    enable_mcp_server=True,  # This enables a LLM-friendly MCP server at /mcp
+)
+
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    """Run your AgentOS.
+
+    You can see view your LLM-friendly MCP server at:
+    http://localhost:7777/mcp
+
+    """
+    agent_os.serve(app="enable_mcp_example:app")
+```
+
+## Define a local test client
+
+```python test_client.py theme={null}
+import asyncio
+
+from agno.agent import Agent
+from agno.models.anthropic import Claude
+from agno.tools.mcp import MCPTools
+
+# This is the URL of the MCP server we want to use.
+server_url = "http://localhost:7777/mcp"
+
+
+async def run_agent(message: str) -> None:
+    async with MCPTools(transport="streamable-http", url=server_url) as mcp_tools:
+        agent = Agent(
+            model=Claude(id="claude-sonnet-4-0"),
+            tools=[mcp_tools],
+            markdown=True,
+        )
+        await agent.aprint_response(input=message, stream=True, markdown=True)
+
+
+# Example usage
+if __name__ == "__main__":
+    asyncio.run(run_agent("Which agents do I have in my AgentOS?"))
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export ANTHROPIC_API_KEY=your_anthropic_api_key
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno anthropic fastapi uvicorn sqlalchemy pgvector psycopg
+    ```
+  </Step>
+
+  <Step title="Setup PostgreSQL Database">
+    ```bash  theme={null}
+    # Using Docker
+    docker run -d \
+      --name agno-postgres \
+      -e POSTGRES_DB=ai \
+      -e POSTGRES_USER=ai \
+      -e POSTGRES_PASSWORD=ai \
+      -p 5532:5432 \
+      pgvector/pgvector:pg17
+    ```
+  </Step>
+
+  <Step title="Run Server">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/agent_os/mcp/enable_mcp_example.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/agent_os/mcp/enable_mcp_example.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Run Test Client">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/agent_os/mcp/test_client.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/agent_os/mcp/test_client.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

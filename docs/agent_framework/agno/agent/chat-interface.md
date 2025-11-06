@@ -1,0 +1,104 @@
+# Chat Interface
+
+> Original Document: [Chat Interface](https://docs.agno.com/agent-os/features/chat-interface.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:13.516Z
+
+---
+
+# Chat Interface
+
+> Use AgentOS chat to talk to agents, collaborate with teams, and run workflows
+
+## Overview
+
+The AgentOS chat is the home for day‑to‑day work with your AI system. From one screen you can:
+
+* Chat with individual agents
+* Collaborate with agent teams
+* Trigger and monitor workflows
+* Review sessions, knowledge, memory, and metrics
+
+It’s designed to feel familiar—type a message, attach files, and get live, streaming responses. Each agent, team, and workflow maintains its own context so you can switch between tasks without losing your place.
+
+## Chat Interfaces
+
+### Chat with an Agent
+
+* Select an agent from the right panel.
+* Ask a question like “What tools do you have access to?”
+* Agents keep their own history, tools, and instructions; switching agents won’t mix contexts.
+
+<Frame>
+  <video autoPlay muted loop playsInline style={{ borderRadius: "0.5rem", width: "100%", height: "auto" }}>
+    <source src="https://mintcdn.com/agno-v2/MMgohmDbM-qeNPya/videos/agentos-agent-chat.mp4?fit=max&auto=format&n=MMgohmDbM-qeNPya&q=85&s=45ae6af616b33280bc431ff63f77cabb" type="video/mp4" data-path="videos/agentos-agent-chat.mp4" />
+  </video>
+</Frame>
+
+<Info>
+  **Learn more about Agents**: Dive deeper into agent configuration, tools,
+  memory, and advanced features in our [Agents
+  Documentation](/concepts/agents/overview).
+</Info>
+
+### Work with a Team
+
+* Switch the top toggle to Teams and pick a team.
+* A team delegates tasks to its members and synthesizes their responses into a cohesive response.
+* Use the chat stream to watch how the team divides and solves the task.
+
+<Frame>
+  <video autoPlay muted loop playsInline style={{ borderRadius: "0.5rem", width: "100%", height: "auto" }}>
+    <source src="https://mintcdn.com/agno-v2/CnjZpOWVs1q9bnAO/videos/agentos-teams-chat.mp4?fit=max&auto=format&n=CnjZpOWVs1q9bnAO&q=85&s=b9b6e4ba67bcf79396cef64c58ff7e9a" type="video/mp4" data-path="videos/agentos-teams-chat.mp4" />
+  </video>
+</Frame>
+
+<Info>
+  **Learn more about Teams**: Explore team modes, coordination strategies, and
+  multi-agent collaboration in our [Teams
+  Documentation](/concepts/teams/overview).
+</Info>
+
+### Run a Workflow
+
+* Switch to Workflows and choose one.
+* Provide the input (plain text or structured, depending on the workflow).
+* Watch execution live: steps stream as they start, produce output, and finish.
+
+<Frame>
+  <video autoPlay muted loop playsInline style={{ borderRadius: "0.5rem", width: "100%", height: "auto" }}>
+    <source src="https://mintcdn.com/agno-v2/CnjZpOWVs1q9bnAO/videos/agentos-workflows-chat.mp4?fit=max&auto=format&n=CnjZpOWVs1q9bnAO&q=85&s=6bfc2fbab99d64e53129e80b49a6be8e" type="video/mp4" data-path="videos/agentos-workflows-chat.mp4" />
+  </video>
+</Frame>
+
+<Info>
+  **Learn more about Workflows**: Discover workflow types, advanced patterns,
+  and automation strategies in our [Workflows
+  Documentation](/concepts/workflows/overview).
+</Info>
+
+## Troubleshooting
+
+* The page loads but nothing responds: verify your AgentOS app is running.
+* Can’t see previous chats: you may be in a new session—open the Sessions panel and pick an older one.
+* File didn’t attach: try a common format (png, jpg, pdf, csv, docx, txt, mp3, mp4) and keep size reasonable.
+
+## Related Examples
+
+<CardGroup cols={2}>
+  <Card title="Demo AgentOS" icon="play" href="/examples/agent-os/demo">
+    Comprehensive demo with agents, knowledge, and evaluation system
+  </Card>
+
+  <Card title="Advanced Demo" icon="rocket" href="/examples/agent-os/demo">
+    Advanced demo with knowledge, storage, and multiple agents
+  </Card>
+
+  <Card title="Slack Interface" icon="slack" href="/examples/agent-os/interfaces/slack/basic">
+    Deploy agents to Slack channels
+  </Card>
+
+  <Card title="WhatsApp Interface" icon="message" href="/examples/agent-os/interfaces/whatsapp/basic">
+    Connect agents to WhatsApp messaging
+  </Card>
+</CardGroup>

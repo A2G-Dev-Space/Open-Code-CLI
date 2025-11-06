@@ -1,0 +1,120 @@
+# Async Agent with Structured Output
+
+> Original Document: [Async Agent with Structured Output](https://docs.agno.com/examples/concepts/agent/async/structured_output.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.300Z
+
+---
+
+# Async Agent with Structured Output
+
+This example demonstrates how to use async agents with structured output schemas, comparing structured output mode versus JSON mode for generating movie scripts with defined data models.
+
+## Code
+
+```python structured_output.py theme={null}
+import asyncio
+from typing import List
+
+from agno.agent import Agent, RunOutput  # noqa
+from agno.models.openai import OpenAIChat
+from pydantic import BaseModel, Field
+from rich.pretty import pprint  # noqa
+
+
+class MovieScript(BaseModel):
+    setting: str = Field(
+        ..., description="Provide a nice setting for a blockbuster movie."
+    )
+    ending: str = Field(
+        ...,
+        description="Ending of the movie. If not available, provide a happy ending.",
+    )
+    genre: str = Field(
+        ...,
+        description="Genre of the movie. If not available, select action, thriller or romantic comedy.",
+    )
+    name: str = Field(..., description="Give a name to this movie")
+    characters: List[str] = Field(..., description="Name of characters for this movie.")
+    storyline: str = Field(
+        ..., description="3 sentence storyline for the movie. Make it exciting!"
+    )
+
+
+# Agent that uses structured outputs
+structured_output_agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini-2024-08-06"),
+    description="You write movie scripts.",
+    output_schema=MovieScript,
+)
+
+# Agent that uses JSON mode
+json_mode_agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini"),
+    description="You write movie scripts.",
+    output_schema=MovieScript,
+    use_json_mode=True,
+)
+
+
+# Get the response in a variable
+# json_mode_response: RunOutput = json_mode_agent.arun("New York")
+# pprint(json_mode_response.content)
+# structured_output_response: RunOutput = structured_output_agent.arun("New York")
+# pprint(structured_output_response.content)
+
+asyncio.run(structured_output_agent.aprint_response("New York"))
+asyncio.run(json_mode_agent.aprint_response("New York"))
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno openai pydantic rich
+    ```
+  </Step>
+
+  <Step title="Export your OpenAI API key">
+    <CodeGroup>
+      ```bash Mac/Linux theme={null}
+          export OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+
+      ```bash Windows theme={null}
+          $Env:OPENAI_API_KEY="your_openai_api_key_here"
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a Python file">
+    Create a Python file and add the above code.
+
+    ```bash  theme={null}
+    touch structured_output.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python structured_output.py
+      ```
+
+      ```bash Windows theme={null}
+      python structured_output.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Find All Cookbooks">
+    Explore all the available cookbooks in the Agno repository. Click the link below to view the code on GitHub:
+
+    <Link href="https://github.com/agno-agi/agno/tree/main/cookbook/agents/async" target="_blank">
+      Agno Cookbooks on GitHub
+    </Link>
+  </Step>
+</Steps>

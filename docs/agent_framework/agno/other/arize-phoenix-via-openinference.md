@@ -1,0 +1,75 @@
+# Arize Phoenix via OpenInference
+
+> Original Document: [Arize Phoenix via OpenInference](https://docs.agno.com/examples/concepts/integrations/observability/arize-phoenix-via-openinference.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.662Z
+
+---
+
+# Arize Phoenix via OpenInference
+
+## Overview
+
+This example demonstrates how to instrument your Agno agent with OpenInference and send traces to Arize Phoenix.
+
+## Code
+
+```python  theme={null}
+import asyncio
+import os
+
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools.duckduckgo import DuckDuckGoTools
+from phoenix.otel import register
+
+# Set environment variables for Arize Phoenix
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('ARIZE_PHOENIX_API_KEY')}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+
+# Configure the Phoenix tracer
+tracer_provider = register(
+    project_name="agno-stock-price-agent",  # Default is 'default'
+    auto_instrument=True,  # Automatically use the installed OpenInference instrumentation
+)
+
+# Create and configure the agent
+agent = Agent(
+    name="Stock Price Agent",
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[DuckDuckGoTools()],
+    instructions="You are an internet search agent. Find and provide accurate information on any topic.",
+    debug_mode=True,
+)
+
+# Use the agent
+agent.print_response("What are the latest developments in artificial intelligence?")
+```
+
+## Usage
+
+<Steps>
+  <Step title="Install Dependencies">
+    ```bash  theme={null}
+    pip install -U agno arize-phoenix ddgs openai openinference-instrumentation-agno opentelemetry-sdk opentelemetry-exporter-otlp
+    ```
+  </Step>
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export ARIZE_PHOENIX_API_KEY=<your-key>
+    ```
+  </Step>
+
+  <Step title="Run the Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/observability/arize_phoenix_via_openinference.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/observability/arize_phoenix_via_openinference.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

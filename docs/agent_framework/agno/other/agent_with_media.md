@@ -1,0 +1,63 @@
+# Agent with Media
+
+> Original Document: [Agent with Media](https://docs.agno.com/examples/concepts/integrations/discord/agent_with_media.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.654Z
+
+---
+
+# Agent with Media
+
+## Code
+
+```python cookbook/integrations/discord/agent_with_media.py theme={null}
+from agno.agent import Agent
+from agno.integrations.discord import DiscordClient
+from agno.models.google import Gemini
+
+media_agent = Agent(
+    name="Media Agent",
+    model=Gemini(id="gemini-2.0-flash"),
+    description="A Media processing agent",
+    instructions="Analyze images, audios and videos sent by the user",
+    add_history_to_context=True,
+    num_history_runs=3,
+    add_datetime_to_context=True,
+    markdown=True,
+)
+
+discord_agent = DiscordClient(media_agent)
+if __name__ == "__main__":
+     discord_agent.serve()
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API keys">
+    ```bash  theme={null}
+    export GOOGLE_API_KEY=xxx
+    export DISCORD_BOT_TOKEN=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno google-generativeai discord.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/integrations/discord/agent_with_media.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/integrations/discord/agent_with_media.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

@@ -1,0 +1,32 @@
+# AgentOS Parameters
+
+> Original Document: [AgentOS Parameters](https://docs.agno.com/agent-os/customize/os/attributes.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:13.499Z
+
+---
+
+# AgentOS Parameters
+
+> Learn about the attributes of the AgentOS class
+
+You can configure the behaviour of your AgentOS by passing the following parameters to the `AgentOS` class:
+
+* `agents`: List of agents to include in the AgentOS
+* `teams`: List of teams to include in the AgentOS
+* `workflows`: List of workflows to include in the AgentOS
+* `knowledge`: List of knowledge instances to include in the AgentOS
+* `interfaces`: List of interfaces to include in the AgentOS
+  * See the [Interfaces](/agent-os/interfaces) section for more details.
+* `config`: Configuration file path or `AgentOSConfig` instance
+  * See the [Configuration](/agent-os/customize/config) page for more details.
+* `base_app`: Optional custom FastAPI app to use instead of creating a new one
+  * See the [Custom FastAPI App](/agent-os/customize/custom-fastapi) page for more details.
+* `lifespan`: Optional lifespan context manager for the FastAPI app
+  * See the [Lifespan](/agent-os/customize/os/lifespan) page for more details.
+* `enable_mcp_server`: Turn your AgentOS into an MCP server
+  * See the [MCP enabled AgentOS](/agent-os/mcp/mcp) page for more details.
+* `on_route_conflict`: Optionally preserve your custom routes over AgentOS routes (set to `"preserve_base_app"`). Defaults to `"preserve_agentos"`, preserving the AgentOS routes
+  * See the [Overriding Routes](/agent-os/customize/os/override_routes) page for more details.
+
+See the [AgentOS class reference](/reference/agent-os/agent-os) for more details.

@@ -1,0 +1,87 @@
+# Tool Call Limit
+
+> Original Document: [Tool Call Limit](https://docs.agno.com/examples/concepts/agent/other/tool_call_limit.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.486Z
+
+---
+
+# Tool Call Limit
+
+This example demonstrates how to use tool call limits to control the number of tool calls an agent can make. This is useful for preventing excessive API usage or limiting agent behavior in specific scenarios.
+
+## Code
+
+```python tool_call_limit.py theme={null}
+"""
+This cookbook shows how to use tool call limit to control the number of tool calls an agent can make.
+"""
+
+from agno.agent import Agent
+from agno.models.anthropic import Claude
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+agent = Agent(
+    model=Claude(id="claude-3-5-haiku-20241022"),
+    tools=[DuckDuckGoTools(company_news=True, cache_results=True)],
+    tool_call_limit=1,
+)
+
+# It should only call the first tool and fail to call the second tool.
+agent.print_response(
+    "Find me the current price of TSLA, then after that find me the latest news about Tesla.",
+    stream=True,
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno anthropic ddgs
+    ```
+  </Step>
+
+  <Step title="Export your ANTHROPIC API key">
+    <CodeGroup>
+      ```bash Mac/Linux theme={null}
+        export ANTHROPIC_API_KEY="your_anthropic_api_key_here"
+      ```
+
+      ```bash Windows theme={null}
+        $Env:ANTHROPIC_API_KEY="your_anthropic_api_key_here"
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a Python file">
+    Create a Python file and add the above code.
+
+    ```bash  theme={null}
+    touch tool_call_limit.py
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python tool_call_limit.py
+      ```
+
+      ```bash Windows   theme={null}
+      python tool_call_limit.py
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Find All Cookbooks">
+    Explore all the available cookbooks in the Agno repository. Click the link below to view the code on GitHub:
+
+    <Link href="https://github.com/agno-agi/agno/tree/main/cookbook/agents/other" target="_blank">
+      Agno Cookbooks on GitHub
+    </Link>
+  </Step>
+</Steps>

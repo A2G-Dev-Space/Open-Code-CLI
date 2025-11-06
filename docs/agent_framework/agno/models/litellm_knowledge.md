@@ -1,0 +1,63 @@
+# Agent with Knowledge
+
+> Original Document: [Agent with Knowledge](https://docs.agno.com/examples/models/litellm/knowledge.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:15.938Z
+
+---
+
+# Agent with Knowledge
+
+## Code
+
+```python cookbook/models/litellm/knowledge.py theme={null}
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.models.litellm import LiteLLM
+from agno.vectordb.pgvector import PgVector
+
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
+knowledge_base = Knowledge(
+    vector_db=PgVector(table_name="recipes", db_url=db_url),
+)
+knowledge_base.add_content(
+    url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf"
+)
+
+agent = Agent(
+    model=LiteLLM(id="gpt-5-mini"),
+    knowledge=knowledge_base,
+    )
+agent.print_response("How to make Thai curry?", markdown=True)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export LITELLM_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U litellm openai agno sqlalchemy psycopg pgvector
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/litellm/knowledge.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/litellm/knowledge.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

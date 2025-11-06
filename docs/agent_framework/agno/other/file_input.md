@@ -1,0 +1,41 @@
+# Files As Input
+
+> Original Document: [Files As Input](https://docs.agno.com/concepts/multimodal/files/file_input.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:13.805Z
+
+---
+
+# Files As Input
+
+> Learn how to use files as input with Agno agents.
+
+Agno supports files as input to agents and teams.  Take a look at the [compatibility matrix](/concepts/models/compatibility#multimodal-support) to see which models support files as input.
+
+Let's create an agent that can understand files and make tool calls as needed.
+
+```python  theme={null}
+from agno.agent import Agent
+from agno.media import File
+from agno.models.anthropic import Claude
+from agno.db.in_memory import InMemoryDb
+
+agent = Agent(
+    model=Claude(id="claude-sonnet-4-0"),
+    db=InMemoryDb(),
+    markdown=True,
+)
+
+agent.print_response(
+    "Summarize the contents of the attached file.",
+    files=[
+        File(url="https://agno-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf"),
+    ],
+)
+```
+
+## Developer Resources
+
+* View more [Anthropic](/examples/models/anthropic/pdf_input_url) examples.
+* View more [OpenAI](/examples/models/openai/responses/pdf_input_url) examples.
+* View more [Gemini](/examples/models/gemini/pdf_input_url) examples.

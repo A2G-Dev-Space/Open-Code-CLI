@@ -1,0 +1,124 @@
+# Setting Environment Variables
+
+> Original Document: [Setting Environment Variables](https://docs.agno.com/faq/environment-variables.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:17.038Z
+
+---
+
+# Setting Environment Variables
+
+To configure your environment for applications, you may need to set environment variables. This guide provides instructions for setting environment variables in both macOS (Shell) and Windows (PowerShell and Windows Command Prompt).
+
+## macOS
+
+### Setting Environment Variables in Shell
+
+#### Temporary Environment Variables
+
+These environment variables will only be available in the current shell session.
+
+```shell  theme={null}
+export VARIABLE_NAME="value"
+```
+
+To display the environment variable:
+
+```shell  theme={null}
+echo $VARIABLE_NAME
+```
+
+#### Permanent Environment Variables
+
+To make environment variables persist across sessions, add them to your shell configuration file (e.g., `.bashrc`, `.bash_profile`, `.zshrc`).
+
+For Zsh:
+
+```shell  theme={null}
+echo 'export VARIABLE_NAME="value"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+To display the environment variable:
+
+```shell  theme={null}
+echo $VARIABLE_NAME
+```
+
+## Windows
+
+### Setting Environment Variables in PowerShell
+
+#### Temporary Environment Variables
+
+These environment variables will only be available in the current PowerShell session.
+
+```powershell  theme={null}
+$env:VARIABLE_NAME = "value"
+```
+
+To display the environment variable:
+
+```powershell  theme={null}
+echo $env:VARIABLE_NAME
+```
+
+#### Permanent Environment Variables
+
+To make environment variables persist across sessions, add them to your PowerShell profile script (e.g., `Microsoft.PowerShell_profile.ps1`).
+
+```powershell  theme={null}
+notepad $PROFILE
+```
+
+Add the following line to the profile script:
+
+```powershell  theme={null}
+$env:VARIABLE_NAME = "value"
+```
+
+Save and close the file, then reload the profile:
+
+```powershell  theme={null}
+. $PROFILE
+```
+
+To display the environment variable:
+
+```powershell  theme={null}
+echo $env:VARIABLE_NAME
+```
+
+### Setting Environment Variables in Windows Command Prompt
+
+#### Temporary Environment Variables
+
+These environment variables will only be available in the current Command Prompt session.
+
+```cmd  theme={null}
+set VARIABLE_NAME=value
+```
+
+To display the environment variable:
+
+```cmd  theme={null}
+echo %VARIABLE_NAME%
+```
+
+#### Permanent Environment Variables
+
+To make environment variables persist across sessions, you can use the `setx` command:
+
+```cmd  theme={null}
+setx VARIABLE_NAME "value"
+```
+
+Note: After setting an environment variable using `setx`, you need to restart the Command Prompt or any applications that need to read the new environment variable.
+
+To display the environment variable in a new Command Prompt session:
+
+```cmd  theme={null}
+echo %VARIABLE_NAME%
+```
+
+By following these steps, you can effectively set and display environment variables in macOS Shell, Windows Command Prompt, and PowerShell. This will ensure your environment is properly configured for your applications.

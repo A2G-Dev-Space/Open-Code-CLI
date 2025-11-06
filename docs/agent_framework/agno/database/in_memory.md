@@ -1,0 +1,33 @@
+# In-Memory Storage
+
+> Original Document: [In-Memory Storage](https://docs.agno.com/concepts/db/in_memory.md)
+> Category: database
+> Downloaded: 2025-11-06T11:51:13.597Z
+
+---
+
+# In-Memory Storage
+
+Agno supports using In-Memory storage with the `InMemoryDb` class. By doing this, you will be able to use all features that depend on having a database, without having to set one up.
+
+<Warning>
+  Using the In-Memory storage is not recommended for production applications.
+  Use it for demos, testing and any other use case where you don't want to setup a database.
+</Warning>
+
+## Usage
+
+```python  theme={null}
+from agno.agent import Agent
+from agno.db.in_memory import InMemoryDb
+
+# Setup in-memory database
+db = InMemoryDb()
+
+# Create agent with database
+agent = Agent(db=db)
+```
+
+## Developer Resources
+
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/db/in_memory/in_memory_storage_for_agent.py)

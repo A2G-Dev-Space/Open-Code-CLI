@@ -1,0 +1,75 @@
+# Image Agent with Bytes
+
+> Original Document: [Image Agent with Bytes](https://docs.agno.com/examples/models/dashscope/image_agent_bytes.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:15.605Z
+
+---
+
+# Image Agent with Bytes
+
+## Code
+
+```python cookbook/models/dashscope/image_agent_bytes.py theme={null}
+from pathlib import Path
+
+from agno.agent import Agent
+from agno.media import Image
+from agno.models.dashscope import DashScope
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.utils.media import download_image
+
+agent = Agent(
+    model=DashScope(id="qwen-vl-plus"),
+    tools=[DuckDuckGoTools()],
+    markdown=True,
+)
+
+image_path = Path(__file__).parent.joinpath("sample.jpg")
+
+download_image(
+    url="https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg",
+    output_path=str(image_path),
+)
+
+# Read the image file content as bytes
+image_bytes = image_path.read_bytes()
+
+agent.print_response(
+    "Analyze this image of an ant. Describe its features, species characteristics, and search for more information about this type of ant.",
+    images=[
+        Image(content=image_bytes),
+    ],
+    stream=True,
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export DASHSCOPE_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno ddgs
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/dashscope/image_agent_bytes.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/dashscope/image_agent_bytes.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

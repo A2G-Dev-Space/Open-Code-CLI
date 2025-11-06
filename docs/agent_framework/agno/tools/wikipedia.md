@@ -1,0 +1,50 @@
+# Wikipedia
+
+> Original Document: [Wikipedia](https://docs.agno.com/concepts/tools/toolkits/search/wikipedia.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.101Z
+
+---
+
+# Wikipedia
+
+**WikipediaTools** enable an Agent to search wikipedia a website and add its contents to the knowledge base.
+
+## Prerequisites
+
+The following example requires the `wikipedia` library.
+
+```shell  theme={null}
+pip install -U wikipedia
+```
+
+## Example
+
+The following agent will run seach wikipedia for "ai" and print the response.
+
+```python cookbook/tools/wikipedia_tools.py theme={null}
+from agno.agent import Agent
+from agno.tools.wikipedia import WikipediaTools
+
+agent = Agent(tools=[WikipediaTools()])
+agent.print_response("Search wikipedia for 'ai'")
+```
+
+## Toolkit Params
+
+| Name        | Type        | Default | Description                                                                                                        |
+| ----------- | ----------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `knowledge` | `Knowledge` | -       | The knowledge base associated with Wikipedia, containing various data and resources linked to Wikipedia's content. |
+| `all`       | `bool`      | `False` | Enable all functionality.                                                                                          |
+
+## Toolkit Functions
+
+| Function Name                                | Description                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `search_wikipedia_and_update_knowledge_base` | This function searches wikipedia for a topic, adds the results to the knowledge base and returns them. |
+| `search_wikipedia`                           | Searches Wikipedia for a query.                                                                        |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/wikipedia.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/wikipedia_tools.py)

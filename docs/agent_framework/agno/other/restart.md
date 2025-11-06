@@ -1,0 +1,57 @@
+# ag infra restart
+
+> Original Document: [ag infra restart](https://docs.agno.com/reference/agno-infra/cli/ws/restart.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:17.294Z
+
+---
+
+# ag infra restart
+
+Restart resources for active infra
+
+## Params
+
+<ResponseField name="resources_filter" type="str">
+  Resource filter. Format - ENV:INFRA:GROUP:NAME:TYPE
+</ResponseField>
+
+<ResponseField name="env_filter" type="str">
+  Filter the environment to deploy `--env` `-e`
+</ResponseField>
+
+<ResponseField name="infra_filter" type="str">
+  Filter the infra to deploy. `--infra` `-i`
+</ResponseField>
+
+<ResponseField name="group_filter" type="str">
+  Filter resources using group name. `--group` `-g`
+</ResponseField>
+
+<ResponseField name="name_filter" type="str">
+  Filter resource using name. `--name` `-n`
+</ResponseField>
+
+<ResponseField name="type_filter" type="str">
+  Filter resource using type `--type` `-t`
+</ResponseField>
+
+<ResponseField name="dry_run" type="bool">
+  Print resources and exit. `--dry-run` `-dr`
+</ResponseField>
+
+<ResponseField name="auto_confirm" type="bool">
+  Skip the confirmation before deploying resources. `--yes` `-y`
+</ResponseField>
+
+<ResponseField name="print_debug_log" type="bool">
+  Print debug logs. `--debug` `-d`
+</ResponseField>
+
+<ResponseField name="force" type="bool">
+  Force `--force` `-f`
+</ResponseField>
+
+<ResponseField name="pull" type="bool">
+  Pull `--pull` `-p`
+</ResponseField>

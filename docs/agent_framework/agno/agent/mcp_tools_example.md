@@ -1,0 +1,101 @@
+# AgentOS with MCPTools
+
+> Original Document: [AgentOS with MCPTools](https://docs.agno.com/examples/agent-os/mcp/mcp_tools_example.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.266Z
+
+---
+
+# AgentOS with MCPTools
+
+> Complete AgentOS setup with MCPTools enabled on agents
+
+## Code
+
+```python cookbook/agent_os/mcp/mcp_tools_example.py theme={null}
+from agno.agent import Agent
+from agno.db.sqlite import SqliteDb
+from agno.models.anthropic import Claude
+from agno.os import AgentOS
+from agno.tools.mcp import MCPTools
+
+# Setup the database
+db = SqliteDb(db_file="tmp/agentos.db")
+
+mcp_tools = MCPTools(transport="streamable-http", url="https://docs.agno.com/mcp")
+
+# Setup basic agent
+agno_support_agent = Agent(
+    id="agno-support-agent",
+    name="Agno Support Agent",
+    model=Claude(id="claude-sonnet-4-0"),
+    db=db,
+    tools=[mcp_tools],
+    add_history_to_context=True,
+    num_history_runs=3,
+    markdown=True,
+)
+
+
+agent_os = AgentOS(
+    description="Example app with MCP Tools",
+    agents=[agno_support_agent],
+)
+
+
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    """Run your AgentOS.
+
+    You can see test your AgentOS at:
+    http://localhost:7777/docs
+
+    """
+    # Don't use reload=True here, this can cause issues with the lifespan
+    agent_os.serve(app="mcp_tools_example:app")
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export ANTHROPIC_API_KEY=your_anthropic_api_key
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno anthropic fastapi uvicorn sqlalchemy pgvector psycopg
+    ```
+  </Step>
+
+  <Step title="Setup PostgreSQL Database">
+    ```bash  theme={null}
+    # Using Docker
+    docker run -d \
+      --name agno-postgres \
+      -e POSTGRES_DB=ai \
+      -e POSTGRES_USER=ai \
+      -e POSTGRES_PASSWORD=ai \
+      -p 5532:5432 \
+      pgvector/pgvector:pg17
+    ```
+  </Step>
+
+  <Step title="Run Server">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/agent_os/mcp/mcp_tools_example.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/agent_os/mcp/mcp_tools_example.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

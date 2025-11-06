@@ -1,0 +1,75 @@
+# Agent with Storage
+
+> Original Document: [Agent with Storage](https://docs.agno.com/examples/models/cohere/storage.md)
+> Category: rag
+> Downloaded: 2025-11-06T11:51:15.461Z
+
+---
+
+# Agent with Storage
+
+## Code
+
+```python cookbook/models/cohere/db.py theme={null}
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.cohere import Cohere
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Setup the database
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+db = PostgresDb(db_url=db_url)
+
+agent = Agent(
+    model=Cohere(id="command-a-03-2025"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export CO_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U ddgs sqlalchemy cohere agno
+    ```
+  </Step>
+
+  <Step title="Run PgVector">
+    ```bash  theme={null}
+    docker run -d \
+      -e POSTGRES_DB=ai \
+      -e POSTGRES_USER=ai \
+      -e POSTGRES_PASSWORD=ai \
+      -e PGDATA=/var/lib/postgresql/data/pgdata \
+      -v pgvolume:/var/lib/postgresql/data \
+      -p 5532:5432 \
+      --name pgvector \
+      agnohq/pgvector:16
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/cohere/db.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/cohere/db.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

@@ -1,0 +1,90 @@
+# AgentOS Security
+
+> Original Document: [AgentOS Security](https://docs.agno.com/agent-os/security.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:13.537Z
+
+---
+
+# AgentOS Security
+
+> Learn how to secure your AgentOS instance with a security key
+
+## Overview
+
+AgentOS supports bearer-token authentication to secure your instance. When a Security Key is configured, all API routes require an `Authorization: Bearer <token>` header for access. Without a key configured, authentication is disabled.
+
+<Tip>
+  You can generate a security key from the AgentOS Control Plane, which also enables secure communication between your AgentOS and the Control Plane.
+</Tip>
+
+## Generate a Security Key
+
+From the AgentOS control plane, generate a security key or set your own.
+
+<Frame>
+  <video autoPlay muted loop playsInline style={{ borderRadius: "0.5rem", width: "100%", height: "auto" }}>
+    <source src="https://mintcdn.com/agno-v2/xm93WWN8gg4nzCGE/videos/agentos-security-key.mp4?fit=max&auto=format&n=xm93WWN8gg4nzCGE&q=85&s=0a87c2a894982a3eb075fe282a21c491" type="video/mp4" data-path="videos/agentos-security-key.mp4" />
+  </video>
+</Frame>
+
+<Tip>
+  You can also create your own security key and set it on the AgentOS UI.
+</Tip>
+
+## Security Key Authentication
+
+Set the `OS_SECURITY_KEY` environment variable where your AgentOS server runs. When present, the server automatically enforces bearer authentication on all API routes.
+
+### macOS / Linux (bash or zsh)
+
+```bash  theme={null}
+export OS_SECURITY_KEY="OSK_...your_copied_key..."
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+### Docker Compose
+
+```yaml  theme={null}
+services:
+  agentos:
+    image: your-org/agentos:latest
+    environment:
+      - OS_SECURITY_KEY=${OS_SECURITY_KEY}
+    ports:
+      - "8000:8000"
+```
+
+<Note>
+  **How it works**: AgentOS reads `OS_SECURITY_KEY` into the AgentOS router's
+  internal authorization logic. If configured, requests without a valid
+  `Authorization: Bearer` header return `401 Unauthorized`.
+</Note>
+
+### Key Rotation
+
+1. In the UI, click the **Generate** icon next to "Security Key" to generate a new value
+2. Update the server's `OS_SECURITY_KEY` environment variable and reload/redeploy AgentOS
+3. Update all clients, workers, and CI/CD systems that call the AgentOS API
+
+### Security Best Practices
+
+* **Environment Isolation**: Use different keys per environment with least-privilege distribution
+* **Code Safety**: Never commit keys to version control or print them in logs
+
+### Troubleshooting
+
+* **401 Unauthorized**: Verify the header format is exactly `Authorization: Bearer <key>` and that the server has `OS_SECURITY_KEY` configured
+* **Local vs Production**: Confirm your local shell exported `OS_SECURITY_KEY` before starting the application
+* **Post-Rotation Failures**: Ensure all clients received the new key. Restart CI/CD runners that may cache environment variables
+* **Connection Issues**: Check that your AgentOS instance is running and accessible at the configured endpoint
+
+## JWT Authentication
+
+AgentOS provides a middleware solution for custom JWT authentication.
+
+Learn more about [JWT Middleware](/agent-os/customize/middleware/jwt)
+
+<Check>
+  Although the JWT Middleware is already powerful feature, Agno is working on further extending authentication capabilities and better role-based access control in AgentOS.
+</Check>

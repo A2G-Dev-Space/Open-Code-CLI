@@ -1,0 +1,31 @@
+# StepInput
+
+> Original Document: [StepInput](https://docs.agno.com/reference/workflows/step_input.md)
+> Category: workflows
+> Downloaded: 2025-11-06T11:51:17.369Z
+
+---
+
+# StepInput
+
+| Parameter               | Type                                                         | Description                                                                |
+| ----------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `input`                 | `Optional[Union[str, Dict[str, Any], List[Any], BaseModel]]` | Primary input message (can be any format)                                  |
+| `previous_step_content` | `Optional[Any]`                                              | Content from the last step                                                 |
+| `previous_step_outputs` | `Optional[Dict[str, StepOutput]]`                            | All previous step outputs by name                                          |
+| `additional_data`       | `Optional[Dict[str, Any]]`                                   | Additional context data                                                    |
+| `images`                | `Optional[List[Image]]`                                      | Media inputs - images (accumulated from workflow input and previous steps) |
+| `videos`                | `Optional[List[Video]]`                                      | Media inputs - videos (accumulated from workflow input and previous steps) |
+| `audio`                 | `Optional[List[Audio]]`                                      | Media inputs - audio (accumulated from workflow input and previous steps)  |
+| `files`                 | `Optional[List[File]]`                                       | File inputs (accumulated from workflow input and previous steps)           |
+
+## Helper Functions
+
+| Method                                        | Return Type                            | Description                                                     |
+| --------------------------------------------- | -------------------------------------- | --------------------------------------------------------------- |
+| `get_step_output(step_name: str)`             | `Optional[StepOutput]`                 | Get the complete StepOutput object from a specific step by name |
+| `get_step_content(step_name: str)`            | `Optional[Union[str, Dict[str, str]]]` | Get content from a specific step by name                        |
+| `get_all_previous_content()`                  | `str`                                  | Get all previous step content combined                          |
+| `get_last_step_content()`                     | `Optional[str]`                        | Get content from the immediate previous step                    |
+| `get_workflow_history(num_runs: int)`         | `List[Tuple[str, str]]`                | Get the workflow history as a list of tuples                    |
+| `get_workflow_history_context(num_runs: int)` | `str`                                  | Get the workflow history as a formatted context string          |

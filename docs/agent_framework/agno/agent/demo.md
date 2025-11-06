@@ -1,0 +1,155 @@
+# AgentOS Demo
+
+> Original Document: [AgentOS Demo](https://docs.agno.com/examples/agent-os/demo.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.246Z
+
+---
+
+# AgentOS Demo
+
+> AgentOS demo with agents and teams
+
+Here is a full example of an AgentOS with multiple agents and teams. It also shows how to instantiate agents with a database, knowledge base, and tools.
+
+## Code
+
+```python cookbook/agent_os/demo.py theme={null}
+"""
+AgentOS Demo
+
+Prerequisites:
+pip install -U fastapi uvicorn sqlalchemy pgvector psycopg openai ddgs mcp
+"""
+
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.knowledge.knowledge import Knowledge
+from agno.models.openai import OpenAIChat
+from agno.os import AgentOS
+from agno.team import Team
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.mcp import MCPTools
+from agno.vectordb.pgvector import PgVector
+
+# Database connection
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
+# Create Postgres-backed memory store
+db = PostgresDb(db_url=db_url)
+
+# Create Postgres-backed vector store
+vector_db = PgVector(
+    db_url=db_url,
+    table_name="agno_docs",
+)
+knowledge = Knowledge(
+    name="Agno Docs",
+    contents_db=db,
+    vector_db=vector_db,
+)
+
+# Create your agents
+agno_agent = Agent(
+    name="Agno Agent",
+    model=OpenAIChat(id="gpt-4.1"),
+    tools=[MCPTools(transport="streamable-http", url="https://docs.agno.com/mcp")],
+    db=db,
+    enable_user_memories=True,
+    knowledge=knowledge,
+    markdown=True,
+)
+
+simple_agent = Agent(
+    name="Simple Agent",
+    role="Simple agent",
+    id="simple_agent",
+    model=OpenAIChat(id="gpt-5-mini"),
+    instructions=["You are a simple agent"],
+    db=db,
+    enable_user_memories=True,
+)
+
+research_agent = Agent(
+    name="Research Agent",
+    role="Research agent",
+    id="research_agent",
+    model=OpenAIChat(id="gpt-5-mini"),
+    instructions=["You are a research agent"],
+    tools=[DuckDuckGoTools()],
+    db=db,
+    enable_user_memories=True,
+)
+
+# Create a team
+research_team = Team(
+    name="Research Team",
+    description="A team of agents that research the web",
+    members=[research_agent, simple_agent],
+    model=OpenAIChat(id="gpt-5-mini"),
+    id="research_team",
+    instructions=[
+        "You are the lead researcher of a research team! 🔍",
+    ],
+    db=db,
+    enable_user_memories=True,
+    add_datetime_to_context=True,
+    markdown=True,
+)
+
+# Create the AgentOS
+agent_os = AgentOS(
+    id="agentos-demo",
+    agents=[agno_agent],
+    teams=[research_team],
+)
+app = agent_os.get_app()
+
+
+if __name__ == "__main__":
+    agent_os.serve(app="demo:app", port=7777)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=your_openai_api_key
+    export OS_SECURITY_KEY=your_security_key  # Optional for authentication
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U fastapi uvicorn sqlalchemy pgvector psycopg openai ddgs mcp agno
+    ```
+  </Step>
+
+  <Step title="Setup PostgreSQL Database">
+    ```bash  theme={null}
+    # Using Docker
+    docker run -d \
+      --name agno-postgres \
+      -e POSTGRES_DB=ai \
+      -e POSTGRES_USER=ai \
+      -e POSTGRES_PASSWORD=ai \
+      -p 5532:5432 \
+      pgvector/pgvector:pg17
+    ```
+  </Step>
+
+  <Step title="Run Example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/agent_os/demo.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/agent_os/demo.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

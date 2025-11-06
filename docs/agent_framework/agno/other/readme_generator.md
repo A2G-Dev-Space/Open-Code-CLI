@@ -1,0 +1,74 @@
+# Readme Generator
+
+> Original Document: [Readme Generator](https://docs.agno.com/examples/use-cases/agents/readme_generator.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:16.930Z
+
+---
+
+# Readme Generator
+
+The README Generator Agent is an intelligent automation tool that creates comprehensive, professional README files for open source projects. This agent leverages the power of AI to analyze GitHub repositories and generate well-structured documentation automatically.
+
+## Code
+
+```python cookbook/examples/agents/readme_generator.py theme={null}
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools.github import GithubTools
+from agno.tools.local_file_system import LocalFileSystemTools
+
+readme_gen_agent = Agent(
+    model=OpenAIChat(id="gpt-5-mini"),
+    name="Readme Generator Agent",
+    tools=[GithubTools(), LocalFileSystemTools()],
+    markdown=True,
+    instructions=[
+        "You are readme generator agent",
+        "You'll be given repository url or repository name from user."
+        "You'll use the `get_repository` tool to get the repository details."
+        "You have to pass the repo_name as argument to the tool. It should be in the format of owner/repo_name. If given url extract owner/repo_name from it."
+        "Also call the `get_repository_languages` tool to get the languages used in the repository."
+        "Write a useful README for a open source project, including how to clone and install the project, run the project etc. Also add badges for the license, size of the repo, etc"
+        "Don't include the project's languages-used in the README"
+        "Write the produced README to the local filesystem",
+    ],
+)
+
+readme_gen_agent.print_response(
+    "Get details of https://github.com/agno-agi/agno", markdown=True
+)
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=xxx
+    export GITHUB_ACCESS_TOKEN=xxx
+
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno PyGithub
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/examples/agents/readme_generator.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/examples/agents/readme_generator.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

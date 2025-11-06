@@ -1,0 +1,69 @@
+# Image File Input Agent
+
+> Original Document: [Image File Input Agent](https://docs.agno.com/examples/models/mistral/image_file_input_agent.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:16.106Z
+
+---
+
+# Image File Input Agent
+
+## Code
+
+```python cookbook/models/mistral/image_file_input_agent.py theme={null}
+from pathlib import Path
+
+from agno.agent import Agent
+from agno.media import Image
+from agno.models.mistral.mistral import MistralChat
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+agent = Agent(
+    model=MistralChat(id="pixtral-12b-2409"),
+    tools=[
+        DuckDuckGoTools()
+    ],  # pixtral-12b-2409 is not so great at tool calls, but it might work.
+    markdown=True,
+)
+
+image_path = Path(__file__).parent.joinpath("sample.jpeg")
+
+agent.print_response(
+    "Tell me about this image and give me the latest news about it from duckduckgo.",
+    images=[
+        Image(filepath=image_path),
+    ],
+    stream=True,
+)
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export MISTRAL_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U mistralai agno ddgs
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/mistral/image_file_input_agent.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/mistral/image_file_input_agent.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

@@ -1,0 +1,57 @@
+# Tool Use Stream
+
+> Original Document: [Tool Use Stream](https://docs.agno.com/examples/models/ollama/tool_use_stream.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:16.574Z
+
+---
+
+# Tool Use Stream
+
+## Code
+
+```python cookbook/models/ollama/tool_use_stream.py theme={null}
+from agno.agent import Agent
+from agno.models.ollama import Ollama
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+agent = Agent(
+    model=Ollama(id="llama3.2:latest"),
+    tools=[DuckDuckGoTools()],
+    markdown=True,
+)
+agent.print_response("Whats happening in France?", stream=True)
+
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install Ollama">
+    Follow the [Ollama installation guide](https://github.com/ollama/ollama?tab=readme-ov-file#macos) and run:
+
+    ```bash  theme={null}
+    ollama pull llama3.2:latest
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U ollama agno ddgs
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/ollama/tool_use_stream.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/ollama/tool_use_stream.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

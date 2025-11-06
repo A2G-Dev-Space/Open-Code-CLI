@@ -1,0 +1,175 @@
+# AgentOS Configuration
+
+> Original Document: [AgentOS Configuration](https://docs.agno.com/examples/agent-os/extra_configuration.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:14.242Z
+
+---
+
+# AgentOS Configuration
+
+> Passing extra configuration to your AgentOS
+
+## Configuration file
+
+We will first create a YAML file with the extra configuration we want to pass to our AgentOS:
+
+```yaml configuration.yaml theme={null}
+chat:
+  quick_prompts:
+    marketing-agent:
+      - "What can you do?"
+      - "How is our latest post working?"
+      - "Tell me about our active marketing campaigns"
+memory:
+  dbs:
+    - db_id: db-0001
+      domain_config:
+        display_name: Main app user memories
+    - db_id: db-0002
+      domain_config:
+        display_name: Support flow user memories
+```
+
+## Code
+
+```python cookbook/agent_os/os_config/yaml_config.py theme={null}
+"""Example showing how to pass extra configuration to your AgentOS."""
+
+from pathlib import Path
+
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.knowledge.knowledge import Knowledge
+from agno.models.openai import OpenAIChat
+from agno.os import AgentOS
+from agno.team import Team
+from agno.vectordb.pgvector import PgVector
+from agno.workflow.step import Step
+from agno.workflow.workflow import Workflow
+
+# Get the path to our configuration file
+cwd = Path(__file__).parent
+config_file_path = str(cwd.joinpath("configuration.yaml"))
+
+# Setup the database
+db = PostgresDb(db_url="postgresql+psycopg://ai:ai@localhost:5532/ai")
+
+# Setup basic agents, teams and workflows
+basic_agent = Agent(
+    name="Basic Agent",
+    db=db,
+    enable_session_summaries=True,
+    enable_user_memories=True,
+    add_history_to_context=True,
+    num_history_runs=3,
+    add_datetime_to_context=True,
+    markdown=True,
+)
+basic_team = Team(
+    id="basic-team",
+    name="Basic Team",
+    model=OpenAIChat(id="gpt-5-mini"),
+    db=db,
+    members=[basic_agent],
+    enable_user_memories=True,
+)
+basic_workflow = Workflow(
+    id="basic-workflow",
+    name="Basic Workflow",
+    description="Just a simple workflow",
+    db=db,
+    steps=[
+        Step(
+            name="step1",
+            description="Just a simple step",
+            agent=basic_agent,
+        )
+    ],
+)
+basic_knowledge = Knowledge(
+    name="Basic Knowledge",
+    description="A basic knowledge base",
+    contents_db=db,
+    vector_db=PgVector(db_url="postgresql+psycopg://ai:ai@localhost:5532/ai", table_name="vectors"),
+)
+
+# Setup our AgentOS app
+agent_os = AgentOS(
+    description="Example AgentOS",
+    agents=[basic_agent],
+    teams=[basic_team],
+    workflows=[basic_workflow],
+    knowledge=[basic_knowledge],
+    # We pass the configuration file to our AgentOS here
+    config=config_file_path,
+)
+app = agent_os.get_app()
+
+
+if __name__ == "__main__":
+    """Run our AgentOS.
+
+    You can see the configuration and available apps at:
+    http://localhost:7777/config
+
+    """
+    agent_os.serve(app="yaml_config:app", reload=True)
+
+```
+
+<Note>
+  It's recommended to add `id` for better management and easier identification in the AgentOS interface. You can add it to your database configuration like this:
+
+  ```python  theme={null}
+  from agno.db.postgres import PostgresDb
+
+  db = PostgresDb(
+    id="my_agent_db",
+    db_url="postgresql+psycopg://ai:ai@localhost:5532/ai"
+  )
+  ```
+</Note>
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set Environment Variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=your_openai_api_key
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U agno fastapi uvicorn sqlalchemy pgvector psycopg
+    ```
+  </Step>
+
+  <Step title="Setup PostgreSQL Database">
+    ```bash  theme={null}
+    # Using Docker
+    docker run -d \
+      --name agno-postgres \
+      -e POSTGRES_DB=ai \
+      -e POSTGRES_USER=ai \
+      -e POSTGRES_PASSWORD=ai \
+      -p 5532:5432 \
+      pgvector/pgvector:pg17
+    ```
+  </Step>
+
+  <Step title="Run Example">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/agent_os/os_config/yaml_config.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/agent_os/os_config/yaml_config.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

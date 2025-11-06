@@ -1,0 +1,56 @@
+# Parallel Steps Workflow
+
+> Original Document: [Parallel Steps Workflow](https://docs.agno.com/examples/concepts/workflows/04-workflows-parallel-execution/parallel_steps_workflow.md)
+> Category: workflows
+> Downloaded: 2025-11-06T11:51:15.258Z
+
+---
+
+# Parallel Steps Workflow
+
+> This example demonstrates **Workflows 2.0** parallel execution for independent tasks that can run simultaneously. Shows how to optimize workflow performance by executing non-dependent steps in parallel, significantly reducing total execution time.
+
+This example demonstrates **Workflows 2.0** parallel execution for independent tasks that
+can run simultaneously. Shows how to optimize workflow performance by executing
+non-dependent steps in parallel, significantly reducing total execution time.
+
+**When to use**: When you have independent tasks that don't depend on each other's output
+but can contribute to the same final goal. Ideal for research from multiple sources,
+parallel data processing, or any scenario where tasks can run simultaneously.
+
+```python parallel_steps_workflow.py theme={null}
+from agno.agent import Agent
+from agno.tools.googlesearch import GoogleSearchTools
+from agno.tools.hackernews import HackerNewsTools
+from agno.workflow import Step, Workflow
+from agno.workflow.parallel import Parallel
+
+# Create agents
+researcher = Agent(name="Researcher", tools=[HackerNewsTools(), GoogleSearchTools()])
+writer = Agent(name="Writer")
+reviewer = Agent(name="Reviewer")
+
+# Create individual steps
+research_hn_step = Step(name="Research HackerNews", agent=researcher)
+research_web_step = Step(name="Research Web", agent=researcher)
+write_step = Step(name="Write Article", agent=writer)
+review_step = Step(name="Review Article", agent=reviewer)
+
+# Create workflow with direct execution
+workflow = Workflow(
+    name="Content Creation Pipeline",
+    steps=[
+        Parallel(research_hn_step, research_web_step, name="Research Phase"),
+        write_step,
+        review_step,
+    ],
+)
+
+workflow.print_response("Write about the latest AI developments")
+```
+
+This was a synchronous non-streaming example of this pattern. To checkout async and streaming versions, see the cookbooks-
+
+* [Parallel Steps Workflow (sync streaming)](https://github.com/agno-agi/agno/blob/main/cookbook/workflows/_04_workflows_parallel_execution/sync/parallel_steps_workflow_stream.py)
+* [Parallel Steps Workflow (async non-streaming)](https://github.com/agno-agi/agno/blob/main/cookbook/workflows/_04_workflows_parallel_execution/sync/parallel_steps_workflow.py)
+* [Parallel Steps Workflow (async streaming)](https://github.com/agno-agi/agno/tree/main/cookbook/workflows/_04_workflows_parallel_execution/async/parallel_steps_workflow_stream.py)

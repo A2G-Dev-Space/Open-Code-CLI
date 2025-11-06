@@ -1,0 +1,59 @@
+# AgentOS + MCPTools
+
+> Original Document: [AgentOS + MCPTools](https://docs.agno.com/agent-os/mcp/tools.md)
+> Category: agent
+> Downloaded: 2025-11-06T11:51:13.526Z
+
+---
+
+# AgentOS + MCPTools
+
+> Learn how to use MCPTools in your AgentOS
+
+Model Context Protocol (MCP) gives Agents the ability to interact with external systems through a standardized interface.
+
+You can give your agents access to tools from MCP servers using [`MCPTools`](/concepts/tools/mcp).
+
+When using MCPTools within AgentOS, the lifecycle is automatically managed. No need to manually connect or disconnect the `MCPTools` instance.
+
+```python mcp_tools_example.py theme={null}
+from agno.agent import Agent
+from agno.os import AgentOS
+from agno.tools.mcp import MCPTools
+
+# Create MCPTools instance
+mcp_tools = MCPTools(
+    transport="streamable-http", 
+    url="https://docs.agno.com/mcp"
+)
+
+# Create MCP-enabled agent
+agent = Agent(
+    id="agno-agent",
+    name="Agno Agent",
+    tools=[mcp_tools],
+)
+
+# AgentOS manages MCP lifespan
+agent_os = AgentOS(
+    description="AgentOS with MCP Tools",
+    agents=[agent],
+)
+
+app = agent_os.get_app()
+
+if __name__ == "__main__":
+    # Don't use reload=True with MCP tools to avoid lifespan issues
+    agent_os.serve(app="mcp_tools_example:app")
+```
+
+<Note>
+  This does not automatically refresh connections that are interrupted or restarted, you can use [`refresh_connection`](/concepts/tools/mcp/overview#connection-refresh) to do so.
+</Note>
+
+<Note>
+  If you are using `MCPTools` within AgentOS, you should not use `reload=True` when serving your AgentOS.
+  This can break the MCP connection during the FastAPI lifecycle.
+</Note>
+
+See here for a [full example](/examples/agent-os/mcp/mcp_tools_example).

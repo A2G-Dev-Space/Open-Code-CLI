@@ -1,0 +1,91 @@
+# Reasoning Team
+
+> Original Document: [Reasoning Team](https://docs.agno.com/examples/use-cases/teams/reasoning_team.md)
+> Category: teams
+> Downloaded: 2025-11-06T11:51:17.006Z
+
+---
+
+# Reasoning Team
+
+This example shows how to create a reasoning team that can handle complex queries involving web search and financial data using the `coordinate` mode with reasoning capabilities.
+
+## Code
+
+```python cookbook/examples/teams/coordinate_mode/reasoning_team.py theme={null}
+from agno.agent import Agent
+from agno.models.anthropic import Claude
+from agno.models.openai import OpenAIChat
+from agno.team import Team
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.reasoning import ReasoningTools
+from agno.tools.exa import ExaTools
+
+web_agent = Agent(
+    name="Web Search Agent",
+    role="Handle web search requests",
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[DuckDuckGoTools()],
+    instructions=["Always include sources"],
+)
+
+finance_agent = Agent(
+    name="Finance Agent",
+    role="Handle financial data requests",
+    model=OpenAIChat(id="gpt-5-mini"),
+    tools=[
+        ExaTools(
+            include_domains=["cnbc.com", "reuters.com", "bloomberg.com", "wsj.com"],
+            show_results=True,
+            text=False,
+            highlights=False,
+        )
+    ],
+    instructions=["Use tables to display data"],
+)
+
+team_leader = Team(
+    name="Reasoning Team Leader",
+    model=Claude(id="claude-3-7-sonnet-latest"),
+    members=[
+        web_agent,
+        finance_agent,
+    ],
+    tools=[ReasoningTools(add_instructions=True)],
+    markdown=True,
+    show_members_responses=True,
+)
+
+team_leader.print_response(
+    "Tell me 1 company in New York, 1 in San Francisco and 1 in Chicago and the stock price of each",
+    stream=True,
+    stream_events=True,
+    show_full_reasoning=True,
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install required libraries">
+    ```bash  theme={null}
+    pip install agno ddgs exa anthropic
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=****
+    export ANTHROPIC_API_KEY=****
+    export EXA_API_KEY=****
+    ```
+  </Step>
+
+  <Step title="Run the agent">
+    ```bash  theme={null}
+    python cookbook/examples/teams/reasoning_team.py
+    ```
+  </Step>
+</Steps>

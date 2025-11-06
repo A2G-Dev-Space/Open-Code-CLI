@@ -1,0 +1,55 @@
+# AgentSession
+
+> Original Document: [AgentSession](https://docs.agno.com/reference/agents/session.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:17.211Z
+
+---
+
+# AgentSession
+
+## AgentSession Attributes
+
+| Parameter      | Type                        | Default  | Description                                                        |
+| -------------- | --------------------------- | -------- | ------------------------------------------------------------------ |
+| `session_id`   | `str`                       | Required | Session UUID                                                       |
+| `agent_id`     | `Optional[str]`             | `None`   | ID of the agent that this session is associated with               |
+| `team_id`      | `Optional[str]`             | `None`   | ID of the team that this session is associated with                |
+| `user_id`      | `Optional[str]`             | `None`   | ID of the user interacting with this agent                         |
+| `workflow_id`  | `Optional[str]`             | `None`   | ID of the workflow that this session is associated with            |
+| `session_data` | `Optional[Dict[str, Any]]`  | `None`   | Session Data: session\_name, session\_state, images, videos, audio |
+| `metadata`     | `Optional[Dict[str, Any]]`  | `None`   | Metadata stored with this agent                                    |
+| `agent_data`   | `Optional[Dict[str, Any]]`  | `None`   | Agent Data: agent\_id, name and model                              |
+| `runs`         | `Optional[List[RunOutput]]` | `None`   | List of all runs in the session                                    |
+| `summary`      | `Optional[SessionSummary]`  | `None`   | Summary of the session                                             |
+| `created_at`   | `Optional[int]`             | `None`   | The unix timestamp when this session was created                   |
+| `updated_at`   | `Optional[int]`             | `None`   | The unix timestamp when this session was last updated              |
+
+## AgentSession Methods
+
+### `upsert_run(run: RunOutput)`
+
+Adds a RunOutput to the runs list. If a run with the same `run_id` already exists, it updates the existing run.
+
+### `get_run(run_id: str) -> Optional[RunOutput]`
+
+Retrieves a specific run by its `run_id`.
+
+### `get_messages_from_last_n_runs(...) -> List[Message]`
+
+Gets messages from the last N runs with various filtering options:
+
+* `agent_id`: Filter by agent ID
+* `team_id`: Filter by team ID
+* `last_n`: Number of recent runs to include
+* `skip_role`: Skip messages with specific role
+* `skip_status`: Skip runs with specific statuses
+* `skip_history_messages`: Whether to skip history messages
+
+### `get_session_summary() -> Optional[SessionSummary]`
+
+Get the session summary for the session
+
+### `get_chat_history() -> List[Message]`
+
+Get the chat history for the session

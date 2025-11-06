@@ -1,0 +1,61 @@
+# Agent with Storage
+
+> Original Document: [Agent with Storage](https://docs.agno.com/examples/models/cerebras_openai/storage.md)
+> Category: rag
+> Downloaded: 2025-11-06T11:51:15.670Z
+
+---
+
+# Agent with Storage
+
+## Code
+
+```python cookbook/models/cerebras_openai/db.py theme={null}
+from agno.agent import Agent
+from agno.db.postgres import PostgresDb
+from agno.models.cerebras import CerebrasOpenAI
+from agno.tools.duckduckgo import DuckDuckGoTools
+
+# Setup the database
+db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+db = PostgresDb(db_url=db_url)
+
+agent = Agent(
+    model=CerebrasOpenAI(id="llama-4-scout-17b-16e-instruct"),
+    db=db,
+    tools=[DuckDuckGoTools()],
+    add_history_to_context=True,
+)
+agent.print_response("How many people live in Canada?")
+agent.print_response("What is their national anthem called?")
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export CEREBRAS_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U openai ddgs sqlalchemy agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/cerebras_openai/db.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/cerebras_openai/db.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

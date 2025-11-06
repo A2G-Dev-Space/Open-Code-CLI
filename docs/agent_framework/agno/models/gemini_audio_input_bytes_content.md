@@ -1,0 +1,64 @@
+# Audio Input (Bytes Content)
+
+> Original Document: [Audio Input (Bytes Content)](https://docs.agno.com/examples/models/gemini/audio_input_bytes_content.md)
+> Category: models
+> Downloaded: 2025-11-06T11:51:15.706Z
+
+---
+
+# Audio Input (Bytes Content)
+
+## Code
+
+```python cookbook/models/google/gemini/audio_input_bytes_content.py theme={null}
+import requests
+from agno.agent import Agent
+from agno.media import Audio
+from agno.models.google import Gemini
+
+agent = Agent(
+    model=Gemini(id="gemini-2.0-flash-exp"),
+    markdown=True,
+)
+
+url = "https://openaiassets.blob.core.windows.net/$web/API/docs/audio/alloy.wav"
+
+# Download the audio file from the URL as bytes
+response = requests.get(url)
+audio_content = response.content
+
+agent.print_response(
+    "Tell me about this audio",
+    audio=[Audio(content=audio_content)],
+)
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Set your API key">
+    ```bash  theme={null}
+    export GOOGLE_API_KEY=xxx
+    ```
+  </Step>
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U google-genai requests agno
+    ```
+  </Step>
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python cookbook/models/google/gemini/audio_input_bytes_content.py
+      ```
+
+      ```bash Windows theme={null}
+      python cookbook/models/google/gemini/audio_input_bytes_content.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>

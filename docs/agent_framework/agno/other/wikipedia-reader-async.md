@@ -1,0 +1,99 @@
+# Wikipedia Reader (Async)
+
+> Original Document: [Wikipedia Reader (Async)](https://docs.agno.com/examples/concepts/knowledge/readers/wikipedia/wikipedia-reader-async.md)
+> Category: other
+> Downloaded: 2025-11-06T11:51:14.812Z
+
+---
+
+# Wikipedia Reader (Async)
+
+The **Wikipedia Reader** with asynchronous processing allows you to search and read Wikipedia articles efficiently, converting them into vector embeddings for your knowledge base.
+
+## Code
+
+```python examples/concepts/knowledge/readers/wikipedia_reader_async.py theme={null}
+import asyncio
+
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.knowledge.reader.arxiv_reader import ArxivReader
+from agno.knowledge.reader.wikipedia_reader import WikipediaReader
+from agno.vectordb.pgvector import PgVector
+
+# Create Knowledge Instance
+knowledge = Knowledge(
+    name="Multi-Source Knowledge Base",
+    description="Knowledge base combining Wikipedia and ArXiv content",
+    vector_db=PgVector(
+        table_name="multi_vectors", 
+        db_url="postgresql+psycopg://ai:ai@localhost:5532/ai"
+    ),
+)
+
+async def main():
+    # Add topics from Wikipedia
+    await knowledge.add_content_async(
+        metadata={"source": "wikipedia", "type": "encyclopedia"},
+        topics=["Manchester United", "Machine Learning"],
+        reader=WikipediaReader(),
+    )
+
+    # Add topics from ArXiv
+    await knowledge.add_content_async(
+        metadata={"source": "arxiv", "type": "academic"},
+        topics=["Carbon Dioxide", "Neural Networks"],
+        reader=ArxivReader(),
+    )
+
+    # Create an agent with the knowledge
+    agent = Agent(
+        knowledge=knowledge,
+        search_knowledge=True,
+    )
+
+    # Query the knowledge base
+    await agent.aprint_response(
+        "What can you tell me about Machine Learning from both general and academic sources?",
+        markdown=True
+    )
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Usage
+
+<Steps>
+  <Snippet file="create-venv-step.mdx" />
+
+  <Step title="Install libraries">
+    ```bash  theme={null}
+    pip install -U wikipedia arxiv sqlalchemy psycopg pgvector agno openai
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    ```bash  theme={null}
+    export OPENAI_API_KEY=xxx
+    ```
+  </Step>
+
+  <Snippet file="run-pgvector-step.mdx" />
+
+  <Step title="Run Agent">
+    <CodeGroup>
+      ```bash Mac theme={null}
+      python examples/concepts/knowledge/readers/wikipedia_reader_async.py
+      ```
+
+      ```bash Windows theme={null}
+      python examples/concepts/knowledge/readers/wikipedia_reader_async.py
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Params
+
+<Snippet file="wikipedia-reader-reference.mdx" />

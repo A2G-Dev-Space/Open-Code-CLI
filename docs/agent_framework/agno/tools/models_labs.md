@@ -1,0 +1,58 @@
+# ModelsLabs
+
+> Original Document: [ModelsLabs](https://docs.agno.com/concepts/tools/toolkits/others/models_labs.md)
+> Category: tools
+> Downloaded: 2025-11-06T11:51:14.020Z
+
+---
+
+# ModelsLabs
+
+## Prerequisites
+
+You need to install the `requests` library.
+
+```bash  theme={null}
+pip install requests
+```
+
+Set the `MODELS_LAB_API_KEY` environment variable.
+
+```bash  theme={null}
+export MODELS_LAB_API_KEY=****
+```
+
+## Example
+
+The following agent will use ModelsLabs to generate a video based on a text prompt.
+
+```python cookbook/tools/models_labs_tools.py theme={null}
+from agno.agent import Agent
+from agno.tools.models_labs import ModelsLabsTools
+
+# Create an Agent with the ModelsLabs tool
+agent = Agent(tools=[ModelsLabsTools()], name="ModelsLabs Agent")
+
+agent.print_response("Generate a video of a beautiful sunset over the ocean", markdown=True)
+```
+
+## Toolkit Params
+
+| Parameter             | Type   | Default | Description                                                                |
+| --------------------- | ------ | ------- | -------------------------------------------------------------------------- |
+| `api_key`             | `str`  | `None`  | The ModelsLab API key for authentication                                   |
+| `wait_for_completion` | `bool` | `False` | Whether to wait for the video to be ready                                  |
+| `add_to_eta`          | `int`  | `15`    | Time to add to the ETA to account for the time it takes to fetch the video |
+| `max_wait_time`       | `int`  | `60`    | Maximum time to wait for the video to be ready                             |
+| `file_type`           | `str`  | `"mp4"` | The type of file to generate                                               |
+
+## Toolkit Functions
+
+| Function         | Description                                     |
+| ---------------- | ----------------------------------------------- |
+| `generate_media` | Generates a video or gif based on a text prompt |
+
+## Developer Resources
+
+* View [Tools](https://github.com/agno-agi/agno/blob/main/libs/agno/agno/tools/models_labs.py)
+* View [Cookbook](https://github.com/agno-agi/agno/tree/main/cookbook/tools/models_labs_tools.py)
