@@ -9,6 +9,7 @@ import path from 'path';
 import { Message } from '../types/index.js';
 import { configManager } from './config-manager.js';
 import { PROJECTS_DIR } from '../constants.js';
+import { initializeJsonStreamLogger } from '../utils/json-stream-logger.js';
 
 /**
  * 세션 메타데이터 인터페이스
@@ -93,6 +94,12 @@ export class SessionManager {
     const endpoint = configManager.getCurrentEndpoint();
     const model = configManager.getCurrentModel();
 
+    // 메시지 키 순서 정규화 (role -> content 순서 보장)
+    const normalizedMessages = messages.map(msg => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
     // 세션 데이터 생성
     const sessionData: SessionData = {
       metadata: {
@@ -104,7 +111,7 @@ export class SessionManager {
         model: model?.id || 'unknown',
         endpoint: endpoint?.baseUrl || 'unknown',
       },
-      messages: messages,
+      messages: normalizedMessages,
     };
 
     // 파일로 저장
@@ -131,6 +138,13 @@ export class SessionManager {
       // updatedAt 갱신
       sessionData.metadata.updatedAt = new Date().toISOString();
       await fs.writeFile(filePath, JSON.stringify(sessionData, null, 2), 'utf-8');
+
+      // 현재 세션 ID를 로드된 세션으로 설정 (이후 대화가 이 세션에 저장되도록)
+      this.currentSessionId = sessionData.metadata.id;
+      this.currentSessionCreatedAt = sessionData.metadata.createdAt;
+
+      // 로거를 해당 세션의 로그 파일로 재초기화 (append 모드)
+      await initializeJsonStreamLogger(sessionData.metadata.id, true);
 
       return sessionData;
     } catch (error) {
@@ -225,7 +239,13 @@ export class SessionManager {
       return false;
     }
 
-    sessionData.messages = messages;
+    // 메시지 키 순서 정규화 (role -> content 순서 보장)
+    const normalizedMessages = messages.map(msg => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
+    sessionData.messages = normalizedMessages;
     sessionData.metadata.messageCount = messages.length;
     sessionData.metadata.updatedAt = new Date().toISOString();
 
@@ -267,6 +287,12 @@ export class SessionManager {
       const endpoint = configManager.getCurrentEndpoint();
       const model = configManager.getCurrentModel();
 
+      // 메시지 키 순서 정규화 (role -> content 순서 보장)
+      const normalizedMessages = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
       // 세션 데이터 생성/업데이트
       const sessionData: SessionData = {
         metadata: {
@@ -278,7 +304,7 @@ export class SessionManager {
           model: model?.id || 'unknown',
           endpoint: endpoint?.baseUrl || 'unknown',
         },
-        messages: messages,
+        messages: normalizedMessages,
       };
 
       // 파일로 저장 (덮어쓰기)
