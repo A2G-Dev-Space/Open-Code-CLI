@@ -10,6 +10,9 @@ import { dirname, join } from 'path';
 import chalk from 'chalk';
 import { PROJECTS_DIR } from '../constants.js';
 
+// Flush interval for periodic buffer writes (in milliseconds)
+const FLUSH_INTERVAL_MS = 1000;
+
 export interface StreamLogEntry {
   timestamp: string;
   type: 'user_input' | 'assistant_response' | 'system_message' | 'error' | 'tool_call' | 'todo_update' | 'debug' | 'info';
@@ -52,11 +55,11 @@ export class JsonStreamLogger {
       this.isFirstEntry = true;
       this.isEnabled = true;
 
-      // Set up periodic flush (every 1 second)
+      // Set up periodic flush
       this.flushInterval = setInterval(() => {
         this.flush();
         this.flushErrors();
-      }, 1000);
+      }, FLUSH_INTERVAL_MS);
 
       console.log(chalk.dim(`📝 JSON stream logging enabled`));
       console.log(chalk.dim(`   Log: ${this.filePath}`));
@@ -312,27 +315,36 @@ export class JsonStreamLogger {
       this.flushErrors();
     }
 
-    // Write closing bracket for JSON array
-    this.writeStream.write('\n]\n');
-
     // Close both streams
     const promises: Promise<void>[] = [];
 
-    promises.push(new Promise<void>((resolve, reject) => {
-      this.writeStream!.end((error?: Error) => {
-        if (error) {
-          console.error(chalk.red('Failed to close JSON stream:'), error);
-          reject(error);
-        } else {
-          console.log(chalk.dim(`✅ Log saved: ${this.filePath}`));
-          resolve();
-        }
-      });
-    }));
+    // Close main stream if not already destroyed
+    if (!this.writeStream.destroyed) {
+      // Write closing bracket for JSON array
+      if (this.writeStream.writable) {
+        this.writeStream.write('\n]\n');
+      }
 
-    // Only close error stream if it was initialized
-    if (this.errorStreamInitialized && this.errorWriteStream) {
-      this.errorWriteStream.write('\n]\n');
+      promises.push(new Promise<void>((resolve, reject) => {
+        this.writeStream!.end((error?: Error) => {
+          if (error) {
+            console.error(chalk.red('Failed to close JSON stream:'), error);
+            reject(error);
+          } else {
+            console.log(chalk.dim(`✅ Log saved: ${this.filePath}`));
+            resolve();
+          }
+        });
+      }));
+    } else {
+      console.log(chalk.dim(`⚠️  Log stream already closed: ${this.filePath}`));
+    }
+
+    // Only close error stream if it was initialized and not destroyed
+    if (this.errorStreamInitialized && this.errorWriteStream && !this.errorWriteStream.destroyed) {
+      if (this.errorWriteStream.writable) {
+        this.errorWriteStream.write('\n]\n');
+      }
 
       promises.push(new Promise<void>((resolve, reject) => {
         this.errorWriteStream!.end((error?: Error) => {
@@ -348,6 +360,11 @@ export class JsonStreamLogger {
     }
 
     await Promise.all(promises);
+    
+    // Mark as disabled and clear references
+    this.isEnabled = false;
+    this.writeStream = null;
+    this.errorWriteStream = null;
   }
 
   /**
@@ -408,7 +425,7 @@ export function getJsonStreamLogger(): JsonStreamLogger | null {
  * Close global JSON stream logger
  */
 export async function closeJsonStreamLogger(): Promise<void> {
-  if (globalJsonStreamLogger) {
+  if (globalJsonStreamLogger && globalJsonStreamLogger.isActive()) {
     await globalJsonStreamLogger.close();
     globalJsonStreamLogger = null;
   }
