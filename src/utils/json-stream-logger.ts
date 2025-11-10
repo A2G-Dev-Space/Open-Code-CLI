@@ -297,9 +297,13 @@ export class JsonStreamLogger {
    * Close the JSON stream logger
    */
   async close(): Promise<void> {
-    if (!this.writeStream) {
+    // Already closed, skip
+    if (!this.isEnabled || !this.writeStream) {
       return;
     }
+
+    // Mark as disabled immediately to prevent duplicate close attempts
+    this.isEnabled = false;
 
     // Clear flush interval
     if (this.flushInterval) {
@@ -361,8 +365,7 @@ export class JsonStreamLogger {
 
     await Promise.all(promises);
     
-    // Mark as disabled and clear references
-    this.isEnabled = false;
+    // Clear references
     this.writeStream = null;
     this.errorWriteStream = null;
   }
