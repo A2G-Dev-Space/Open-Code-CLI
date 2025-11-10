@@ -10,6 +10,9 @@ import { dirname, join } from 'path';
 import chalk from 'chalk';
 import { PROJECTS_DIR } from '../constants.js';
 
+// Flush interval for periodic buffer writes (in milliseconds)
+const FLUSH_INTERVAL_MS = 1000;
+
 export interface StreamLogEntry {
   timestamp: string;
   type: 'user_input' | 'assistant_response' | 'system_message' | 'error' | 'tool_call' | 'todo_update' | 'debug' | 'info';
@@ -52,11 +55,11 @@ export class JsonStreamLogger {
       this.isFirstEntry = true;
       this.isEnabled = true;
 
-      // Set up periodic flush (every 1 second)
+      // Set up periodic flush
       this.flushInterval = setInterval(() => {
         this.flush();
         this.flushErrors();
-      }, 1000);
+      }, FLUSH_INTERVAL_MS);
 
       console.log(chalk.dim(`📝 JSON stream logging enabled`));
       console.log(chalk.dim(`   Log: ${this.filePath}`));
