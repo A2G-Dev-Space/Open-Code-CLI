@@ -5,7 +5,7 @@
  */
 
 import { createWriteStream, WriteStream } from 'fs';
-import { mkdir } from 'fs/promises';
+import { mkdir, access, readFile, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import chalk from 'chalk';
 import { PROJECTS_DIR } from '../constants.js';
@@ -32,6 +32,7 @@ export class JsonStreamLogger {
   private flushInterval: NodeJS.Timeout | null = null;
   private isEnabled = false;
   private errorStreamInitialized = false;
+  private appendMode = false;
 
   constructor(filePath: string, errorFilePath: string) {
     this.filePath = filePath;
@@ -41,18 +42,37 @@ export class JsonStreamLogger {
   /**
    * Initialize the JSON stream logger
    */
-  async initialize(): Promise<void> {
+  async initialize(append = false): Promise<void> {
     try {
+      // Store append mode for error stream initialization
+      this.appendMode = append;
+
       // Create directory if it doesn't exist
       await mkdir(dirname(this.filePath), { recursive: true });
 
-      // Create write stream for main log
-      this.writeStream = createWriteStream(this.filePath, { flags: 'w' });
+      // Check if file exists and we're in append mode
+      let fileExists = false;
+      try {
+        await access(this.filePath);
+        fileExists = true;
+      } catch {
+        fileExists = false;
+      }
 
-      // Write opening bracket for JSON array
-      this.writeStream.write('[\n');
+      if (append && fileExists) {
+        // Append mode: remove closing bracket and continue
+        await this.prepareFileForAppend(this.filePath);
+        this.writeStream = createWriteStream(this.filePath, { flags: 'a' });
+        this.isFirstEntry = false; // Not first entry since file has content
+        console.log(chalk.dim(`📝 JSON stream logging resumed (append mode)`));
+      } else {
+        // New file mode: create fresh file
+        this.writeStream = createWriteStream(this.filePath, { flags: 'w' });
+        this.writeStream.write('[\n');
+        this.isFirstEntry = true;
+        console.log(chalk.dim(`📝 JSON stream logging enabled`));
+      }
 
-      this.isFirstEntry = true;
       this.isEnabled = true;
 
       // Set up periodic flush
@@ -61,11 +81,28 @@ export class JsonStreamLogger {
         this.flushErrors();
       }, FLUSH_INTERVAL_MS);
 
-      console.log(chalk.dim(`📝 JSON stream logging enabled`));
       console.log(chalk.dim(`   Log: ${this.filePath}`));
     } catch (error) {
       console.error(chalk.red('Failed to initialize JSON stream logger:'), error);
       this.isEnabled = false;
+    }
+  }
+
+  /**
+   * Prepare file for append by removing closing bracket
+   */
+  private async prepareFileForAppend(filePath: string): Promise<void> {
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      // Remove the closing bracket and trailing whitespace
+      const trimmed = content.trimEnd();
+      if (trimmed.endsWith(']')) {
+        const withoutClosing = trimmed.slice(0, -1);
+        await writeFile(filePath, withoutClosing, 'utf-8');
+      }
+    } catch (error) {
+      console.error(chalk.yellow('Warning: Could not prepare file for append:'), error);
+      // Continue anyway - will create new file
     }
   }
 
@@ -132,15 +169,28 @@ export class JsonStreamLogger {
       // Create directory if it doesn't exist
       await mkdir(dirname(this.errorFilePath), { recursive: true });
 
-      // Create write stream for error log
-      this.errorWriteStream = createWriteStream(this.errorFilePath, { flags: 'w' });
+      // Check if file exists and we're in append mode
+      let fileExists = false;
+      try {
+        await access(this.errorFilePath);
+        fileExists = true;
+      } catch {
+        fileExists = false;
+      }
 
-      // Write opening bracket for JSON array
-      this.errorWriteStream.write('[\n');
+      if (this.appendMode && fileExists) {
+        // Append mode: remove closing bracket and continue
+        await this.prepareFileForAppend(this.errorFilePath);
+        this.errorWriteStream = createWriteStream(this.errorFilePath, { flags: 'a' });
+        this.isFirstErrorEntry = false;
+      } else {
+        // New file mode: create fresh file
+        this.errorWriteStream = createWriteStream(this.errorFilePath, { flags: 'w' });
+        this.errorWriteStream.write('[\n');
+        this.isFirstErrorEntry = true;
+      }
 
-      this.isFirstErrorEntry = true;
       this.errorStreamInitialized = true;
-
       console.log(chalk.dim(`   Error log: ${this.errorFilePath}`));
     } catch (error) {
       console.error(chalk.red('Failed to initialize error stream:'), error);
@@ -392,7 +442,7 @@ let globalJsonStreamLogger: JsonStreamLogger | null = null;
  * Initialize global JSON stream logger
  * Automatically generates log paths based on current working directory and session ID
  */
-export async function initializeJsonStreamLogger(sessionId?: string): Promise<JsonStreamLogger> {
+export async function initializeJsonStreamLogger(sessionId?: string, append = false): Promise<JsonStreamLogger> {
   if (globalJsonStreamLogger) {
     await globalJsonStreamLogger.close();
   }
@@ -412,7 +462,7 @@ export async function initializeJsonStreamLogger(sessionId?: string): Promise<Js
   const errorLogFile = join(projectLogDir, `${actualSessionId}_error.json`);
 
   globalJsonStreamLogger = new JsonStreamLogger(logFile, errorLogFile);
-  await globalJsonStreamLogger.initialize();
+  await globalJsonStreamLogger.initialize(append);
 
   return globalJsonStreamLogger;
 }
