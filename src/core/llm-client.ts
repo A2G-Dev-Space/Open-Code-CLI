@@ -3,6 +3,12 @@
  *
  * OpenAI Compatible API 클라이언트
  * Gemini (HTTPS) 및 LiteLLM (HTTP) 지원
+ *
+ * Logger 사용 가이드:
+ * - 이 파일은 이미 logger.httpRequest(), logger.httpResponse(), logger.error() 등을 사용 중입니다.
+ * - 추가 개선 사항: 주요 public 함수에 logger.enter/exit 추가
+ * - 예시: logger.enter('sendMessage', { messageLength: userMessage.length });
+ * - 상세한 사용법은 docs/LOGGER_USAGE_KR.md 참고
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
@@ -126,13 +132,27 @@ export class LLMClient {
    * Chat Completion API 호출 (Non-streaming)
    */
   async chatCompletion(options: Partial<LLMRequestOptions>): Promise<LLMResponse> {
+    logger.enter('chatCompletion', {
+      model: options.model || this.model,
+      messagesCount: options.messages?.length || 0,
+      hasTools: !!options.tools
+    });
+
     const url = '/chat/completions';
 
     try {
+      logger.flow('메시지 전처리 시작');
       // Preprocess messages for model-specific requirements
       const modelId = options.model || this.model;
       const processedMessages = options.messages ?
         this.preprocessMessages(options.messages, modelId) : [];
+
+      logger.vars(
+        { name: 'modelId', value: modelId },
+        { name: 'originalMessages', value: options.messages?.length || 0 },
+        { name: 'processedMessages', value: processedMessages.length },
+        { name: 'temperature', value: options.temperature ?? 0.7 }
+      );
 
       const requestBody = {
         model: modelId,
@@ -142,6 +162,8 @@ export class LLMClient {
         stream: false,
         ...(options.tools && { tools: options.tools }),
       };
+
+      logger.flow('API 요청 준비 완료');
 
       // Log request
       logger.httpRequest('POST', `${this.baseUrl}${url}`, {
@@ -154,7 +176,11 @@ export class LLMClient {
 
       logger.verbose('Full Request Body', requestBody);
 
+      logger.startTimer('llm-api-call');
       const response = await this.axiosInstance.post<LLMResponse>(url, requestBody);
+      const elapsed = logger.endTimer('llm-api-call');
+
+      logger.flow('API 응답 수신 완료');
 
       // Log response
       logger.httpResponse(response.status, response.statusText, {
@@ -164,8 +190,22 @@ export class LLMClient {
 
       logger.verbose('Full Response', response.data);
 
+      logger.vars(
+        { name: 'responseChoices', value: response.data.choices.length },
+        { name: 'tokensUsed', value: response.data.usage?.total_tokens || 0 },
+        { name: 'responseTime', value: elapsed }
+      );
+
+      logger.exit('chatCompletion', {
+        success: true,
+        choices: response.data.choices.length,
+        elapsed
+      });
+
       return response.data;
     } catch (error) {
+      logger.flow('API 호출 실패 - 에러 처리');
+      logger.exit('chatCompletion', { success: false, error: (error as Error).message });
       throw this.handleError(error, {
         method: 'POST',
         url,
@@ -257,9 +297,16 @@ export class LLMClient {
    * 간단한 채팅 메시지 전송 (헬퍼 메서드)
    */
   async sendMessage(userMessage: string, systemPrompt?: string): Promise<string> {
+    logger.enter('sendMessage', {
+      messageLength: userMessage.length,
+      hasSystemPrompt: !!systemPrompt
+    });
+
+    logger.flow('메시지 배열 구성');
     const messages: Message[] = [];
 
     if (systemPrompt) {
+      logger.vars({ name: 'systemPrompt', value: systemPrompt.substring(0, 100) + (systemPrompt.length > 100 ? '...' : '') });
       messages.push({
         role: 'system',
         content: systemPrompt,
@@ -271,13 +318,39 @@ export class LLMClient {
       content: userMessage,
     });
 
+    logger.vars(
+      { name: 'totalMessages', value: messages.length },
+      { name: 'userMessage', value: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : '') }
+    );
+
+    logger.flow('LLM API 호출');
+    logger.startTimer('sendMessage-api');
+
     const response = await this.chatCompletion({ messages });
 
+    const elapsed = logger.endTimer('sendMessage-api');
+
+    logger.flow('응답 처리');
     if (response.choices.length === 0) {
+      logger.flow('응답 없음 - 에러 발생');
+      logger.exit('sendMessage', { success: false, reason: 'No response from LLM' });
       throw new Error('No response from LLM');
     }
 
-    return response.choices[0]?.message.content || '';
+    const responseContent = response.choices[0]?.message.content || '';
+
+    logger.vars(
+      { name: 'responseLength', value: responseContent.length },
+      { name: 'apiTime', value: elapsed }
+    );
+
+    logger.exit('sendMessage', {
+      success: true,
+      responseLength: responseContent.length,
+      elapsed
+    });
+
+    return responseContent;
   }
 
   /**
@@ -318,6 +391,14 @@ export class LLMClient {
     systemPrompt?: string,
     maxIterations: number = 5
   ): Promise<{ response: string; toolCalls: Array<{ tool: string; args: unknown; result: string }> }> {
+    logger.enter('sendMessageWithTools', {
+      messageLength: userMessage.length,
+      toolsCount: tools.length,
+      hasSystemPrompt: !!systemPrompt,
+      maxIterations
+    });
+
+    logger.flow('메시지 준비');
     const messages: Message[] = [];
 
     if (systemPrompt) {
@@ -332,20 +413,37 @@ export class LLMClient {
       content: userMessage,
     });
 
+    logger.vars(
+      { name: 'messagesCount', value: messages.length },
+      { name: 'toolsAvailable', value: tools.map(t => t.function.name) }
+    );
+
     const toolCallHistory: Array<{ tool: string; args: unknown; result: string }> = [];
     let iterations = 0;
 
+    logger.flow('Tool call 반복 시작');
     while (iterations < maxIterations) {
       iterations++;
 
+      logger.vars(
+        { name: 'iteration', value: iterations },
+        { name: 'maxIterations', value: maxIterations }
+      );
+
+      logger.flow(`반복 ${iterations}/${maxIterations} - LLM 호출`);
+
       // LLM 호출 (tools 포함)
+      logger.startTimer(`tool-iteration-${iterations}`);
       const response = await this.chatCompletion({
         messages,
         tools,
       });
+      logger.endTimer(`tool-iteration-${iterations}`);
 
       const choice = response.choices[0];
       if (!choice) {
+        logger.flow('응답에서 choice 없음 - 에러');
+        logger.exit('sendMessageWithTools', { success: false, error: 'No choice in response' });
         throw new Error('응답에서 choice를 찾을 수 없습니다.');
       }
 
@@ -354,14 +452,24 @@ export class LLMClient {
 
       // Tool calls 확인
       if (message.tool_calls && message.tool_calls.length > 0) {
+        logger.flow(`Tool calls 발견: ${message.tool_calls.length}개`);
+        logger.vars({ name: 'toolCallsCount', value: message.tool_calls.length });
+
         // Tool calls 실행
         for (const toolCall of message.tool_calls) {
           const toolName = toolCall.function.name;
+          logger.flow(`Tool 실행: ${toolName}`);
+
           let toolArgs: Record<string, unknown>;
 
           try {
             toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
+            logger.vars(
+              { name: 'toolName', value: toolName },
+              { name: 'toolArgs', value: toolArgs }
+            );
           } catch (parseError) {
+            logger.flow(`Tool argument 파싱 실패: ${toolName}`);
             const errorMsg = `Tool argument parsing failed for ${toolName}`;
             logger.error(errorMsg, parseError);
             logger.debug('Raw arguments', { raw: toolCall.function.arguments });
@@ -382,16 +490,29 @@ export class LLMClient {
           }
 
           // Tool 실행 (외부에서 주입받아야 함 - 여기서는 import)
+          logger.flow('Tool 모듈 로드');
           const { executeFileTool } = await import('../tools/file-tools.js');
 
           logger.debug(`Executing tool: ${toolName}`, toolArgs);
+
+          logger.flow(`Tool 실행 시작: ${toolName}`);
+          logger.startTimer(`tool-exec-${toolName}`);
 
           let result: { success: boolean; result?: string; error?: string };
 
           try {
             result = await executeFileTool(toolName, toolArgs);
+            const toolExecTime = logger.endTimer(`tool-exec-${toolName}`);
+
             logger.toolExecution(toolName, toolArgs, result);
+
+            logger.vars(
+              { name: 'toolSuccess', value: result.success },
+              { name: 'toolExecTime', value: toolExecTime }
+            );
           } catch (toolError) {
+            logger.endTimer(`tool-exec-${toolName}`);
+            logger.flow(`Tool 실행 실패: ${toolName}`);
             logger.toolExecution(toolName, toolArgs, undefined, toolError as Error);
 
             result = {
@@ -401,6 +522,7 @@ export class LLMClient {
           }
 
           // 결과를 메시지에 추가
+          logger.flow('Tool 결과를 메시지에 추가');
           messages.push({
             role: 'tool',
             content: result.success ? result.result || '' : `Error: ${result.error}`,
@@ -413,9 +535,20 @@ export class LLMClient {
             args: toolArgs,
             result: result.success ? result.result || '' : `Error: ${result.error}`,
           });
+
+          logger.vars({ name: 'toolCallHistorySize', value: toolCallHistory.length });
         }
       } else {
         // Tool call 없음 - 최종 응답
+        logger.flow('Tool call 없음 - 최종 응답 반환');
+
+        logger.exit('sendMessageWithTools', {
+          success: true,
+          iterations,
+          toolCallsCount: toolCallHistory.length,
+          responseLength: message.content?.length || 0
+        });
+
         return {
           response: message.content || '',
           toolCalls: toolCallHistory,
@@ -424,6 +557,14 @@ export class LLMClient {
     }
 
     // Max iterations 도달
+    logger.flow('최대 반복 횟수 도달');
+    logger.exit('sendMessageWithTools', {
+      success: false,
+      reason: 'Max iterations reached',
+      iterations: maxIterations,
+      toolCallsCount: toolCallHistory.length
+    });
+
     return {
       response: '최대 반복 횟수에 도달했습니다. Tool 실행이 완료되지 않았을 수 있습니다.',
       toolCalls: toolCallHistory,

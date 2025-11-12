@@ -34,14 +34,27 @@ export class GitAutoUpdater {
    * Main entry point - runs on every 'open' command
    */
   async run(options: { noUpdate?: boolean } = {}): Promise<void> {
+    logger.enter('GitAutoUpdater.run', {
+      noUpdate: options.noUpdate,
+      enabled: this.enabled,
+      repoDir: this.repoDir
+    });
+
     if (options.noUpdate || !this.enabled) {
+      logger.flow('Git auto-update disabled - skipping');
       logger.debug('Git auto-update is disabled');
+      logger.exit('GitAutoUpdater.run', { skipped: true, reason: 'disabled' });
       return;
     }
 
     try {
+      logger.flow('Checking repository directory');
+      logger.vars({ name: 'repoDir', value: this.repoDir });
+
       // Check if repo directory exists
       if (!fs.existsSync(this.repoDir)) {
+        logger.flow('First run detected - need initial setup');
+
         // First run: Show immediate feedback
         console.log();
         console.log(chalk.cyan('🔧 First Run Detected'));
@@ -65,30 +78,47 @@ export class GitAutoUpdater {
    * First run: Clone repository and setup npm link
    */
   private async initialSetup(): Promise<void> {
+    logger.enter('initialSetup', {
+      repoDir: this.repoDir,
+      repoUrl: this.repoUrl
+    });
+
     const spinner = ora({
       text: chalk.cyan('Step 1/4: Cloning repository from GitHub...'),
       spinner: 'dots',
     }).start();
 
     try {
+      logger.flow('초기 설정 시작');
       logger.info('Initial setup started', { repoDir: this.repoDir, repoUrl: this.repoUrl });
 
       // Create parent directory
+      logger.flow('상위 디렉토리 생성');
       const parentDir = path.dirname(this.repoDir);
+
+      logger.vars(
+        { name: 'parentDir', value: parentDir },
+        { name: 'exists', value: fs.existsSync(parentDir) }
+      );
+
       if (!fs.existsSync(parentDir)) {
         fs.mkdirSync(parentDir, { recursive: true });
         logger.debug('Created parent directory', { parentDir });
       }
 
       // Clone repository
+      logger.flow('Git 저장소 복제');
       logger.debug('Cloning repository', { repoUrl: this.repoUrl, destination: this.repoDir });
 
+      logger.startTimer('git-clone');
       execSync(`git clone ${this.repoUrl} ${this.repoDir}`, {
         stdio: 'pipe',
         encoding: 'utf-8',
       });
+      const cloneTime = logger.endTimer('git-clone');
 
       logger.info('Repository cloned successfully');
+      logger.vars({ name: 'cloneTime', value: cloneTime });
       spinner.succeed(chalk.green('Step 1/4: Repository cloned successfully'));
 
       // Install dependencies

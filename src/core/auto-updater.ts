@@ -61,19 +61,35 @@ export class AutoUpdater {
    * Check for updates from GitHub Releases
    */
   async checkForUpdates(silent: boolean = false): Promise<UpdateCheckResult> {
+    logger.enter('checkForUpdates', {
+      silent,
+      currentVersion: this.currentVersion,
+      enabled: this.config.enabled
+    });
+
     if (!this.config.enabled) {
+      logger.flow('Auto-update disabled - skipping check');
       logger.debug('Auto-update is disabled');
+      logger.exit('checkForUpdates', { hasUpdate: false, reason: 'disabled' });
       return {
         hasUpdate: false,
         currentVersion: this.currentVersion
       };
     }
 
+    logger.flow('업데이트 확인 시작');
     const spinner = !silent ? ora('Checking for updates...').start() : null;
 
     try {
       // GitHub API: Get latest release
       const url = `${this.apiBaseUrl}/repos/${this.owner}/${this.repo}/releases/latest`;
+
+      logger.vars(
+        { name: 'apiUrl', value: url },
+        { name: 'currentVersion', value: this.currentVersion },
+        { name: 'owner', value: this.owner },
+        { name: 'repo', value: this.repo }
+      );
 
       logger.debug('Checking for updates from GitHub', {
         url,
@@ -82,7 +98,9 @@ export class AutoUpdater {
         repo: this.repo,
       });
 
+      logger.flow('GitHub API 호출');
       logger.httpRequest('GET', url);
+      logger.startTimer('github-api-call');
 
       const response = await axios.get(url, {
         timeout: 5000, // 5 second timeout
@@ -91,6 +109,8 @@ export class AutoUpdater {
           'User-Agent': 'OPEN-CLI',
         },
       });
+
+      const apiTime = logger.endTimer('github-api-call');
 
       logger.httpResponse(response.status, response.statusText, {
         latestVersion: response.data.tag_name,
@@ -101,6 +121,14 @@ export class AutoUpdater {
       const release = response.data;
       const latestVersion = release.tag_name.replace(/^v/, ''); // "v1.0.0" → "1.0.0"
 
+      logger.flow('버전 비교');
+      logger.vars(
+        { name: 'currentVersion', value: this.currentVersion },
+        { name: 'latestVersion', value: latestVersion },
+        { name: 'isNewer', value: semver.gt(latestVersion, this.currentVersion) },
+        { name: 'apiTime', value: apiTime }
+      );
+
       logger.debug('Version comparison', {
         currentVersion: this.currentVersion,
         latestVersion,
@@ -109,8 +137,11 @@ export class AutoUpdater {
 
       // Check if this version should be skipped
       if (this.config.skipVersion === latestVersion) {
+        logger.flow('버전 스킵 설정됨');
         logger.info('Update skipped by user configuration', { version: latestVersion });
         spinner?.succeed('Update check complete (version skipped)');
+
+        logger.exit('checkForUpdates', { hasUpdate: false, reason: 'version-skipped', latestVersion });
         return {
           hasUpdate: false,
           currentVersion: this.currentVersion,
@@ -120,6 +151,9 @@ export class AutoUpdater {
 
       // Compare versions using semver
       if (semver.gt(latestVersion, this.currentVersion)) {
+        logger.flow('새 버전 발견');
+        logger.state('버전 상태', this.currentVersion, latestVersion);
+
         logger.info('New version available', {
           currentVersion: this.currentVersion,
           latestVersion,
@@ -138,6 +172,17 @@ export class AutoUpdater {
           })),
         };
 
+        logger.vars(
+          { name: 'assetsCount', value: releaseInfo.assets.length },
+          { name: 'changelogLength', value: releaseInfo.changelog.length }
+        );
+
+        logger.exit('checkForUpdates', {
+          hasUpdate: true,
+          currentVersion: this.currentVersion,
+          latestVersion
+        });
+
         return {
           hasUpdate: true,
           currentVersion: this.currentVersion,
@@ -146,8 +191,16 @@ export class AutoUpdater {
         };
       }
 
+      logger.flow('이미 최신 버전 사용 중');
       logger.info('Already using the latest version', { version: this.currentVersion });
       spinner?.succeed('You are using the latest version');
+
+      logger.exit('checkForUpdates', {
+        hasUpdate: false,
+        reason: 'already-latest',
+        currentVersion: this.currentVersion
+      });
+
       return {
         hasUpdate: false,
         currentVersion: this.currentVersion,
