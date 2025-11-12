@@ -42,14 +42,18 @@ program
   .option('--debug', 'Enable debug logging (shows all debug information)')
   .action(async (options: { classic?: boolean; noUpdate?: boolean; planExecute?: boolean; verbose?: boolean; debug?: boolean }) => {
   try {
-    // Set log level based on options
+    // Set log level based on CLI options
+    // Normal mode (no flags): INFO
+    // --verbose: DEBUG (상세 로깅)
+    // --debug: VERBOSE (최대 디버그 로깅 + 위치 정보)
     if (options.debug) {
       setLogLevel(LogLevel.VERBOSE);
-      logger.info('🔍 Debug mode enabled - verbose logging activated');
+      logger.info('🔍 Debug mode enabled - maximum logging with location tracking');
     } else if (options.verbose) {
       setLogLevel(LogLevel.DEBUG);
-      logger.info('📝 Verbose mode enabled - detailed logging activated');
+      logger.info('📝 Verbose mode enabled - detailed logging');
     }
+    // else: 기본값 INFO (logger 초기화 시 설정됨)
 
     // Initialize JSON stream logger (always enabled)
     const sessionId = sessionManager.getCurrentSessionId() || Date.now().toString();

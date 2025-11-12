@@ -209,26 +209,63 @@ export async function performDocsSearchIfNeeded(
   query: string,
   currentMessages: Message[]
 ): Promise<{ messages: Message[]; performed: boolean }> {
+  logger.enter('performDocsSearchIfNeeded', { queryLength: query.length, messageCount: currentMessages.length });
+
   // Check if docs search is needed
-  if (!shouldPerformDocsSearch(query)) {
+  logger.flow('Checking if docs search is needed');
+  const shouldSearch = shouldPerformDocsSearch(query);
+
+  logger.vars(
+    { name: 'shouldSearch', value: shouldSearch },
+    { name: 'query', value: query.substring(0, 50) + '...' }
+  );
+
+  if (!shouldSearch) {
+    logger.flow('Docs search not needed - skipping');
+    logger.exit('performDocsSearchIfNeeded', { performed: false });
     return { messages: currentMessages, performed: false };
   }
 
-  logger.info('📚 DocsSearch triggered', { query, context: 'agent-framework-handler' });
+  logger.flow('Docs search triggered - detecting framework');
+  const detection = detectFrameworkPath(query);
+
+  logger.vars(
+    { name: 'framework', value: detection.framework },
+    { name: 'category', value: detection.category },
+    { name: 'basePath', value: detection.basePath },
+    { name: 'requiresBatchLoad', value: detection.requiresBatchLoad }
+  );
+
+  logger.info('📚 DocsSearch triggered', {
+    query: query.substring(0, 100),
+    framework: detection.framework,
+    category: detection.category
+  });
   console.log(`📚 Searching documentation for: ${query.substring(0, 50)}...`);
 
-  const searchStartTime = Date.now();
+  logger.flow('Executing docs search agent');
+  logger.startTimer('docs-search');
+
   const searchResult = await executeDocsSearchAgent(llmClient, query);
-  const searchDuration = Date.now() - searchStartTime;
+
+  const elapsed = logger.endTimer('docs-search');
 
   if (searchResult.success && searchResult.result) {
+    logger.flow('Docs search completed successfully');
+
+    logger.vars(
+      { name: 'resultLength', value: searchResult.result.length },
+      { name: 'elapsed', value: elapsed }
+    );
+
     logger.debug('DocsSearch completed successfully', {
       resultLength: searchResult.result.length,
-      duration: `${searchDuration}ms`,
+      duration: `${elapsed}ms`,
       context: 'agent-framework-handler'
     });
 
     // Add docs search result to messages
+    logger.flow('Adding docs search result to messages');
     const updatedMessages = [
       ...currentMessages,
       {
@@ -237,13 +274,17 @@ export async function performDocsSearchIfNeeded(
       },
     ];
 
+    logger.exit('performDocsSearchIfNeeded', { performed: true, addedMessages: 1 });
     return { messages: updatedMessages, performed: true };
   } else {
+    logger.flow('Docs search failed or returned no results');
+
     logger.warn('DocsSearch failed or returned no results', {
       error: searchResult.error,
       context: 'agent-framework-handler'
     });
 
+    logger.exit('performDocsSearchIfNeeded', { performed: false, error: searchResult.error });
     return { messages: currentMessages, performed: false };
   }
 }

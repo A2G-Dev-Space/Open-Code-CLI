@@ -1,11 +1,12 @@
 /**
  * Logger Utility
  *
- * Verbose logging for debugging
+ * Verbose logging for debugging with full flow tracking
  */
 
 import chalk from 'chalk';
 import { getJsonStreamLogger } from './json-stream-logger.js';
+import * as path from 'path';
 
 export enum LogLevel {
   ERROR = 0,
@@ -19,20 +20,41 @@ export interface LoggerOptions {
   level?: LogLevel;
   prefix?: string;
   timestamp?: boolean;
+  showLocation?: boolean; // 파일명, 함수명, 라인 표시
+  showPid?: boolean; // 프로세스 ID 표시
+}
+
+export interface CallLocation {
+  file: string;
+  line: number;
+  column: number;
+  function: string;
+}
+
+export interface VariableLog {
+  name: string;
+  value: unknown;
+  type?: string;
 }
 
 /**
- * Logger class for structured logging
+ * Logger class for structured logging with flow tracking
  */
 export class Logger {
   private level: LogLevel;
   private prefix: string;
   private showTimestamp: boolean;
+  private showLocation: boolean;
+  private showPid: boolean;
+  private traceId: string | null = null;
+  private timers: Map<string, number> = new Map();
 
   constructor(options: LoggerOptions = {}) {
     this.level = options.level ?? LogLevel.INFO;
     this.prefix = options.prefix ?? '';
     this.showTimestamp = options.timestamp ?? true;
+    this.showLocation = options.showLocation ?? true;
+    this.showPid = options.showPid ?? false;
   }
 
   /**
@@ -40,6 +62,62 @@ export class Logger {
    */
   setLevel(level: LogLevel): void {
     this.level = level;
+  }
+
+  /**
+   * Set trace ID for flow tracking
+   */
+  setTraceId(traceId: string): void {
+    this.traceId = traceId;
+  }
+
+  /**
+   * Clear trace ID
+   */
+  clearTraceId(): void {
+    this.traceId = null;
+  }
+
+  /**
+   * Get current trace ID
+   */
+  getTraceId(): string | null {
+    return this.traceId;
+  }
+
+  /**
+   * Get call location from stack trace
+   */
+  private getCallLocation(depth: number = 3): CallLocation | null {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return null;
+
+      const lines = stack.split('\n');
+      if (lines.length <= depth) return null;
+
+      // Extract file, line, column from stack trace
+      // Format: "    at functionName (file:line:column)" or "    at file:line:column"
+      const line = lines[depth];
+      if (!line) return null;
+
+      const match = line.match(/at\s+(?:(.+?)\s+\()?(.+?):(\d+):(\d+)\)?/);
+
+      if (!match) return null;
+
+      const [, functionName, file, lineNum, column] = match;
+
+      if (!file || !lineNum || !column) return null;
+
+      return {
+        file: path.basename(file),
+        line: parseInt(lineNum),
+        column: parseInt(column),
+        function: functionName?.trim() || '<anonymous>',
+      };
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -60,16 +138,76 @@ export class Logger {
   }
 
   /**
+   * Get formatted process ID
+   */
+  private getPid(): string {
+    if (!this.showPid) return '';
+    return chalk.dim(`[PID:${process.pid}]`);
+  }
+
+  /**
+   * Get formatted trace ID
+   */
+  private getTraceIdStr(): string {
+    if (!this.traceId) return '';
+    return chalk.magenta(`[Trace:${this.traceId.slice(0, 8)}]`);
+  }
+
+  /**
+   * Get formatted location
+   */
+  private getLocation(location: CallLocation | null): string {
+    if (!this.showLocation || !location) return '';
+    return chalk.dim(`[${location.file}:${location.line}:${location.function}]`);
+  }
+
+  /**
+   * Format variable for logging
+   */
+  private formatVariable(variable: VariableLog): string {
+    const type = variable.type || typeof variable.value;
+    const valueStr = this.formatValue(variable.value);
+    return chalk.yellow(variable.name) + chalk.gray('=') + chalk.white(valueStr) + chalk.dim(` (${type})`);
+  }
+
+  /**
+   * Format value for display
+   */
+  private formatValue(value: unknown): string {
+    if (value === null) return 'null';
+    if (value === undefined) return 'undefined';
+    if (typeof value === 'string') return `"${value}"`;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (typeof value === 'function') return '[Function]';
+    if (Array.isArray(value)) return `Array(${value.length})`;
+    if (value instanceof Error) return `Error: ${value.message}`;
+    try {
+      const json = JSON.stringify(value);
+      return json.length > 100 ? json.slice(0, 100) + '...' : json;
+    } catch {
+      return '[Object]';
+    }
+  }
+
+  /**
    * Log error
    */
   error(message: string, error?: Error | unknown): void {
     if (this.level < LogLevel.ERROR) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
     console.error(
       timestamp,
       prefix,
+      pid,
+      traceId,
+      loc,
       chalk.red('❌ ERROR:'),
       message
     );
@@ -107,11 +245,19 @@ export class Logger {
   warn(message: string, data?: unknown): void {
     if (this.level < LogLevel.WARN) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
     console.warn(
       timestamp,
       prefix,
+      pid,
+      traceId,
+      loc,
       chalk.yellow('⚠️  WARN:'),
       message
     );
@@ -133,11 +279,19 @@ export class Logger {
   info(message: string, data?: unknown): void {
     if (this.level < LogLevel.INFO) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
     console.log(
       timestamp,
       prefix,
+      pid,
+      traceId,
+      loc,
       chalk.blue('ℹ️  INFO:'),
       message
     );
@@ -159,11 +313,19 @@ export class Logger {
   debug(message: string, data?: unknown): void {
     if (this.level < LogLevel.DEBUG) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
     console.log(
       timestamp,
       prefix,
+      pid,
+      traceId,
+      loc,
       chalk.magenta('🐛 DEBUG:'),
       message
     );
@@ -185,11 +347,19 @@ export class Logger {
   verbose(message: string, data?: unknown): void {
     if (this.level < LogLevel.VERBOSE) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
     console.log(
       timestamp,
       prefix,
+      pid,
+      traceId,
+      loc,
       chalk.gray('🔍 VERBOSE:'),
       message
     );
@@ -206,16 +376,258 @@ export class Logger {
   }
 
   /**
+   * Log flow - 실행 흐름 추적 (함수 호출, 분기 등)
+   */
+  flow(message: string, context?: Record<string, unknown>): void {
+    if (this.level < LogLevel.DEBUG) return;
+
+    const location = this.getCallLocation();
+    const timestamp = this.getTimestamp();
+    const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
+    console.log(
+      timestamp,
+      prefix,
+      pid,
+      traceId,
+      loc,
+      chalk.green('➜ FLOW:'),
+      message
+    );
+
+    if (context) {
+      console.log(chalk.green('  Context:'), JSON.stringify(context, null, 2));
+    }
+
+    // Log to JSON stream if enabled
+    const jsonLogger = getJsonStreamLogger();
+    if (jsonLogger?.isActive()) {
+      jsonLogger.logDebug(`[FLOW] ${message}`, context);
+    }
+  }
+
+  /**
+   * Log variables - 변수 값 추적
+   */
+  vars(...variables: VariableLog[]): void {
+    if (this.level < LogLevel.DEBUG) return;
+
+    const location = this.getCallLocation();
+    const timestamp = this.getTimestamp();
+    const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
+    console.log(
+      timestamp,
+      prefix,
+      pid,
+      traceId,
+      loc,
+      chalk.cyan('📦 VARS:')
+    );
+
+    variables.forEach(variable => {
+      console.log('  ', this.formatVariable(variable));
+    });
+
+    // Log to JSON stream if enabled
+    const jsonLogger = getJsonStreamLogger();
+    if (jsonLogger?.isActive()) {
+      const varsData = variables.reduce((acc, v) => {
+        acc[v.name] = v.value;
+        return acc;
+      }, {} as Record<string, unknown>);
+      jsonLogger.logDebug('[VARS]', varsData);
+    }
+  }
+
+  /**
+   * Log function enter
+   */
+  enter(functionName: string, args?: Record<string, unknown>): void {
+    if (this.level < LogLevel.DEBUG) return;
+
+    const location = this.getCallLocation();
+    const timestamp = this.getTimestamp();
+    const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
+    console.log(
+      timestamp,
+      prefix,
+      pid,
+      traceId,
+      loc,
+      chalk.green('↓ ENTER:'),
+      chalk.bold(functionName)
+    );
+
+    if (args) {
+      console.log(chalk.green('  Args:'), JSON.stringify(args, null, 2));
+    }
+
+    // Log to JSON stream if enabled
+    const jsonLogger = getJsonStreamLogger();
+    if (jsonLogger?.isActive()) {
+      jsonLogger.logDebug(`[ENTER] ${functionName}`, args);
+    }
+  }
+
+  /**
+   * Log function exit
+   */
+  exit(functionName: string, result?: unknown): void {
+    if (this.level < LogLevel.DEBUG) return;
+
+    const location = this.getCallLocation();
+    const timestamp = this.getTimestamp();
+    const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
+    console.log(
+      timestamp,
+      prefix,
+      pid,
+      traceId,
+      loc,
+      chalk.green('↑ EXIT:'),
+      chalk.bold(functionName)
+    );
+
+    if (result !== undefined) {
+      console.log(chalk.green('  Result:'), this.formatValue(result));
+    }
+
+    // Log to JSON stream if enabled
+    const jsonLogger = getJsonStreamLogger();
+    if (jsonLogger?.isActive()) {
+      jsonLogger.logDebug(`[EXIT] ${functionName}`, { result });
+    }
+  }
+
+  /**
+   * Log state change
+   */
+  state(description: string, before: unknown, after: unknown): void {
+    if (this.level < LogLevel.DEBUG) return;
+
+    const location = this.getCallLocation();
+    const timestamp = this.getTimestamp();
+    const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
+    console.log(
+      timestamp,
+      prefix,
+      pid,
+      traceId,
+      loc,
+      chalk.yellow('🔄 STATE:'),
+      description
+    );
+
+    console.log(chalk.red('  Before:'), this.formatValue(before));
+    console.log(chalk.green('  After:'), this.formatValue(after));
+
+    // Log to JSON stream if enabled
+    const jsonLogger = getJsonStreamLogger();
+    if (jsonLogger?.isActive()) {
+      jsonLogger.logDebug(`[STATE] ${description}`, { before, after });
+    }
+  }
+
+  /**
+   * Start performance timer
+   */
+  startTimer(label: string): void {
+    this.timers.set(label, Date.now());
+
+    if (this.level >= LogLevel.DEBUG) {
+      const location = this.getCallLocation();
+      const timestamp = this.getTimestamp();
+      const prefix = this.getPrefix();
+      const pid = this.getPid();
+      const traceId = this.getTraceIdStr();
+      const loc = this.getLocation(location);
+
+      console.log(
+        timestamp,
+        prefix,
+        pid,
+        traceId,
+        loc,
+        chalk.blue('⏱️  TIMER START:'),
+        label
+      );
+    }
+  }
+
+  /**
+   * End performance timer
+   */
+  endTimer(label: string): number {
+    const startTime = this.timers.get(label);
+    if (!startTime) {
+      this.warn(`Timer "${label}" was not started`);
+      return 0;
+    }
+
+    const elapsed = Date.now() - startTime;
+    this.timers.delete(label);
+
+    if (this.level >= LogLevel.DEBUG) {
+      const location = this.getCallLocation();
+      const timestamp = this.getTimestamp();
+      const prefix = this.getPrefix();
+      const pid = this.getPid();
+      const traceId = this.getTraceIdStr();
+      const loc = this.getLocation(location);
+
+      console.log(
+        timestamp,
+        prefix,
+        pid,
+        traceId,
+        loc,
+        chalk.blue('⏱️  TIMER END:'),
+        label,
+        chalk.bold(`${elapsed}ms`)
+      );
+    }
+
+    return elapsed;
+  }
+
+  /**
    * Log HTTP request
    */
   httpRequest(method: string, url: string, body?: unknown): void {
     if (this.level < LogLevel.DEBUG) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
+
     console.log(
       timestamp,
       prefix,
+      pid,
+      traceId,
+      loc,
       chalk.cyan('→ HTTP REQUEST:'),
       chalk.bold(method),
       url
@@ -238,13 +650,20 @@ export class Logger {
   httpResponse(status: number, statusText: string, data?: unknown): void {
     if (this.level < LogLevel.DEBUG) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
     const statusColor = status >= 400 ? chalk.red : status >= 300 ? chalk.yellow : chalk.green;
 
     console.log(
       timestamp,
       prefix,
+      pid,
+      traceId,
+      loc,
       chalk.cyan('← HTTP RESPONSE:'),
       statusColor(`${status} ${statusText}`)
     );
@@ -266,13 +685,20 @@ export class Logger {
   toolExecution(toolName: string, args: unknown, result?: unknown, error?: Error): void {
     if (this.level < LogLevel.DEBUG) return;
 
+    const location = this.getCallLocation();
     const timestamp = this.getTimestamp();
     const prefix = this.getPrefix();
+    const pid = this.getPid();
+    const traceId = this.getTraceIdStr();
+    const loc = this.getLocation(location);
 
     if (error) {
       console.log(
         timestamp,
         prefix,
+        pid,
+        traceId,
+        loc,
         chalk.red('🔧 TOOL FAILED:'),
         chalk.bold(toolName)
       );
@@ -282,6 +708,9 @@ export class Logger {
       console.log(
         timestamp,
         prefix,
+        pid,
+        traceId,
+        loc,
         chalk.green('🔧 TOOL SUCCESS:'),
         chalk.bold(toolName)
       );
@@ -301,20 +730,31 @@ export class Logger {
 
 /**
  * Global logger instance
+ *
+ * 기본값은 INFO 레벨. CLI argument로 레벨 조정:
+ * - Normal mode (open): INFO
+ * - Verbose mode (open --verbose): DEBUG
+ * - Debug mode (open --debug): VERBOSE
  */
 export const logger = new Logger({
-  level: process.env['LOG_LEVEL']
-    ? parseInt(process.env['LOG_LEVEL'])
-    : (process.env['VERBOSE'] === 'true' ? LogLevel.VERBOSE : LogLevel.INFO),
+  level: LogLevel.INFO, // CLI에서 setLogLevel()로 변경됨
   prefix: 'OPEN-CLI',
   timestamp: true,
+  showLocation: false, // setLogLevel()에서 동적으로 변경
+  showPid: false, // 필요시 환경 변수로 활성화
 });
 
 /**
- * Set global log level from environment or config
+ * Set global log level from CLI or config
+ * DEBUG 이상일 때 자동으로 위치 정보 표시
  */
 export function setLogLevel(level: LogLevel): void {
   logger.setLevel(level);
+
+  // DEBUG 이상이면 위치 정보 자동 표시
+  if (level >= LogLevel.DEBUG) {
+    logger['showLocation'] = true;
+  }
 }
 
 /**
@@ -329,4 +769,32 @@ export function enableVerbose(): void {
  */
 export function disableVerbose(): void {
   logger.setLevel(LogLevel.INFO);
+}
+
+/**
+ * Enable debug logging
+ */
+export function enableDebug(): void {
+  logger.setLevel(LogLevel.DEBUG);
+}
+
+/**
+ * Create a child logger with a specific prefix
+ */
+export function createLogger(prefix: string, options?: Partial<LoggerOptions>): Logger {
+  return new Logger({
+    level: logger['level'],
+    prefix,
+    timestamp: true,
+    showLocation: logger['showLocation'],
+    showPid: logger['showPid'],
+    ...options,
+  });
+}
+
+/**
+ * Generate a unique trace ID
+ */
+export function generateTraceId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
