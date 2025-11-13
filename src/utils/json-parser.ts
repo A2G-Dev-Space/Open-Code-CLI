@@ -168,7 +168,75 @@ function fixCommonIssues(text: string): string {
     fixed = fixed.replace(/'/g, '"');
   }
 
+  // Fix unescaped control characters in string values
+  fixed = fixControlCharacters(fixed);
+
   return fixed;
+}
+
+/**
+ * Fix unescaped control characters inside JSON string values
+ * This handles cases where LLM returns raw newlines instead of \n
+ */
+function fixControlCharacters(text: string): string {
+  // Strategy: Find all string values and escape control characters within them
+  // We need to be careful to only replace within quoted strings, not in the structure
+
+  const result: string[] = [];
+  let i = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  while (i < text.length) {
+    const char = text[i]!; // We know this exists because i < text.length
+
+    if (escapeNext) {
+      // This character is escaped, keep it as-is
+      result.push(char);
+      escapeNext = false;
+      i++;
+      continue;
+    }
+
+    if (char === '\\') {
+      // Next character will be escaped
+      result.push(char);
+      escapeNext = true;
+      i++;
+      continue;
+    }
+
+    if (char === '"') {
+      // Toggle string mode
+      inString = !inString;
+      result.push(char);
+      i++;
+      continue;
+    }
+
+    if (inString) {
+      // We're inside a string value - escape control characters
+      if (char === '\n') {
+        result.push('\\n');
+      } else if (char === '\r') {
+        result.push('\\r');
+      } else if (char === '\t') {
+        result.push('\\t');
+      } else if (char.charCodeAt(0) < 32) {
+        // Other control characters - escape as unicode
+        result.push('\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4));
+      } else {
+        result.push(char);
+      }
+    } else {
+      // Outside string, keep as-is
+      result.push(char);
+    }
+
+    i++;
+  }
+
+  return result.join('');
 }
 
 /**

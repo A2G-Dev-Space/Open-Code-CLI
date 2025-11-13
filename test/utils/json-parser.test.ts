@@ -114,6 +114,28 @@ describe('JSON Parser Utility', () => {
       });
     });
 
+    test('handles raw newlines in JSON string values', () => {
+      // Simulate LLM returning JSON with actual newlines instead of \n
+      const jsonWithRawNewlines = `{
+  "status": "success",
+  "result": "Line 1
+Line 2
+Line 3"
+}`;
+      const result = extractJSON(jsonWithRawNewlines);
+      expect(result).toEqual({
+        status: 'success',
+        result: 'Line 1\nLine 2\nLine 3',
+      });
+    });
+
+    test('handles control characters in JSON string values', () => {
+      const jsonWithControlChars = '{"message": "Tab:\there\nNewline:\nthere"}';
+      const result = extractJSON(jsonWithControlChars);
+      expect(result.message).toContain('Tab:');
+      expect(result.message).toContain('Newline:');
+    });
+
     test('throws on completely invalid input', () => {
       expect(() => extractJSON('not json at all')).toThrow();
       expect(() => extractJSON('12345')).toThrow();
