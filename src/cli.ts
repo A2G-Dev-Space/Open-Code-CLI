@@ -100,7 +100,7 @@ program
     // Ink UI를 같은 프로세스에서 직접 렌더링 (stdin raw mode 유지)
     try {
       // Use PlanExecuteApp for enhanced functionality
-      const AppComponent = options.planExecute ? PlanExecuteApp : PlanExecuteApp; // Always use PlanExecuteApp now
+      const AppComponent = PlanExecuteApp; // Always use PlanExecuteApp now
       render(React.createElement(AppComponent, { llmClient, modelInfo }));
     } catch (error) {
       console.log(chalk.yellow('\n⚠️  Ink UI를 시작할 수 없습니다.\n'));
