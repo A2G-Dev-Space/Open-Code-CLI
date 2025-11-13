@@ -136,7 +136,15 @@ function parseWithCleanup(text: string): any {
   } catch (error) {
     // Step 3: Try to fix common issues
     cleaned = fixCommonIssues(cleaned);
-    return JSON.parse(cleaned);
+
+    // Step 4: If still failing, try one more aggressive fix
+    try {
+      return JSON.parse(cleaned);
+    } catch (secondError) {
+      // Step 5: Try to repair truncated/malformed JSON
+      const repaired = repairTruncatedJSON(cleaned);
+      return JSON.parse(repaired);
+    }
   }
 }
 
@@ -172,6 +180,57 @@ function fixCommonIssues(text: string): string {
   fixed = fixControlCharacters(fixed);
 
   return fixed;
+}
+
+/**
+ * Repair truncated or malformed JSON
+ * This handles cases where the LLM response is cut off mid-JSON
+ */
+function repairTruncatedJSON(text: string): string {
+  let repaired = text.trim();
+
+  // Count braces to see if JSON is incomplete
+  let openBraces = 0;
+  let closeBraces = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < repaired.length; i++) {
+    const char = repaired[i]!;
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') openBraces++;
+      if (char === '}') closeBraces++;
+    }
+  }
+
+  // If we're still in a string, close it
+  if (inString) {
+    repaired += '"';
+  }
+
+  // If braces don't match, close them
+  while (closeBraces < openBraces) {
+    repaired += '}';
+    closeBraces++;
+  }
+
+  return repaired;
 }
 
 /**

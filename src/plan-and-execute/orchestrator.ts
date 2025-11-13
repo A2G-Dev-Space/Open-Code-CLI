@@ -400,6 +400,12 @@ export class PlanExecuteOrchestrator extends EventEmitter {
       const parseResult = parseLLMResponse(response);
 
       if (!parseResult.success || !parseResult.data) {
+        // Log the raw response for debugging
+        logger.error('Failed to parse LLM response', {
+          error: parseResult.error,
+          responseLength: response.length,
+          responsePreview: response.substring(0, 500),
+        });
         throw new Error(
           parseResult.error || 'Failed to parse LLM response'
         );

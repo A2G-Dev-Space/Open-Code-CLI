@@ -136,6 +136,21 @@ Line 3"
       expect(result.message).toContain('Newline:');
     });
 
+    test('handles truncated JSON by closing unclosed strings and braces', () => {
+      // Simulate LLM response that was cut off mid-JSON
+      const truncatedJSON = '{"status": "success", "result": "This is a long result that got cut off';
+      const result = extractJSON(truncatedJSON);
+      expect(result.status).toBe('success');
+      expect(result.result).toContain('This is a long result');
+    });
+
+    test('handles truncated JSON with missing closing brace', () => {
+      const truncatedJSON = '{"status": "success", "result": "Done"';
+      const result = extractJSON(truncatedJSON);
+      expect(result.status).toBe('success');
+      expect(result.result).toBe('Done');
+    });
+
     test('throws on completely invalid input', () => {
       expect(() => extractJSON('not json at all')).toThrow();
       expect(() => extractJSON('12345')).toThrow();
