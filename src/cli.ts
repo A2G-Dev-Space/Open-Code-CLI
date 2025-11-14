@@ -55,7 +55,7 @@ program
     // else: 기본값 INFO (logger 초기화 시 설정됨)
 
     // Initialize JSON stream logger (always enabled)
-    const sessionId = sessionManager.getCurrentSessionId() || Date.now().toString();
+    const sessionId = sessionManager.getCurrentSessionId() as string;
     await initializeJsonStreamLogger(sessionId);
 
     // Ensure cleanup on exit
@@ -1005,7 +1005,26 @@ program
   .option('-s, --stream', '스트리밍 응답 사용')
   .option('--system <prompt>', '시스템 프롬프트')
   .action(async (message: string, options: { stream?: boolean; system?: string }) => {
+    let jsonStreamLogger = null;
     try {
+      // Get global options from parent command (--debug, --verbose at program level)
+      const globalOpts = program.opts() as { debug?: boolean; verbose?: boolean };
+
+      // Use global options for log level
+      const isDebug = globalOpts['debug'] ?? false;
+      const isVerbose = globalOpts['verbose'] ?? false;
+
+      // Set log level based on CLI options
+      if (isDebug) {
+        setLogLevel(LogLevel.VERBOSE);
+        logger.info('[chat] 🔍 Debug mode enabled - maximum logging with location tracking');
+      } else if (isVerbose) {
+        setLogLevel(LogLevel.DEBUG);
+        logger.info('[chat] 📝 Verbose mode enabled - detailed logging');
+      }
+      // else: 기본값 INFO (logger 초기화 시 설정됨)
+      
+
       // ConfigManager 초기화 확인
       const isInitialized = await configManager.isInitialized();
       if (!isInitialized) {
@@ -1020,9 +1039,19 @@ program
       const llmClient = createLLMClient();
       const modelInfo = llmClient.getModelInfo();
 
+      // JSON Stream Logger 초기화
+      jsonStreamLogger = await initializeJsonStreamLogger(sessionManager.getCurrentSessionId() as string);
+
       console.log(chalk.cyan('\n💬 OPEN-CLI Chat\n'));
       console.log(chalk.dim('모델: ' + modelInfo.model));
       console.log(chalk.dim('엔드포인트: ' + modelInfo.endpoint + '\n'));
+
+      // 사용자 입력 로깅
+      jsonStreamLogger?.logUserInput(message);
+
+      // 메시지 배열 초기화
+      let messages: { role: 'user' | 'assistant'; content: string }[] = [];
+      messages.push({ role: 'user', content: message });
 
       if (options.stream) {
         // 스트리밍 응답
@@ -1030,38 +1059,116 @@ program
 
         const spinner = ora('응답 생성 중...').start();
         let isFirstChunk = true;
+        let fullResponse = '';
 
         try {
-          for await (const chunk of llmClient.sendMessageStream(message, options.system)) {
+          logger.info('[chat] Starting streaming response');
+
+          // Docs search if needed
+          const { performDocsSearchIfNeeded } = await import('./core/agent-framework-handler.js');
+          const { messages: messagesWithDocs } = await performDocsSearchIfNeeded(
+            llmClient,
+            message,
+            []
+          );
+
+          logger.debug('[chat] Docs search completed', {
+            docsAdded: messagesWithDocs.length > 0
+          });
+
+          // Use sendMessageStream with docs-enriched context
+          const streamMessages = messagesWithDocs.concat({ role: 'user', content: message });
+
+          for await (const chunk of llmClient.sendMessageStream(
+            streamMessages.map(m => m.content).join('\n\n'),
+            options.system
+          )) {
             if (isFirstChunk) {
               spinner.stop();
               isFirstChunk = false;
             }
+            fullResponse += chunk;
             process.stdout.write(chalk.white(chunk));
           }
           console.log('\n');
+
+          logger.info('[chat] Streaming response completed', {
+            responseLength: fullResponse.length
+          });
+
+          // 응답 로깅
+          jsonStreamLogger?.logAssistantResponse(fullResponse, true);
+
+          // 세션 저장
+          messages.push({ role: 'assistant', content: fullResponse });
+          sessionManager.autoSaveCurrentSession(messages);
+          logger.debug('[chat] Session auto-save initiated', { messageCount: messages.length });
+
         } catch (error) {
           spinner.stop();
+          logger.error('[chat] Streaming error', { error });
+          jsonStreamLogger?.logError(error, 'streaming');
           throw error;
         }
       } else {
         // 일반 응답
         const spinner = ora('응답 생성 중...').start();
 
-        const response = await llmClient.sendMessage(message, options.system);
+        try {
+          logger.info('[chat] Starting non-streaming response');
 
-        spinner.succeed('응답 완료');
-        console.log(chalk.green('\n🤖 Assistant:'));
-        console.log(chalk.white(response));
-        console.log();
+          // Docs search if needed
+          const { performDocsSearchIfNeeded } = await import('./core/agent-framework-handler.js');
+          const { messages: messagesWithDocs } = await performDocsSearchIfNeeded(
+            llmClient,
+            message,
+            []
+          );
+
+          logger.debug('[chat] Docs search completed', {
+            docsAdded: messagesWithDocs.length > 0
+          });
+
+          // Use sendMessage with docs-enriched context
+          const requestMessage = messagesWithDocs.length > 0
+            ? messagesWithDocs.concat({ role: 'user', content: message })
+                .map(m => m.content).join('\n\n')
+            : message;
+
+          const response = await llmClient.sendMessage(requestMessage, options.system);
+
+          spinner.succeed('응답 완료');
+          console.log(chalk.green('\n🤖 Assistant:'));
+          console.log(chalk.white(response));
+          console.log();
+
+          logger.info('[chat] Response completed', {
+            responseLength: response.length
+          });
+
+          // 응답 로깅
+          jsonStreamLogger?.logAssistantResponse(response, false);
+
+          // 세션 저장
+          messages.push({ role: 'assistant', content: response });
+          sessionManager.autoSaveCurrentSession(messages);
+          logger.debug('[chat] Session auto-save initiated', { messageCount: messages.length });
+
+        } catch (error) {
+          spinner.stop();
+          logger.error('[chat] Response error', { error });
+          jsonStreamLogger?.logError(error, 'non-streaming');
+          throw error;
+        }
       }
     } catch (error) {
-      console.error(chalk.red('\n❌ 에러 발생:'));
-      if (error instanceof Error) {
-        console.error(chalk.red(error.message));
-      }
-      console.log();
+      logger.error('[chat] Fatal error', error instanceof Error ? error : new Error(String(error)));
       process.exit(1);
+    } finally {
+      // JSON Stream Logger 정리
+      if (jsonStreamLogger) {
+        await closeJsonStreamLogger();
+      }
     }
   });
 
