@@ -21,8 +21,7 @@ import { EndpointConfig } from './types/index.js';
 // import { InteractiveApp } from './ui/components/InteractiveApp.js';
 import { PlanExecuteApp } from './ui/components/PlanExecuteApp.js';
 import { GitAutoUpdater } from './core/git-auto-updater.js';
-import { logger, LogLevel, setLogLevel } from './utils/logger.js';
-import { initializeJsonStreamLogger, closeJsonStreamLogger } from './utils/json-stream-logger.js';
+import { logger, setupLogging } from './utils/logger.js';
 
 const program = new Command();
 
@@ -40,33 +39,14 @@ program
   .option('--verbose', 'Enable verbose logging (shows detailed error messages, HTTP requests, tool execution)')
   .option('--debug', 'Enable debug logging (shows all debug information)')
   .action(async (options: { noUpdate?: boolean; planExecute?: boolean; verbose?: boolean; debug?: boolean }) => {
+  let cleanup: (() => Promise<void>) | null = null;
   try {
-    // Set log level based on CLI options
-    // Normal mode (no flags): INFO
-    // --verbose: DEBUG (상세 로깅)
-    // --debug: VERBOSE (최대 디버그 로깅 + 위치 정보)
-    if (options.debug) {
-      setLogLevel(LogLevel.VERBOSE);
-      logger.info('🔍 Debug mode enabled - maximum logging with location tracking');
-    } else if (options.verbose) {
-      setLogLevel(LogLevel.DEBUG);
-      logger.info('📝 Verbose mode enabled - detailed logging');
-    }
-    // else: 기본값 INFO (logger 초기화 시 설정됨)
-
-    // Initialize JSON stream logger (always enabled)
-    const sessionId = sessionManager.getCurrentSessionId() as string;
-    await initializeJsonStreamLogger(sessionId);
-
-    // Ensure cleanup on exit
-    process.on('SIGINT', async () => {
-      await closeJsonStreamLogger();
-      process.exit(0);
+    // Setup logging (log level, JSON stream logger, exit handlers)
+    const loggingSetup = await setupLogging({
+      verbose: options.verbose,
+      debug: options.debug,
     });
-    process.on('SIGTERM', async () => {
-      await closeJsonStreamLogger();
-      process.exit(0);
-    });
+    cleanup = loggingSetup.cleanup;
 
     // Git-based auto-update (unless disabled)
     if (!options.noUpdate) {
@@ -114,6 +94,11 @@ program
     }
     console.log();
     process.exit(1);
+  } finally {
+    // JSON Stream Logger 정리
+    if (cleanup) {
+      await cleanup();
+    }
   }
 });
 
@@ -1005,6 +990,7 @@ program
   .option('-s, --stream', '스트리밍 응답 사용')
   .option('--system <prompt>', '시스템 프롬프트')
   .action(async (message: string, options: { stream?: boolean; system?: string }) => {
+    let cleanup: (() => Promise<void>) | null = null;
     let jsonStreamLogger = null;
     try {
       // Get global options from parent command (--debug, --verbose at program level)
@@ -1014,16 +1000,13 @@ program
       const isDebug = globalOpts['debug'] ?? false;
       const isVerbose = globalOpts['verbose'] ?? false;
 
-      // Set log level based on CLI options
-      if (isDebug) {
-        setLogLevel(LogLevel.VERBOSE);
-        logger.info('[chat] 🔍 Debug mode enabled - maximum logging with location tracking');
-      } else if (isVerbose) {
-        setLogLevel(LogLevel.DEBUG);
-        logger.info('[chat] 📝 Verbose mode enabled - detailed logging');
-      }
-      // else: 기본값 INFO (logger 초기화 시 설정됨)
-      
+      // Setup logging (log level, JSON stream logger, exit handlers)
+      const loggingSetup = await setupLogging({
+        verbose: isVerbose,
+        debug: isDebug,
+      });
+      cleanup = loggingSetup.cleanup;
+      jsonStreamLogger = loggingSetup.jsonLogger;
 
       // ConfigManager 초기화 확인
       const isInitialized = await configManager.isInitialized();
@@ -1038,9 +1021,6 @@ program
       // LLMClient 생성
       const llmClient = createLLMClient();
       const modelInfo = llmClient.getModelInfo();
-
-      // JSON Stream Logger 초기화
-      jsonStreamLogger = await initializeJsonStreamLogger(sessionManager.getCurrentSessionId() as string);
 
       console.log(chalk.cyan('\n💬 OPEN-CLI Chat\n'));
       console.log(chalk.dim('모델: ' + modelInfo.model));
@@ -1166,8 +1146,8 @@ program
       process.exit(1);
     } finally {
       // JSON Stream Logger 정리
-      if (jsonStreamLogger) {
-        await closeJsonStreamLogger();
+      if (cleanup) {
+        await cleanup();
       }
     }
   });
