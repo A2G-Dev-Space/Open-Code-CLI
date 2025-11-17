@@ -5,7 +5,8 @@
  * in the Plan & Execute workflow.
  */
 
-import * as readline from 'readline';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
 import { RiskAssessment } from './risk-analyzer.js';
 import { TodoItem } from '../types/index.js';
 
@@ -37,12 +38,11 @@ export interface PlanApprovalRequest {
  * Approval Manager Class
  */
 export class ApprovalManager {
-  private rl: readline.Interface | null = null;
   private approveAllRemaining: boolean = false;
   private rejectAllRemaining: boolean = false;
 
   constructor() {
-    // Will initialize readline when needed
+    // No initialization needed with inquirer
   }
 
   /**
@@ -51,41 +51,52 @@ export class ApprovalManager {
   async requestPlanApproval(
     request: PlanApprovalRequest
   ): Promise<ApprovalResponse> {
-    console.log('\n' + '='.repeat(80));
-    console.log('📋 PLAN APPROVAL REQUIRED');
-    console.log('='.repeat(80));
-    console.log(`\nUser Request: "${request.userRequest}"\n`);
-    console.log(`Generated ${request.todos.length} task(s):\n`);
+    console.log('\n' + chalk.cyan('='.repeat(80)));
+    console.log(chalk.cyan.bold('📋 PLAN APPROVAL REQUIRED'));
+    console.log(chalk.cyan('='.repeat(80)));
+    console.log(chalk.white(`\nUser Request: "${request.userRequest}"\n`));
+    console.log(chalk.yellow(`Generated ${request.todos.length} task(s):\n`));
 
     request.todos.forEach((todo, index) => {
-      console.log(`  ${index + 1}. ${todo.title}`);
+      console.log(chalk.white(`  ${index + 1}. ${todo.title}`));
       if (todo.description) {
-        console.log(`     Details: ${todo.description}`);
+        console.log(chalk.dim(`     ${todo.description}`));
       }
     });
 
-    console.log('\n' + '-'.repeat(80));
-    console.log('\nOptions:');
-    console.log('  [a] Approve - Execute this plan');
-    console.log('  [r] Reject - Cancel execution');
-    console.log('  [s] Stop - Stop and exit');
+    console.log(chalk.cyan('\n' + '-'.repeat(80) + '\n'));
 
-    const response = await this.prompt('\nYour choice (a/r/s): ');
-    const choice = response.toLowerCase().trim();
+    const answer = await inquirer.prompt<{ choice: string }>([
+      {
+        type: 'list',
+        name: 'choice',
+        message: 'What would you like to do?',
+        choices: [
+          {
+            name: '✅ Approve - Execute this plan',
+            value: 'approve',
+          },
+          {
+            name: '❌ Reject - Cancel execution',
+            value: 'reject',
+          },
+          {
+            name: '⏹  Stop - Stop and exit',
+            value: 'stop',
+          },
+        ],
+      },
+    ]);
 
-    switch (choice) {
-      case 'a':
+    switch (answer.choice) {
       case 'approve':
         return { action: 'approve' };
-      case 'r':
       case 'reject':
         return { action: 'reject', reason: 'User rejected the plan' };
-      case 's':
       case 'stop':
         return { action: 'stop', reason: 'User stopped execution' };
       default:
-        console.log('Invalid choice. Defaulting to reject.');
-        return { action: 'reject', reason: 'Invalid choice' };
+        return { action: 'reject', reason: 'Unknown choice' };
     }
   }
 
@@ -104,59 +115,76 @@ export class ApprovalManager {
       return { action: 'reject', reason: 'Auto-rejected (reject all)' };
     }
 
-    console.log('\n' + '='.repeat(80));
-    console.log('⚠️  APPROVAL REQUIRED - RISKY OPERATION DETECTED');
-    console.log('='.repeat(80));
-    console.log(`\nTask: ${request.taskDescription}`);
+    console.log('\n' + chalk.yellow('='.repeat(80)));
+    console.log(chalk.yellow.bold('⚠️  APPROVAL REQUIRED - RISKY OPERATION DETECTED'));
+    console.log(chalk.yellow('='.repeat(80)));
+    console.log(chalk.white(`\nTask: ${request.taskDescription}`));
     console.log(`Risk Level: ${this.formatRiskLevel(request.risk.level)}`);
-    console.log(`Category: ${this.formatCategory(request.risk.category)}`);
-    console.log(`Reason: ${request.risk.reason}`);
+    console.log(chalk.white(`Category: ${this.formatCategory(request.risk.category)}`));
+    console.log(chalk.dim(`Reason: ${request.risk.reason}`));
 
     if (request.risk.detectedPatterns.length > 0) {
       console.log(
-        `Patterns: ${request.risk.detectedPatterns.slice(0, 3).join(', ')}`
+        chalk.dim(`Patterns: ${request.risk.detectedPatterns.slice(0, 3).join(', ')}`)
       );
     }
 
     if (request.context) {
-      console.log(`\nContext:\n${request.context}`);
+      console.log(chalk.dim(`\nContext: ${request.context}`));
     }
 
-    console.log('\n' + '-'.repeat(80));
-    console.log('\nOptions:');
-    console.log('  [a] Approve - Execute this task');
-    console.log('  [r] Reject - Skip this task');
-    console.log('  [A] Approve All - Approve this and all remaining tasks');
-    console.log('  [R] Reject All - Reject this and all remaining tasks');
-    console.log('  [s] Stop - Stop execution entirely');
+    console.log(chalk.yellow('\n' + '-'.repeat(80) + '\n'));
 
-    const response = await this.prompt('\nYour choice (a/r/A/R/s): ');
-    const choice = response.trim();
+    const answer = await inquirer.prompt<{ choice: string }>([
+      {
+        type: 'list',
+        name: 'choice',
+        message: 'What would you like to do?',
+        choices: [
+          {
+            name: '✅ Approve - Execute this task',
+            value: 'approve',
+          },
+          {
+            name: '⏭  Skip - Skip this task',
+            value: 'reject',
+          },
+          {
+            name: '✅✅ Approve All - Approve this and all remaining tasks',
+            value: 'approve_all',
+          },
+          {
+            name: '⏭⏭ Skip All - Skip this and all remaining tasks',
+            value: 'reject_all',
+          },
+          {
+            name: '⏹  Stop - Stop execution entirely',
+            value: 'stop',
+          },
+        ],
+      },
+    ]);
 
-    switch (choice.toLowerCase()) {
-      case 'a':
+    switch (answer.choice) {
       case 'approve':
         return { action: 'approve' };
 
-      case 'r':
       case 'reject':
         return { action: 'reject', reason: 'User rejected this task' };
 
-      case 'approve all':
+      case 'approve_all':
         this.approveAllRemaining = true;
         return { action: 'approve_all', reason: 'User approved all remaining' };
 
-      case 'reject all':
+      case 'reject_all':
         this.rejectAllRemaining = true;
         return { action: 'reject_all', reason: 'User rejected all remaining' };
 
-      case 's':
       case 'stop':
         return { action: 'stop', reason: 'User stopped execution' };
 
       default:
-        console.log('Invalid choice. Defaulting to reject this task.');
-        return { action: 'reject', reason: 'Invalid choice' };
+        return { action: 'reject', reason: 'Unknown choice' };
     }
   }
 
@@ -172,29 +200,7 @@ export class ApprovalManager {
    * Cleanup resources
    */
   close(): void {
-    if (this.rl) {
-      this.rl.close();
-      this.rl = null;
-    }
     this.reset();
-  }
-
-  /**
-   * Prompt user for input
-   */
-  private async prompt(question: string): Promise<string> {
-    if (!this.rl) {
-      this.rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      });
-    }
-
-    return new Promise(resolve => {
-      this.rl!.question(question, answer => {
-        resolve(answer);
-      });
-    });
   }
 
   /**
