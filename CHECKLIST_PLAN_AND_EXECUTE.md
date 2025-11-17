@@ -77,6 +77,23 @@ This checklist tracks the implementation status of the P&E module.
 3. **Sequential Execution**: Tasks run one at a time. No parallel execution support.
 4. **LLM Dependency**: Success rate depends on LLM's ability to follow JSON format.
 
+## 6. Human-in-the-Loop (HITL) ✅ **COMPLETED**
+
+- [x] Risk analyzer detects critical, high, medium, and low risk operations
+- [x] Plan approval gate after planning phase
+- [x] Task-level approval gate for risky operations
+- [x] Configurable risk thresholds and patterns
+- [x] Auto-approve and block patterns support
+- [x] Interactive approval prompts with approve/reject/stop options
+- [x] Approve all / Reject all functionality
+- [x] 19 comprehensive tests for risk detection
+
+### Risk Categories Detected:
+- **Critical**: `rm -rf`, `DROP DATABASE`, `chmod 777`
+- **High**: Deleting source files, global package install, sudo commands
+- **Medium**: Writing code files, package install, file operations, .env changes
+- **Low/Safe**: Reading data files, file listing, unknown operations
+
 ## Next Steps (Future Enhancements)
 
 - [ ] Add state persistence layer (file-based or database)
