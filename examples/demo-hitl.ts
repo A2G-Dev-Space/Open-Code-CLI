@@ -8,7 +8,7 @@
  */
 
 import { LLMClient } from '../src/core/llm-client.js';
-import { configManager } from '../src/config/config-manager.js';
+import { configManager } from '../src/core/config-manager.js';
 import { PlanExecuteOrchestrator } from '../src/plan-and-execute/orchestrator.js';
 
 async function main() {
@@ -25,8 +25,8 @@ async function main() {
   await configManager.initialize();
 
   // Validate configuration
-  const endpoint = configManager.get('endpoint');
-  const model = configManager.get('model');
+  const endpoint = configManager.getCurrentEndpoint();
+  const model = configManager.getCurrentModel();
 
   if (!endpoint || !model) {
     console.error('❌ Error: LLM endpoint and model must be configured');
@@ -35,8 +35,8 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('✓ Using endpoint:', endpoint);
-  console.log('✓ Using model:', model);
+  console.log('✓ Using endpoint:', endpoint.name || endpoint.id);
+  console.log('✓ Using model:', model.name || model.id);
   console.log('');
 
   // Create LLM client
