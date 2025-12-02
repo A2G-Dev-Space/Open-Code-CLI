@@ -114,6 +114,21 @@ export async function executeBashCommand(
       };
     }
 
+    // Handle exit code 1 for search commands (grep, find)
+    // Exit code 1 for these commands means "no matches found", which is not an error
+    const isSearchCommand = /\b(grep|find)\b/.test(command);
+    if (isSearchCommand && error.code === 1) {
+      // No matches found - this is a valid result, not an error
+      const output = error.stdout || '';
+      const formattedDisplay = formatBashExecutionOutput(command, output.trim());
+
+      return {
+        success: true,
+        result: output.trim() || 'No matches found',
+        formattedDisplay,
+      };
+    }
+
     // Return stderr if available, otherwise the error message
     const errorMessage = error.stderr || error.message || 'Unknown error';
 

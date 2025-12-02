@@ -22,6 +22,71 @@ export interface FrameworkDetection {
 }
 
 /**
+ * Domain-specific term mapping for accurate translations
+ * Maps Korean terms to their correct English equivalents in agent_framework context
+ */
+export const TERM_MAPPING: Record<string, string[]> = {
+  // Reasoning/Inference
+  '추론': ['reasoning'],
+  'inference': ['reasoning'], // If LLM translates to inference, we also include reasoning
+
+  // Streaming
+  '스트리밍': ['streaming'],
+  '스트림': ['streaming', 'stream'],
+
+  // Agent/Team
+  '에이전트': ['agent'],
+  '팀': ['team'],
+
+  // Workflow
+  '워크플로우': ['workflow'],
+  '워크플로': ['workflow'],
+  '작업흐름': ['workflow'],
+
+  // Tools
+  '도구': ['tool', 'tools'],
+  '툴': ['tool', 'tools'],
+
+  // Memory/Knowledge
+  '메모리': ['memory'],
+  '기억': ['memory'],
+  '지식': ['knowledge'],
+
+  // Model/LLM
+  '모델': ['model'],
+  '언어모델': ['language model', 'llm'],
+
+  // RAG
+  '검색': ['search', 'rag'],
+  '검색증강생성': ['rag', 'retrieval'],
+  'agentic': ['agentic'],
+  'rag': ['rag', 'retrieval'],
+
+  // Async/Streaming
+  '비동기': ['async', 'asynchronous'],
+  '동시': ['concurrent', 'parallel'],
+
+  // Observability
+  '관찰': ['observability'],
+  '모니터링': ['monitoring', 'observability'],
+  '추적': ['tracing', 'tracking'],
+
+  // Session/Storage
+  '세션': ['session'],
+  '저장': ['storage', 'save'],
+  '데이터베이스': ['database', 'db'],
+
+  // Evaluation/Metrics
+  '정확도': ['accuracy'],
+  '평가': ['evaluation', 'eval'],
+
+  // Common verbs
+  '만들': ['create', 'make'],
+  '사용': ['use'],
+  '설정': ['config', 'setup', 'setting'],
+};
+
+/**
  * AGNO category configuration
  */
 interface AgnoCategoryConfig {

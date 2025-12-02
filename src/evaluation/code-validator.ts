@@ -112,8 +112,8 @@ function validatePythonImports(code: string): {
   const issues: string[] = [];
   const warnings: string[] = [];
 
-  // Extract import statements
-  const importRegex = /^(?:from\s+[\w.]+\s+)?import\s+.+$/gm;
+  // Extract import statements (including indented ones in try-except blocks)
+  const importRegex = /^\s*(?:from\s+[\w.]+\s+)?import\s+.+$/gm;
   const imports = code.match(importRegex) || [];
 
   let hasAgnoImport = false;
