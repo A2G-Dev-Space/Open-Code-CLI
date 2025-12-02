@@ -4,6 +4,9 @@ import { TestCase } from './test-case-parser.js';
 import { ExecutionResult } from './subprocess-executor.js';
 import { ValidationResult } from './code-validator.js';
 
+// Constants
+const SEPARATOR_LENGTH = 120;
+
 export interface TestResult {
   testCase: TestCase;
   execution: ExecutionResult;
@@ -19,6 +22,7 @@ export interface EvaluationReport {
   totalTests: number;
   passedTests: number;
   failedTests: number;
+  totalExecutionTime: number;  // Total time for all test cases in milliseconds
   results: TestResult[];
   summary: {
     averageDuration: number;
@@ -32,7 +36,7 @@ export interface EvaluationReport {
 /**
  * Generate evaluation report
  */
-export function generateReport(results: TestResult[]): EvaluationReport {
+export function generateReport(results: TestResult[], totalExecutionTime: number): EvaluationReport {
   const totalTests = results.length;
   const passedTests = results.filter(r => r.overallSuccess).length;
   const failedTests = totalTests - passedTests;
@@ -61,6 +65,7 @@ export function generateReport(results: TestResult[]): EvaluationReport {
     totalTests,
     passedTests,
     failedTests,
+    totalExecutionTime,
     results,
     summary: {
       averageDuration,
@@ -70,6 +75,26 @@ export function generateReport(results: TestResult[]): EvaluationReport {
       importValidRate,
     },
   };
+}
+
+/**
+ * Format duration in milliseconds to human-readable string
+ */
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) {
+    const remainingMinutes = minutes % 60;
+    const remainingSeconds = seconds % 60;
+    return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
+  } else if (minutes > 0) {
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
 }
 
 /**
@@ -89,6 +114,7 @@ export function formatReportAsMarkdown(report: EvaluationReport): string {
   lines.push(`- **Total Tests**: ${report.totalTests}`);
   lines.push(`- **Passed**: ${report.passedTests} (${((report.passedTests / report.totalTests) * 100).toFixed(1)}%)`);
   lines.push(`- **Failed**: ${report.failedTests} (${((report.failedTests / report.totalTests) * 100).toFixed(1)}%)`);
+  lines.push(`- **Total Execution Time**: ${formatDuration(report.totalExecutionTime)}`);
   lines.push('');
 
   lines.push('### Metrics');
@@ -186,22 +212,61 @@ export function formatReportAsJSON(report: EvaluationReport): string {
 }
 
 /**
- * Save report to file with organized folder structure
+ * Save individual test case result (code blocks and summary)
  */
-export async function saveReport(
-  report: EvaluationReport,
-  outputDir: string,
-  format: 'markdown' | 'json' = 'markdown'
-): Promise<string> {
+export async function saveTestCaseResult(
+  result: TestResult,
+  evalFolder: string
+): Promise<void> {
+  if (result.codeBlocks.length === 0) {
+    return;
+  }
+
+  const testFolderName = `test-${result.testCase.id}`;
+  const testFolder = path.join(evalFolder, testFolderName);
+  await fs.mkdir(testFolder, { recursive: true });
+
+  // Save each code block
+  for (let i = 0; i < result.codeBlocks.length; i++) {
+    const codeBlock = result.codeBlocks[i];
+    if (!codeBlock) continue;
+
+    // Determine file extension based on code content
+    const ext = detectLanguageExtension(codeBlock);
+    const codeFilename = `code-block-${i + 1}.${ext}`;
+    const codeFilePath = path.join(testFolder, codeFilename);
+
+    await fs.writeFile(codeFilePath, codeBlock, 'utf-8');
+  }
+
+  // Save summary file for this test
+  const testSummary = generateTestSummary(result);
+  const summaryPath = path.join(testFolder, 'summary.md');
+  await fs.writeFile(summaryPath, testSummary, 'utf-8');
+}
+
+/**
+ * Create evaluation folder with timestamp
+ */
+export async function createEvalFolder(outputDir: string): Promise<string> {
   await fs.mkdir(outputDir, { recursive: true });
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-
-  // Create a folder for this evaluation run
   const evalFolderName = `eval-${timestamp}`;
   const evalFolder = path.join(outputDir, evalFolderName);
   await fs.mkdir(evalFolder, { recursive: true });
 
+  return evalFolder;
+}
+
+/**
+ * Save report to file with organized folder structure
+ */
+export async function saveReport(
+  report: EvaluationReport,
+  evalFolder: string,
+  format: 'markdown' | 'json' = 'markdown'
+): Promise<string> {
   // Save the main report
   const reportFilename = format === 'markdown' ? 'report.md' : 'report.json';
   const reportPath = path.join(evalFolder, reportFilename);
@@ -212,33 +277,6 @@ export async function saveReport(
       : formatReportAsJSON(report);
 
   await fs.writeFile(reportPath, content, 'utf-8');
-
-  // Save code blocks for each test result
-  for (const result of report.results) {
-    if (result.codeBlocks.length > 0) {
-      const testFolderName = `test-${result.testCase.id}`;
-      const testFolder = path.join(evalFolder, testFolderName);
-      await fs.mkdir(testFolder, { recursive: true });
-
-      // Save each code block
-      for (let i = 0; i < result.codeBlocks.length; i++) {
-        const codeBlock = result.codeBlocks[i];
-        if (!codeBlock) continue;
-
-        // Determine file extension based on code content
-        const ext = detectLanguageExtension(codeBlock);
-        const codeFilename = `code-block-${i + 1}.${ext}`;
-        const codeFilePath = path.join(testFolder, codeFilename);
-
-        await fs.writeFile(codeFilePath, codeBlock, 'utf-8');
-      }
-
-      // Also save a summary file for this test
-      const testSummary = generateTestSummary(result);
-      const summaryPath = path.join(testFolder, 'summary.md');
-      await fs.writeFile(summaryPath, testSummary, 'utf-8');
-    }
-  }
 
   return reportPath;
 }
@@ -351,12 +389,15 @@ function generateTestSummary(result: TestResult): string {
  * Print summary to console
  */
 export function printSummary(report: EvaluationReport): void {
-  console.log('\n' + '='.repeat(60));
+  const separator = '='.repeat(SEPARATOR_LENGTH);
+
+  console.log('\n' + separator);
   console.log('EVALUATION SUMMARY');
-  console.log('='.repeat(60));
+  console.log(separator);
   console.log(`Total Tests: ${report.totalTests}`);
   console.log(`Passed: ${report.passedTests} (${((report.passedTests / report.totalTests) * 100).toFixed(1)}%)`);
   console.log(`Failed: ${report.failedTests} (${((report.failedTests / report.totalTests) * 100).toFixed(1)}%)`);
+  console.log(`Total Execution Time: ${formatDuration(report.totalExecutionTime)}`);
   console.log('');
   console.log('Metrics:');
   console.log(`  Average Duration: ${(report.summary.averageDuration / 1000).toFixed(2)}s`);
@@ -364,5 +405,5 @@ export function printSummary(report: EvaluationReport): void {
   console.log(`  Code Generation Rate: ${report.summary.codeGenerationRate.toFixed(1)}%`);
   console.log(`  Syntax Validity Rate: ${report.summary.syntaxValidRate.toFixed(1)}%`);
   console.log(`  Import Validity Rate: ${report.summary.importValidRate.toFixed(1)}%`);
-  console.log('='.repeat(60) + '\n');
+  console.log(separator + '\n');
 }

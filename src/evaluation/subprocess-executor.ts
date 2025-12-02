@@ -113,22 +113,83 @@ export async function executeOpenChat(
 }
 
 /**
+ * Check if code is a complete program (not just a snippet)
+ * Uses pattern-based detection without counting individual lines
+ */
+function isCompleteProgram(code: string): boolean {
+  const lines = code.split('\n').filter(line => line.trim().length > 0);
+
+  // Too short to be a complete program (less than 8 non-empty lines)
+  if (lines.length < 8) {
+    return false;
+  }
+
+  // 1. Check for Python main block
+  if (code.includes('if __name__ == "__main__":') || code.includes("if __name__ == '__main__':")) {
+    return true;
+  }
+
+  // 2. Check for file name comment in the first few lines
+  const firstFewLines = lines.slice(0, 5).join('\n');
+
+  // Python: # filename.py (strict: must be valid filename pattern at line start/end)
+  // Must start with lowercase or underscore, end with .py/ts/js, and have nothing else on the line
+  if (/^#\s*[a-z_][a-z0-9_-]*\.(py|ts|js)\s*$/m.test(firstFewLines)) {
+    return true;
+  }
+
+  // TypeScript/JavaScript: // filename.ts or /* filename.ts */
+  // Must start with lowercase or underscore, end with .py/ts/js, and have nothing else on the line
+  if (/^(\/\/|\/\*)\s*[a-z_][a-z0-9_-]*\.(py|ts|js)(\s*\*\/)?\s*$/m.test(firstFewLines)) {
+    return true;
+  }
+
+  // 3. Check for imports (indicates it's likely a complete program)
+  const hasImports = /^\s*(from\s+[\w.]+\s+)?import\s+/m.test(code);
+
+  // 4. Check for class or function definitions
+  const hasClassDef = /^\s*class\s+\w+/m.test(code);
+  const hasFunctionDef = /^\s*def\s+\w+/m.test(code);
+  const hasAsyncDef = /^\s*async\s+(def|function)\s+\w+/m.test(code);
+
+  // If it has imports AND (class or function definitions), it's a complete program
+  if (hasImports && (hasClassDef || hasFunctionDef || hasAsyncDef)) {
+    return true;
+  }
+
+  // 5. If it has multiple function/class definitions (library code)
+  const functionCount = (code.match(/^\s*def\s+\w+/gm) || []).length;
+  const classCount = (code.match(/^\s*class\s+\w+/gm) || []).length;
+  if (functionCount >= 2 || classCount >= 1) {
+    return true;
+  }
+
+  // 6. If it has imports and is reasonably long (10+ lines), assume it's a complete program
+  // This catches executable scripts without class/function definitions
+  if (hasImports && lines.length >= 10) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Parse the output to extract generated code
  */
 export function extractGeneratedCode(output: string): string[] {
   const codeBlocks: string[] = [];
 
-  // Match markdown code blocks with REQUIRED language tags (python, py, typescript, ts, javascript, js)
-  // This ensures we only capture actual code blocks, not plain text blocks
-  const codeBlockRegex = /```(python|py|typescript|ts|javascript|js)\n([\s\S]*?)```/g;
+  // Match Python markdown code blocks only
+  // Uses ^ to match closing ``` only at line start, ignoring backticks in comments
+  const codeBlockRegex = /```(?:python|py)\n([\s\S]*?)^```/gm;
   let match;
 
   while ((match = codeBlockRegex.exec(output)) !== null) {
-    if (match[2]) {
-      const code = match[2].trim();
+    if (match[1]) {
+      const code = match[1].trim();
 
-      // Only filter out empty blocks
-      if (code.length > 0) {
+      // Only include complete programs, not snippets
+      if (code.length > 0 && isCompleteProgram(code)) {
         codeBlocks.push(code);
       }
     }

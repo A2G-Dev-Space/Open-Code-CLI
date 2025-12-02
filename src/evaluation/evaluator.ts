@@ -1,4 +1,5 @@
 import path from 'path';
+import chalk from 'chalk';
 import { parseTestCases, selectTestCases, TestCase } from './test-case-parser.js';
 import {
   executeOpenChat,
@@ -13,11 +14,14 @@ import {
   printSummary,
   TestResult,
   EvaluationReport,
+  createEvalFolder,
+  saveTestCaseResult,
 } from './report-generator.js';
 
 // Constants
 const DEFAULT_PROMPTS_FILE_NAME = 'agno_prompts.md';
 const DEFAULT_PROMPTS_DIR = 'src/evaluation';
+const SEPARATOR_LENGTH = 120;
 
 export interface EvaluatorOptions {
   testCaseIds?: number[];
@@ -46,6 +50,9 @@ export class AgnoCodeEvaluator {
   async evaluate(promptsPath: string): Promise<EvaluationReport> {
     this.log('Starting Agno Agent Code Generation Evaluation...\n');
 
+    // Start tracking total execution time
+    const evaluationStartTime = Date.now();
+
     // Parse test cases
     this.log(`Parsing test cases from: ${promptsPath}`);
     const allTestCases = await parseTestCases(promptsPath);
@@ -57,6 +64,10 @@ export class AgnoCodeEvaluator {
     }
     this.log('');
 
+    // Create evaluation folder upfront
+    const evalFolder = await createEvalFolder(this.options.outputDir);
+    this.log(`Evaluation folder created: ${evalFolder}\n`);
+
     // Execute tests
     const results: TestResult[] = [];
 
@@ -64,44 +75,58 @@ export class AgnoCodeEvaluator {
       const testCase = testCases[i];
       if (!testCase) continue;
 
-      this.log(`\n[${ i + 1}/${testCases.length}] Running Test Case ${testCase.id}...`);
-      this.log(`Prompt: ${testCase.prompt}`);
+      // Clear visual separator for each test case
+      const separator = chalk.cyan('='.repeat(SEPARATOR_LENGTH));
+
+      this.log('\n' + separator);
+      this.log('  ' + chalk.bold.cyan(`TEST CASE ${i + 1}/${testCases.length} - ID: ${testCase.id}`));
+      this.log('  ' + chalk.yellow('Prompt: ') + testCase.prompt);
+      this.log(separator);
 
       const result = await this.evaluateTestCase(testCase);
       results.push(result);
 
+      this.log(separator);
       const status = result.overallSuccess ? '✅ PASS' : '❌ FAIL';
-      this.log(`Result: ${status} (${(result.execution.duration / 1000).toFixed(2)}s)`);
+      const statusColor = result.overallSuccess ? chalk.green : chalk.red;
+      this.log('  ' + chalk.bold('RESULT: ') + statusColor(status) + chalk.dim(' | Duration: ') + `${(result.execution.duration / 1000).toFixed(2)}s`);
+
+      // Save individual test case result immediately
+      await saveTestCaseResult(result, evalFolder);
+      this.log('  ' + chalk.dim('Saved: ') + chalk.blue(`${evalFolder}/test-${testCase.id}/`));
+      this.log(separator);
     }
 
-    // Generate report
-    this.log('\n\nGenerating evaluation report...');
-    const report = generateReport(results);
+    // Calculate total execution time
+    const totalExecutionTime = Date.now() - evaluationStartTime;
 
-    // Save report with organized folder structure
+    // Generate final report
+    this.log('\n\nGenerating final evaluation report...');
+    const report = generateReport(results, totalExecutionTime);
+
+    // Save final report
     if (this.options.reportFormat === 'markdown' || this.options.reportFormat === 'both') {
-      const mdPath = await saveReport(report, this.options.outputDir, 'markdown');
+      const mdPath = await saveReport(report, evalFolder, 'markdown');
       this.log(`Report saved to: ${mdPath}`);
-
-      // Show folder structure
-      const evalFolder = path.dirname(mdPath);
-      this.log(`\nFolder structure:`);
-      this.log(`  ${evalFolder}/`);
-      this.log(`    ├── report.md`);
-      for (const result of results) {
-        if (result.codeBlocksFound > 0) {
-          this.log(`    ├── test-${result.testCase.id}/`);
-          this.log(`    │   ├── summary.md`);
-          for (let i = 0; i < result.codeBlocksFound; i++) {
-            this.log(`    │   └── code-block-${i + 1}.py`);
-          }
-        }
-      }
     }
 
     if (this.options.reportFormat === 'json' || this.options.reportFormat === 'both') {
-      const jsonPath = await saveReport(report, this.options.outputDir, 'json');
+      const jsonPath = await saveReport(report, evalFolder, 'json');
       this.log(`JSON report saved: ${jsonPath}`);
+    }
+
+    // Show folder structure
+    this.log(`\nFolder structure:`);
+    this.log(`  ${evalFolder}/`);
+    this.log(`    ├── report.md`);
+    for (const result of results) {
+      if (result.codeBlocksFound > 0) {
+        this.log(`    ├── test-${result.testCase.id}/`);
+        this.log(`    │   ├── summary.md`);
+        for (let i = 0; i < result.codeBlocksFound; i++) {
+          this.log(`    │   └── code-block-${i + 1}.py`);
+        }
+      }
     }
 
     // Print summary

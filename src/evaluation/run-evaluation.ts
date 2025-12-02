@@ -126,7 +126,7 @@ async function main(): Promise<void> {
   const args = parseArgs();
 
   console.log('╔══════════════════════════════════════════════════════════╗');
-  console.log('║  Agno Agent Code Generation Evaluation                  ║');
+  console.log('║  Agno Agent Code Generation Evaluation                   ║');
   console.log('╚══════════════════════════════════════════════════════════╝\n');
 
   if (args.testCaseIds && args.testCaseIds.length > 0) {

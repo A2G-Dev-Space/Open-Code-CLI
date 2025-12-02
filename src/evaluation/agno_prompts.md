@@ -12,7 +12,7 @@
 
 ## Test Case 1
 
-**프롬프트**: AgentOS를 사용하여 배포 가능한 Agno Agent 만들어줘
+**프롬프트**: AgentOS를 사용하는 Agno Agent 만들어줘
 
 **파일 경로** (65개):
 
@@ -105,7 +105,7 @@
 
 ## Test Case 3
 
-**프롬프트**: Agno 프레임워크를 사용하여 evals 기능을 구현하는 Agent 만들어줘
+**프롬프트**: Agno Agent의 정확도를 평가하는 코드 만들어줘
 
 **파일 경로** (1개):
 
@@ -115,49 +115,6 @@
 
 ## Test Case 4
 
-**프롬프트**: Agno 프레임워크를 사용하여 examples 기능을 구현하는 Agent 만들어줘
-
-**파일 경로** (14개):
-
-- `examples/streamlit_apps/agentic_rag/app.py`
-- `examples/streamlit_apps/chess_team/app.py`
-- `examples/streamlit_apps/deep_researcher/app.py`
-- `examples/streamlit_apps/gemini_tutor/app.py`
-- `examples/streamlit_apps/geobuddy/app.py`
-- `examples/streamlit_apps/github_mcp_agent/app.py`
-- `examples/streamlit_apps/github_repo_analyzer/app.py`
-- `examples/streamlit_apps/image_generation/app.py`
-- `examples/streamlit_apps/llama_tutor/app.py`
-- `examples/streamlit_apps/medical_imaging/app.py`
-- `examples/streamlit_apps/paperpal/app.py`
-- `examples/streamlit_apps/podcast_generator/app.py`
-- `examples/streamlit_apps/vision_ai/app.py`
-- `examples/workflows/company_description/prompts.py`
-
----
-
-## Test Case 5
-
-**프롬프트**: Agno 프레임워크를 사용하여 integrations 기능을 구현하는 Agent 만들어줘
-
-**파일 경로** (1개):
-
-- `integrations/a2a/basic_agent/client.py`
-
----
-
-## Test Case 6
-
-**프롬프트**: Agno 프레임워크를 사용하여 scripts 기능을 구현하는 Agent 만들어줘
-
-**파일 경로** (1개):
-
-- `scripts/cookbook_runner.py`
-
----
-
-## Test Case 7
-
 **프롬프트**: Aimlapi 모델을 사용하는 Agno Agent 만들어줘
 
 **파일 경로** (1개):
@@ -166,12 +123,13 @@
 
 ---
 
-## Test Case 8
+## Test Case 5
 
 **프롬프트**: Anthropic Claude 모델을 사용하는 Agno Agent 만들어줘
 
-**파일 경로** (23개):
+**파일 경로** (24개):
 
+- `examples/agents/basic_agent.py`
 - `models/anthropic/basic.py`
 - `models/anthropic/basic_with_timeout.py`
 - `models/anthropic/betas.py`
@@ -198,17 +156,7 @@
 
 ---
 
-## Test Case 9
-
-**프롬프트**: Anthropic Claude 모델을 사용하는 기본적인 Chat bot Agno Agent 만들어줘
-
-**파일 경로** (1개):
-
-- `examples/agents/basic_agent.py`
-
----
-
-## Test Case 10
+## Test Case 6
 
 **프롬프트**: Aws 모델을 사용하는 Agno Agent 만들어줘
 
@@ -219,7 +167,7 @@
 
 ---
 
-## Test Case 11
+## Test Case 7
 
 **프롬프트**: Azure 모델을 사용하는 Agno Agent 만들어줘
 
@@ -229,7 +177,7 @@
 
 ---
 
-## Test Case 12
+## Test Case 8
 
 **프롬프트**: Cerebras 모델을 사용하는 Agno Agent 만들어줘
 
@@ -239,7 +187,7 @@
 
 ---
 
-## Test Case 13
+## Test Case 9
 
 **프롬프트**: Cohere 모델을 사용하는 Agno Agent 만들어줘
 
@@ -250,7 +198,7 @@
 
 ---
 
-## Test Case 14
+## Test Case 10
 
 **프롬프트**: CometAPI 모델을 사용하는 Agno Agent 만들어줘
 
@@ -260,7 +208,7 @@
 
 ---
 
-## Test Case 15
+## Test Case 11
 
 **프롬프트**: Composio tool을 사용하는 Agno Agent 만들어줘
 
@@ -270,7 +218,7 @@
 
 ---
 
-## Test Case 16
+## Test Case 12
 
 **프롬프트**: Crawl4AI tool을 사용하는 Agno Agent 만들어줘
 
@@ -280,7 +228,7 @@
 
 ---
 
-## Test Case 17
+## Test Case 13
 
 **프롬프트**: DashScope 모델을 사용하는 Agno Agent 만들어줘
 
@@ -290,7 +238,7 @@
 
 ---
 
-## Test Case 18
+## Test Case 14
 
 **프롬프트**: DeepSeek 모델을 사용하는 Agno Agent 만들어줘
 
@@ -301,7 +249,7 @@
 
 ---
 
-## Test Case 19
+## Test Case 15
 
 **프롬프트**: Deepinfra 모델을 사용하는 Agno Agent 만들어줘
 
@@ -311,7 +259,7 @@
 
 ---
 
-## Test Case 20
+## Test Case 16
 
 **프롬프트**: DuckDuckGo 웹 검색 기능이 있는 Agno Agent 만들어줘
 
@@ -488,7 +436,7 @@
 
 ---
 
-## Test Case 21
+## Test Case 17
 
 **프롬프트**: E2B tool을 사용하는 Agno Agent 만들어줘
 
@@ -498,7 +446,7 @@
 
 ---
 
-## Test Case 22
+## Test Case 18
 
 **프롬프트**: External tool을 사용하는 Agno Agent 만들어줘
 
@@ -511,7 +459,7 @@
 
 ---
 
-## Test Case 23
+## Test Case 19
 
 **프롬프트**: Fireworks 모델을 사용하는 Agno Agent 만들어줘
 
@@ -521,7 +469,7 @@
 
 ---
 
-## Test Case 24
+## Test Case 20
 
 **프롬프트**: Github tool을 사용하는 Agno Agent 만들어줘
 
@@ -534,7 +482,7 @@
 
 ---
 
-## Test Case 25
+## Test Case 21
 
 **프롬프트**: Gmail tool을 사용하는 Agno Agent 만들어줘
 
@@ -544,12 +492,13 @@
 
 ---
 
-## Test Case 26
+## Test Case 22
 
 **프롬프트**: Google Gemini 모델을 사용하는 Agno Agent 만들어줘
 
-**파일 경로** (10개):
+**파일 경로** (11개):
 
+- `agents/multimodal/video_to_shorts.py`
 - `models/google/gemini/audio_input_bytes_content.py`
 - `models/google/gemini/basic.py`
 - `models/google/gemini/search.py`
@@ -563,39 +512,20 @@
 
 ---
 
-## Test Case 27
-
-**프롬프트**: Google Gemini 모델을 사용하는 기본적인 Chat bot Agno Agent 만들어줘
-
-**파일 경로** (1개):
-
-- `agents/multimodal/video_to_shorts.py`
-
----
-
-## Test Case 28
+## Test Case 23
 
 **프롬프트**: Groq 모델을 사용하는 Agno Agent 만들어줘
 
-**파일 경로** (3개):
+**파일 경로** (4개):
 
 - `models/groq/basic.py`
 - `models/groq/reasoning/basic.py`
 - `models/groq/reasoning/demo_deepseek_qwen.py`
-
----
-
-## Test Case 29
-
-**프롬프트**: Groq 모델을 사용하는 기본적인 Chat bot Agno Agent 만들어줘
-
-**파일 경로** (1개):
-
 - `reasoning/models/groq/fast_reasoning.py`
 
 ---
 
-## Test Case 30
+## Test Case 24
 
 **프롬프트**: Guardrails를 사용하는 안전한 Agno Agent 만들어줘
 
@@ -607,7 +537,7 @@
 
 ---
 
-## Test Case 31
+## Test Case 25
 
 **프롬프트**: HackerNews에서 정보를 검색하는 Agno Agent 만들어줘
 
@@ -622,7 +552,7 @@
 
 ---
 
-## Test Case 32
+## Test Case 26
 
 **프롬프트**: HuggingFace 모델을 사용하는 Agno Agent 만들어줘
 
@@ -632,7 +562,7 @@
 
 ---
 
-## Test Case 33
+## Test Case 27
 
 **프롬프트**: IBM 모델을 사용하는 Agno Agent 만들어줘
 
@@ -642,7 +572,7 @@
 
 ---
 
-## Test Case 34
+## Test Case 28
 
 **프롬프트**: Imagen tool을 사용하는 Agno Agent 만들어줘
 
@@ -653,7 +583,7 @@
 
 ---
 
-## Test Case 35
+## Test Case 29
 
 **프롬프트**: Instantiate Agent With tool을 사용하는 Agno Agent 만들어줘
 
@@ -663,7 +593,7 @@
 
 ---
 
-## Test Case 36
+## Test Case 30
 
 **프롬프트**: JinaReader tool을 사용하는 Agno Agent 만들어줘
 
@@ -673,7 +603,7 @@
 
 ---
 
-## Test Case 37
+## Test Case 31
 
 **프롬프트**: Knowledge Base를 활용하는 Agno Agent 만들어줘
 
@@ -697,7 +627,7 @@
 
 ---
 
-## Test Case 38
+## Test Case 32
 
 **프롬프트**: LMStudio 모델을 사용하는 Agno Agent 만들어줘
 
@@ -707,7 +637,7 @@
 
 ---
 
-## Test Case 39
+## Test Case 33
 
 **프롬프트**: LangDB 모델을 사용하는 Agno Agent 만들어줘
 
@@ -717,7 +647,7 @@
 
 ---
 
-## Test Case 40
+## Test Case 34
 
 **프롬프트**: LiteLLM 모델을 사용하는 Agno Agent 만들어줘
 
@@ -728,7 +658,7 @@
 
 ---
 
-## Test Case 41
+## Test Case 35
 
 **프롬프트**: Llama.cpp 모델을 사용하는 Agno Agent 만들어줘
 
@@ -738,7 +668,7 @@
 
 ---
 
-## Test Case 42
+## Test Case 36
 
 **프롬프트**: Meta 모델을 사용하는 Agno Agent 만들어줘
 
@@ -749,7 +679,7 @@
 
 ---
 
-## Test Case 43
+## Test Case 37
 
 **프롬프트**: Mistral 모델을 사용하는 Agno Agent 만들어줘
 
@@ -762,9 +692,9 @@
 
 ---
 
-## Test Case 44
+## Test Case 38
 
-**프롬프트**: MongoDB 데이터베이스를 사용하는 AgentOS로 배포 가능한 Agno Agent 만들어줘
+**프롬프트**: MongoDB 데이터베이스를 사용하는 AgentOS Agno Agent 만들어줘
 
 **파일 경로** (2개):
 
@@ -773,7 +703,7 @@
 
 ---
 
-## Test Case 45
+## Test Case 39
 
 **프롬프트**: MongoDB 데이터베이스를 사용하는 Agno Agent 만들어줘
 
@@ -784,7 +714,7 @@
 
 ---
 
-## Test Case 46
+## Test Case 40
 
 **프롬프트**: NVIDIA 모델을 사용하는 Agno Agent 만들어줘
 
@@ -794,7 +724,7 @@
 
 ---
 
-## Test Case 47
+## Test Case 41
 
 **프롬프트**: Nebius 모델을 사용하는 Agno Agent 만들어줘
 
@@ -804,7 +734,7 @@
 
 ---
 
-## Test Case 48
+## Test Case 42
 
 **프롬프트**: Nexus 모델을 사용하는 Agno Agent 만들어줘
 
@@ -814,7 +744,7 @@
 
 ---
 
-## Test Case 49
+## Test Case 43
 
 **프롬프트**: Ollama 모델을 사용하는 Agno Agent 만들어줘
 
@@ -830,31 +760,11 @@
 
 ---
 
-## Test Case 50
+## Test Case 44
 
 **프롬프트**: OpenAI 모델을 사용하는 Agno Agent 만들어줘
 
-**파일 경로** (11개):
-
-- `models/azure/openai/basic.py`
-- `models/cerebras_openai/basic.py`
-- `models/clients/http_client_caching.py`
-- `models/cometapi/multi_model.py`
-- `models/litellm_openai/basic.py`
-- `models/meta/llama_openai/basic.py`
-- `models/openai/chat/agent_flex_tier.py`
-- `models/openai/chat/basic.py`
-- `models/openai/chat/custom_role_map.py`
-- `models/openai/responses/agent_flex_tier.py`
-- `models/openai/responses/basic.py`
-
----
-
-## Test Case 51
-
-**프롬프트**: OpenAI 모델을 사용하는 기본적인 Chat bot Agno Agent 만들어줘
-
-**파일 경로** (19개):
+**파일 경로** (30개):
 
 - `agents/caching/cache_model_response.py`
 - `agents/context_management/datetime_instructions.py`
@@ -875,10 +785,21 @@
 - `getting_started/16_audio_input_output.py`
 - `integrations/observability/agent_ops.py`
 - `integrations/observability/weave_op.py`
+- `models/azure/openai/basic.py`
+- `models/cerebras_openai/basic.py`
+- `models/clients/http_client_caching.py`
+- `models/cometapi/multi_model.py`
+- `models/litellm_openai/basic.py`
+- `models/meta/llama_openai/basic.py`
+- `models/openai/chat/agent_flex_tier.py`
+- `models/openai/chat/basic.py`
+- `models/openai/chat/custom_role_map.py`
+- `models/openai/responses/agent_flex_tier.py`
+- `models/openai/responses/basic.py`
 
 ---
 
-## Test Case 52
+## Test Case 45
 
 **프롬프트**: OpenRouter 모델을 사용하는 Agno Agent 만들어줘
 
@@ -889,7 +810,7 @@
 
 ---
 
-## Test Case 53
+## Test Case 46
 
 **프롬프트**: Perplexity 모델을 사용하는 Agno Agent 만들어줘
 
@@ -900,7 +821,7 @@
 
 ---
 
-## Test Case 54
+## Test Case 47
 
 **프롬프트**: Portkey 모델을 사용하는 Agno Agent 만들어줘
 
@@ -910,9 +831,9 @@
 
 ---
 
-## Test Case 55
+## Test Case 48
 
-**프롬프트**: PostgreSQL 데이터베이스를 사용하는 AgentOS로 배포 가능한 Agno Agent 만들어줘
+**프롬프트**: PostgreSQL 데이터베이스를 사용하는 AgentOS Agno Agent 만들어줘
 
 **파일 경로** (33개):
 
@@ -952,7 +873,7 @@
 
 ---
 
-## Test Case 56
+## Test Case 49
 
 **프롬프트**: PostgreSQL 데이터베이스를 사용하는 Agno Agent 만들어줘
 
@@ -1029,9 +950,9 @@
 
 ---
 
-## Test Case 57
+## Test Case 50
 
-**프롬프트**: Redis 데이터베이스를 사용하는 AgentOS로 배포 가능한 Agno Agent 만들어줘
+**프롬프트**: Redis 데이터베이스를 사용하는 AgentOS Agno Agent 만들어줘
 
 **파일 경로** (1개):
 
@@ -1039,7 +960,7 @@
 
 ---
 
-## Test Case 58
+## Test Case 51
 
 **프롬프트**: Requesty 모델을 사용하는 Agno Agent 만들어줘
 
@@ -1049,7 +970,7 @@
 
 ---
 
-## Test Case 59
+## Test Case 52
 
 **프롬프트**: Reranking 기능이 있는 Agentic RAG를 구현하는 Agno Agent 만들어줘
 
@@ -1062,7 +983,7 @@
 
 ---
 
-## Test Case 60
+## Test Case 53
 
 **프롬프트**: Retry tool을 사용하는 Agno Agent 만들어줘
 
@@ -1072,7 +993,7 @@
 
 ---
 
-## Test Case 61
+## Test Case 54
 
 **프롬프트**: SQLite 데이터베이스를 사용하는 Agno Agent 만들어줘
 
@@ -1128,7 +1049,7 @@
 
 ---
 
-## Test Case 62
+## Test Case 55
 
 **프롬프트**: SiliconFlow 모델을 사용하는 Agno Agent 만들어줘
 
@@ -1138,7 +1059,7 @@
 
 ---
 
-## Test Case 63
+## Test Case 56
 
 **프롬프트**: Stop After tool을 사용하는 Agno Agent 만들어줘
 
@@ -1148,7 +1069,7 @@
 
 ---
 
-## Test Case 64
+## Test Case 57
 
 **프롬프트**: Tavily 검색 tool을 사용하는 Agno Agent 만들어줘
 
@@ -1158,7 +1079,7 @@
 
 ---
 
-## Test Case 65
+## Test Case 58
 
 **프롬프트**: Together 모델을 사용하는 Agno Agent 만들어줘
 
@@ -1169,7 +1090,7 @@
 
 ---
 
-## Test Case 66
+## Test Case 59
 
 **프롬프트**: Trafilatura tool을 사용하는 Agno Agent 만들어줘
 
@@ -1179,7 +1100,7 @@
 
 ---
 
-## Test Case 67
+## Test Case 60
 
 **프롬프트**: Vercel 모델을 사용하는 Agno Agent 만들어줘
 
@@ -1189,7 +1110,7 @@
 
 ---
 
-## Test Case 68
+## Test Case 61
 
 **프롬프트**: Websearch Builtin tool을 사용하는 Agno Agent 만들어줘
 
@@ -1199,7 +1120,7 @@
 
 ---
 
-## Test Case 69
+## Test Case 62
 
 **프롬프트**: YFinance를 사용하여 주식 정보를 조회할 수 있는 Agno Agent 만들어줘
 
@@ -1259,7 +1180,7 @@
 
 ---
 
-## Test Case 70
+## Test Case 63
 
 **프롬프트**: vLLM 모델을 사용하는 Agno Agent 만들어줘
 
@@ -1269,7 +1190,7 @@
 
 ---
 
-## Test Case 71
+## Test Case 64
 
 **프롬프트**: xAI 모델을 사용하는 Agno Agent 만들어줘
 
@@ -1282,7 +1203,7 @@
 
 ---
 
-## Test Case 72
+## Test Case 65
 
 **프롬프트**: 구조화된 출력을 반환하는 Agno Agent 만들어줘
 
@@ -1349,7 +1270,7 @@
 
 ---
 
-## Test Case 73
+## Test Case 66
 
 **프롬프트**: 대화 기록을 기억하는 Agno Agent 만들어줘
 
@@ -1394,7 +1315,7 @@
 
 ---
 
-## Test Case 74
+## Test Case 67
 
 **프롬프트**: 도구를 사용할 수 있는 Agno Agent 만들어줘
 
@@ -1624,7 +1545,7 @@
 
 ---
 
-## Test Case 75
+## Test Case 68
 
 **프롬프트**: 벡터 데이터베이스를 사용하는 Knowledge 기반 Agno Agent 만들어줘
 
@@ -1817,7 +1738,7 @@
 
 ---
 
-## Test Case 76
+## Test Case 69
 
 **프롬프트**: 병렬 실행이 가능한 Agno Workflow 만들어줘
 
@@ -1847,17 +1768,7 @@
 
 ---
 
-## Test Case 77
-
-**프롬프트**: 복잡한 작업을 처리하는 Agno Workflow 만들어줘
-
-**파일 경로** (1개):
-
-- `workflows/_06_advanced_concepts/_05_background_execution/background_execution_using_websocket/websocket_client.py`
-
----
-
-## Test Case 78
+## Test Case 70
 
 **프롬프트**: 비동기로 동작하는 Agno Agent 만들어줘
 
@@ -1911,7 +1822,7 @@
 
 ---
 
-## Test Case 79
+## Test Case 71
 
 **프롬프트**: 비동기로 동작하는 Agno Team 만들어줘
 
@@ -1957,7 +1868,7 @@
 
 ---
 
-## Test Case 80
+## Test Case 72
 
 **프롬프트**: 비동기로 실행되는 Agno Workflow 만들어줘
 
@@ -1999,7 +1910,7 @@
 
 ---
 
-## Test Case 81
+## Test Case 73
 
 **프롬프트**: 스트리밍 응답을 제공하는 Agno Agent 만들어줘
 
@@ -2193,7 +2104,7 @@
 
 ---
 
-## Test Case 82
+## Test Case 74
 
 **프롬프트**: 스트리밍 응답을 제공하는 Agno Team 만들어줘
 
@@ -2204,7 +2115,7 @@
 
 ---
 
-## Test Case 83
+## Test Case 75
 
 **프롬프트**: 스트리밍 응답을 제공하는 Agno Workflow 만들어줘
 
@@ -2227,7 +2138,7 @@
 
 ---
 
-## Test Case 84
+## Test Case 76
 
 **프롬프트**: 여러 Agno Agent로 구성된 Team 만들어줘
 
@@ -2337,7 +2248,7 @@
 
 ---
 
-## Test Case 85
+## Test Case 77
 
 **프롬프트**: 여러 단계로 구성된 Agno Workflow 만들어줘
 
@@ -2398,7 +2309,7 @@
 
 ---
 
-## Test Case 86
+## Test Case 78
 
 **프롬프트**: 외부 도구를 사용하는 Agno Agent 만들어줘
 
@@ -2410,7 +2321,7 @@
 
 ---
 
-## Test Case 87
+## Test Case 79
 
 **프롬프트**: 이미지를 처리할 수 있는 멀티모달 Agno Agent 만들어줘
 
@@ -2430,7 +2341,7 @@
 
 ---
 
-## Test Case 88
+## Test Case 80
 
 **프롬프트**: 조건부 실행이 가능한 Agno Workflow 만들어줘
 
@@ -2444,7 +2355,7 @@
 
 ---
 
-## Test Case 89
+## Test Case 81
 
 **프롬프트**: 추론 기능이 있는 Agno Agent 만들어줘
 
