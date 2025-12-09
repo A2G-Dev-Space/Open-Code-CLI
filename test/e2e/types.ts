@@ -11,6 +11,7 @@ export interface TestScenario {
   category: TestCategory;
   enabled: boolean;
   timeout?: number; // ms, default 30000
+  retryCount?: number; // 실패 시 재시도 횟수 (기본 0, LLM 비결정적 응답 대응)
   setup?: () => Promise<void>;
   teardown?: () => Promise<void>;
   steps: TestStep[];
@@ -102,6 +103,7 @@ export interface TestReport {
 export interface TestRunnerOptions {
   verbose?: boolean;       // 상세 로그 출력
   filter?: string;         // 특정 카테고리만 실행
+  testId?: string;         // 특정 테스트 ID만 실행 (단일 테스트)
   failFast?: boolean;      // 첫 실패 시 중단
   timeout?: number;        // 전역 타임아웃
   parallel?: boolean;      // 병렬 실행 (기본 false)

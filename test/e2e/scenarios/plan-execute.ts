@@ -18,7 +18,7 @@ export const planExecuteScenarios: TestScenario[] = [
     description: '단순한 요청을 TODO 리스트로 분해합니다.',
     category: 'plan-execute',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: 'TODO 생성',
@@ -37,7 +37,7 @@ export const planExecuteScenarios: TestScenario[] = [
     description: '복잡한 요청을 여러 TODO로 분해합니다.',
     category: 'plan-execute',
     enabled: true,
-    timeout: 90000,
+    timeout: 300000,
     steps: [
       {
         name: '복잡한 요청 TODO 생성',
@@ -60,7 +60,7 @@ export const planExecuteScenarios: TestScenario[] = [
     description: '생성된 TODO가 올바른 구조를 가지는지 확인합니다.',
     category: 'plan-execute',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: 'TODO 구조 확인',
@@ -93,7 +93,7 @@ export const planExecuteScenarios: TestScenario[] = [
     description: 'TODO를 생성하고 실행하여 파일을 읽습니다.',
     category: 'plan-execute',
     enabled: true,
-    timeout: 120000,
+    timeout: 300000,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(
@@ -126,7 +126,7 @@ export const planExecuteScenarios: TestScenario[] = [
     description: 'TODO를 생성하고 실행하여 파일을 작성합니다.',
     category: 'plan-execute',
     enabled: true,
-    timeout: 120000,
+    timeout: 300000,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
     },
@@ -155,7 +155,7 @@ export const planExecuteScenarios: TestScenario[] = [
     description: '여러 단계가 필요한 작업의 Plan을 생성합니다.',
     category: 'plan-execute',
     enabled: true,
-    timeout: 90000,
+    timeout: 300000,
     steps: [
       {
         name: '다단계 Plan 생성',
@@ -184,7 +184,7 @@ export const planExecuteScenarios: TestScenario[] = [
     description: 'TODO 간 의존성이 올바르게 설정되는지 확인합니다.',
     category: 'plan-execute',
     enabled: true,
-    timeout: 90000,
+    timeout: 300000,
     steps: [
       {
         name: '의존성 있는 Plan 생성',

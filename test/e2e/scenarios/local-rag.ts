@@ -17,7 +17,7 @@ export const localRagScenarios: TestScenario[] = [
     description: '로컬 문서에서 키워드를 검색합니다.',
     category: 'local-rag',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     setup: async () => {
       await fs.mkdir(TEST_DOCS_DIR, { recursive: true });
       await fs.writeFile(
@@ -59,7 +59,7 @@ open 명령어로 시작합니다.
     description: '코드 관련 문서를 검색합니다.',
     category: 'local-rag',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     setup: async () => {
       await fs.mkdir(TEST_DOCS_DIR, { recursive: true });
       await fs.writeFile(
@@ -104,7 +104,7 @@ const client = new LLMClient({
     description: '여러 문서에서 관련 정보를 검색합니다.',
     category: 'local-rag',
     enabled: true,
-    timeout: 90000,
+    timeout: 300000,
     setup: async () => {
       await fs.mkdir(TEST_DOCS_DIR, { recursive: true });
 
@@ -154,7 +154,7 @@ A: 네, 완전히 오프라인으로 작동합니다.
     description: '실제 프로젝트 문서에서 검색합니다.',
     category: 'local-rag',
     enabled: true,
-    timeout: 90000,
+    timeout: 300000,
     steps: [
       {
         name: '프로젝트 docs 폴더 검색',

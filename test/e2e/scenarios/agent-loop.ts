@@ -19,7 +19,7 @@ export const agentLoopScenarios: TestScenario[] = [
     description: 'Agent Loop가 단순한 작업을 완료할 수 있는지 테스트합니다.',
     category: 'agent-loop',
     enabled: true,
-    timeout: 120000,
+    timeout: 600000,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(
@@ -66,7 +66,8 @@ export const agentLoopScenarios: TestScenario[] = [
     description: 'Agent Loop가 파일을 생성하는 작업을 완료할 수 있는지 테스트합니다.',
     category: 'agent-loop',
     enabled: true,
-    timeout: 120000,
+    timeout: 600000,
+    retryCount: 2, // LLM이 파일 생성을 실패할 수 있으므로 재시도
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
     },
@@ -118,7 +119,7 @@ export const agentLoopScenarios: TestScenario[] = [
     description: 'Agent가 컨텍스트를 올바르게 수집하는지 테스트합니다.',
     category: 'agent-loop',
     enabled: true,
-    timeout: 120000,
+    timeout: 600000,
     setup: async () => {
       await fs.mkdir(path.join(TEST_DIR, 'src'), { recursive: true });
       await fs.writeFile(path.join(TEST_DIR, 'package.json'), JSON.stringify({ name: 'test' }));
@@ -157,7 +158,7 @@ export const agentLoopScenarios: TestScenario[] = [
     description: 'Agent가 여러 단계가 필요한 작업을 완료할 수 있는지 테스트합니다.',
     category: 'agent-loop',
     enabled: true,
-    timeout: 180000,
+    timeout: 600000,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(

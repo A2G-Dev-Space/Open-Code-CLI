@@ -182,6 +182,12 @@ export class LLMClient {
 
       logger.flow('API 응답 수신 완료');
 
+      // Validate response structure
+      if (!response.data.choices || !Array.isArray(response.data.choices)) {
+        logger.error('Invalid response structure - missing choices array', response.data);
+        throw new Error('LLM 응답 형식이 올바르지 않습니다. choices 배열이 없습니다.');
+      }
+
       // Log response
       logger.httpResponse(response.status, response.statusText, {
         choices: response.data.choices.length,

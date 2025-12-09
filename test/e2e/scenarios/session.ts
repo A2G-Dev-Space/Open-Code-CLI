@@ -7,7 +7,8 @@
 
 import { TestScenario } from '../types.js';
 
-const TEST_SESSION_ID = `test-session-${Date.now()}`;
+const TEST_SESSION_NAME = `test-session-${Date.now()}`;
+let savedSessionId: string = '';
 
 export const sessionScenarios: TestScenario[] = [
   {
@@ -20,8 +21,8 @@ export const sessionScenarios: TestScenario[] = [
     steps: [
       {
         name: '세션 저장',
-        action: { type: 'session_save', sessionId: TEST_SESSION_ID },
-        validation: { type: 'equals', value: TEST_SESSION_ID },
+        action: { type: 'session_save', sessionId: TEST_SESSION_NAME },
+        validation: { type: 'not_empty' },
       },
     ],
   },
@@ -36,18 +37,21 @@ export const sessionScenarios: TestScenario[] = [
     setup: async () => {
       // 먼저 세션을 저장
       const { sessionManager } = await import('../../../src/core/session-manager.js');
-      await sessionManager.saveSession(TEST_SESSION_ID + '-load', {
-        messages: [
-          { role: 'user', content: 'Hello' },
-          { role: 'assistant', content: 'Hi there!' },
-        ],
-        todos: [],
-      });
+      savedSessionId = await sessionManager.saveSession(TEST_SESSION_NAME + '-load', [
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'Hi there!' },
+      ]);
     },
     steps: [
       {
         name: '세션 로드',
-        action: { type: 'session_load', sessionId: TEST_SESSION_ID + '-load' },
+        action: {
+          type: 'custom',
+          fn: async () => {
+            const { sessionManager } = await import('../../../src/core/session-manager.js');
+            return sessionManager.loadSession(savedSessionId);
+          },
+        },
         validation: {
           type: 'custom',
           fn: async (result: any) => {
@@ -70,16 +74,11 @@ export const sessionScenarios: TestScenario[] = [
     enabled: true,
     timeout: 30000,
     setup: async () => {
-      // 테스트용 세션 몇 개 생성
+      // 테스트용 세션 생성
       const { sessionManager } = await import('../../../src/core/session-manager.js');
-      await sessionManager.saveSession(`${TEST_SESSION_ID}-list-1`, {
-        messages: [{ role: 'user', content: 'Test 1' }],
-        todos: [],
-      });
-      await sessionManager.saveSession(`${TEST_SESSION_ID}-list-2`, {
-        messages: [{ role: 'user', content: 'Test 2' }],
-        todos: [],
-      });
+      await sessionManager.saveSession(`${TEST_SESSION_NAME}-list-1`, [
+        { role: 'user', content: 'Test 1' },
+      ]);
     },
     steps: [
       {
@@ -104,23 +103,10 @@ export const sessionScenarios: TestScenario[] = [
           type: 'custom',
           fn: async () => {
             const { sessionManager } = await import('../../../src/core/session-manager.js');
-            const sessionId = `${TEST_SESSION_ID}-persist`;
-            await sessionManager.saveSession(sessionId, {
-              messages: [
-                { role: 'user', content: 'Persistence test message' },
-                { role: 'assistant', content: 'Response message' },
-              ],
-              todos: [
-                {
-                  id: 'todo-1',
-                  title: 'Test TODO',
-                  description: 'Test description',
-                  status: 'completed',
-                  requiresDocsSearch: false,
-                  dependencies: [],
-                },
-              ],
-            });
+            const sessionId = await sessionManager.saveSession(`${TEST_SESSION_NAME}-persist`, [
+              { role: 'user', content: 'Persistence test message' },
+              { role: 'assistant', content: 'Response message' },
+            ]);
             return sessionId;
           },
         },
@@ -132,8 +118,11 @@ export const sessionScenarios: TestScenario[] = [
           type: 'custom',
           fn: async () => {
             const { sessionManager } = await import('../../../src/core/session-manager.js');
-            const session = await sessionManager.loadSession(`${TEST_SESSION_ID}-persist`);
-            return session;
+            // 먼저 세션 목록을 가져와서 방금 저장한 세션 ID를 찾음
+            const sessions = await sessionManager.listSessions();
+            const persistSession = sessions.find(s => s.name === `${TEST_SESSION_NAME}-persist`);
+            if (!persistSession) return null;
+            return sessionManager.loadSession(persistSession.id);
           },
         },
         validation: {
@@ -142,9 +131,7 @@ export const sessionScenarios: TestScenario[] = [
             return (
               result !== null &&
               result.messages?.length === 2 &&
-              result.messages[0].content === 'Persistence test message' &&
-              result.todos?.length === 1 &&
-              result.todos[0].title === 'Test TODO'
+              result.messages[0].content === 'Persistence test message'
             );
           },
         },

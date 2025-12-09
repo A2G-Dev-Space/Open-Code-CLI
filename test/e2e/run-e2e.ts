@@ -6,6 +6,7 @@
  *   npm run test:e2e              # 전체 테스트 실행
  *   npm run test:e2e -- --verbose # 상세 로그
  *   npm run test:e2e -- --filter file-tools  # 특정 카테고리만
+ *   npm run test:e2e -- --test llm-basic-chat  # 특정 테스트만
  *   npm run test:e2e -- --fail-fast # 첫 실패 시 중단
  *
  * 카테고리:
@@ -24,6 +25,8 @@ async function main() {
   const failFast = args.includes('--fail-fast') || args.includes('-f');
   const filterIndex = args.findIndex((a) => a === '--filter' || a === '-c');
   const filter = filterIndex !== -1 ? args[filterIndex + 1] : undefined;
+  const testIndex = args.findIndex((a) => a === '--test' || a === '-t');
+  const testId = testIndex !== -1 ? args[testIndex + 1] : undefined;
   const help = args.includes('--help') || args.includes('-h');
   const listOnly = args.includes('--list') || args.includes('-l');
 
@@ -69,7 +72,8 @@ async function main() {
   console.log(chalk.bold('실행 옵션:'));
   console.log(`  Verbose:   ${verbose ? chalk.green('ON') : chalk.gray('OFF')}`);
   console.log(`  Fail Fast: ${failFast ? chalk.green('ON') : chalk.gray('OFF')}`);
-  console.log(`  Filter:    ${filter ? chalk.yellow(filter) : chalk.gray('없음 (전체 실행)')}`);
+  console.log(`  Filter:    ${filter ? chalk.yellow(filter) : chalk.gray('없음')}`);
+  console.log(`  Test ID:   ${testId ? chalk.yellow(testId) : chalk.gray('없음')}`);
   console.log();
 
   // 테스트 러너 생성 및 실행
@@ -77,6 +81,7 @@ async function main() {
     verbose,
     failFast,
     filter,
+    testId,
     timeout: 120000,
   });
 
@@ -117,6 +122,7 @@ ${chalk.bold('옵션:')}
   -v, --verbose     상세 로그 출력
   -f, --fail-fast   첫 실패 시 테스트 중단
   -c, --filter <카테고리>  특정 카테고리만 실행
+  -t, --test <ID>   특정 테스트 ID만 실행 (단일 테스트)
   -l, --list        시나리오 목록만 출력
   -h, --help        도움말 출력
 
@@ -133,7 +139,9 @@ ${chalk.bold('카테고리:')}
 ${chalk.bold('예시:')}
   npm run test:e2e                        # 전체 테스트
   npm run test:e2e -- --verbose           # 상세 로그
-  npm run test:e2e -- --filter llm-client # LLM 테스트만
+  npm run test:e2e -- --filter llm-client # LLM 카테고리 전체
+  npm run test:e2e -- --test llm-basic-chat  # 단일 테스트만
+  npm run test:e2e -- -t agent-simple-task   # 단일 테스트 (축약)
   npm run test:e2e -- -v -f               # 상세 + 첫 실패시 중단
 `);
 }

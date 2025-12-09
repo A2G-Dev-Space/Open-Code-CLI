@@ -48,7 +48,7 @@ export const configScenarios: TestScenario[] = [
             const ep = endpoints[0];
             return (
               typeof ep.name === 'string' &&
-              typeof ep.baseURL === 'string' &&
+              typeof ep.baseUrl === 'string' &&
               Array.isArray(ep.models)
             );
           },
@@ -81,7 +81,7 @@ export const configScenarios: TestScenario[] = [
 
             return {
               endpointName: endpoint.name,
-              baseURL: endpoint.baseURL,
+              baseUrl: endpoint.baseUrl,
               models: endpoint.models,
             };
           },
@@ -139,12 +139,8 @@ export const configScenarios: TestScenario[] = [
             }
 
             try {
-              const client = new LLMClient({
-                baseURL: endpoint.baseURL,
-                apiKey: endpoint.apiKey,
-                model: endpoint.models[0]?.id || 'default',
-                maxTokens: endpoint.models[0]?.maxTokens || 4096,
-              });
+              // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
+              const client = new LLMClient();
 
               // 간단한 테스트 요청
               const response = await client.sendMessage('Hi');

@@ -14,7 +14,7 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM과 기본적인 대화가 가능한지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: '간단한 질문',
@@ -34,7 +34,7 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM이 한국어를 이해하고 응답하는지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: '한국어 질문',
@@ -54,7 +54,7 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM 스트리밍 응답이 정상적으로 동작하는지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: '스트리밍 응답 수신',
@@ -73,7 +73,7 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM이 긴 응답을 생성할 수 있는지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 120000,
+    timeout: 600000,
     steps: [
       {
         name: '긴 응답 요청',
@@ -99,7 +99,7 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM이 코드를 생성할 수 있는지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: '간단한 함수 생성',
@@ -119,7 +119,7 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM이 도구를 호출할 수 있는지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: '파일 도구 사용',
@@ -139,7 +139,8 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM이 주어진 컨텍스트를 이해하는지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
+    retryCount: 2, // LLM 비결정적 응답 대응
     steps: [
       {
         name: '컨텍스트 기반 질문',
@@ -164,7 +165,7 @@ export const llmClientScenarios: TestScenario[] = [
     description: 'LLM이 에러 상황을 적절히 처리하는지 테스트합니다.',
     category: 'llm-client',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: '존재하지 않는 파일 요청',

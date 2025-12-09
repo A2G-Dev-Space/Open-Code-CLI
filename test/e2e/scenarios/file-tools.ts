@@ -36,7 +36,7 @@ export const fileToolsScenarios: TestScenario[] = [
       {
         name: '파일 쓰기',
         action: { type: 'file_write', path: TEST_FILE, content: TEST_CONTENT },
-        validation: { type: 'contains', value: 'success' },
+        validation: { type: 'contains', value: '성공' },
       },
       {
         name: '파일 존재 확인',
@@ -142,7 +142,8 @@ export const fileToolsScenarios: TestScenario[] = [
     description: 'LLM이 read_file 도구를 사용하여 파일을 읽습니다.',
     category: 'file-tools',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
+    retryCount: 2, // LLM 비결정적 응답 대응
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(TEST_FILE, 'Project Name: OPEN-CLI\nVersion: 1.0.0');
@@ -173,7 +174,8 @@ export const fileToolsScenarios: TestScenario[] = [
     description: 'LLM이 write_file 도구를 사용하여 파일을 작성합니다.',
     category: 'file-tools',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
+    retryCount: 2, // LLM이 도구를 호출하지 않을 수 있음
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
     },

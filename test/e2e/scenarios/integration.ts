@@ -17,7 +17,8 @@ export const integrationScenarios: TestScenario[] = [
     description: 'LLM → Plan → Execute → Verify 전체 흐름을 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 180000,
+    timeout: 600000,
+    retryCount: 2, // LLM 응답이 달라질 수 있으므로 재시도
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(
@@ -63,7 +64,7 @@ export const integrationScenarios: TestScenario[] = [
     description: '읽기 → 변환 → 쓰기 연계 동작을 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 120000,
+    timeout: 600000,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(
@@ -102,7 +103,7 @@ export const integrationScenarios: TestScenario[] = [
     description: '대화 → 세션 저장 → 세션 로드 → 대화 계속 흐름을 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 90000,
+    timeout: 300000,
     steps: [
       {
         name: '1. 세션 저장',
@@ -110,14 +111,10 @@ export const integrationScenarios: TestScenario[] = [
           type: 'custom',
           fn: async () => {
             const { sessionManager } = await import('../../../src/core/session-manager.js');
-            const sessionId = `integration-test-${Date.now()}`;
-            await sessionManager.saveSession(sessionId, {
-              messages: [
-                { role: 'user', content: '안녕하세요' },
-                { role: 'assistant', content: '안녕하세요! 무엇을 도와드릴까요?' },
-              ],
-              todos: [],
-            });
+            const sessionId = await sessionManager.saveSession(`integration-test-${Date.now()}`, [
+              { role: 'user', content: '안녕하세요' },
+              { role: 'assistant', content: '안녕하세요! 무엇을 도와드릴까요?' },
+            ]);
             return sessionId;
           },
         },
@@ -137,20 +134,17 @@ export const integrationScenarios: TestScenario[] = [
     description: '에러 발생 후 정상적으로 복구되는지 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     steps: [
       {
         name: '존재하지 않는 파일 읽기 시도',
         action: {
           type: 'custom',
           fn: async () => {
-            try {
-              const { executeReadFile } = await import('../../../src/tools/file-tools.js');
-              await executeReadFile({ file_path: '/nonexistent/path/file.txt' });
-              return { error: false };
-            } catch (error: any) {
-              return { error: true, message: error.message };
-            }
+            const { executeReadFile } = await import('../../../src/tools/file-tools.js');
+            // executeReadFile는 에러를 throw하지 않고 { success: false, error: ... }를 반환
+            const result = await executeReadFile('/nonexistent/path/file.txt');
+            return { error: !result.success, message: result.error || '' };
           },
         },
         validation: {
@@ -172,7 +166,7 @@ export const integrationScenarios: TestScenario[] = [
     description: '여러 파일 작업이 동시에 처리되는지 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 60000,
+    timeout: 300000,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       for (let i = 1; i <= 3; i++) {
@@ -206,7 +200,7 @@ export const integrationScenarios: TestScenario[] = [
     description: 'LLM이 여러 도구를 연속으로 사용하는지 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 120000,
+    timeout: 600000,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(

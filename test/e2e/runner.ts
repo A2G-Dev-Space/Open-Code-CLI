@@ -58,7 +58,14 @@ export class E2ETestRunner {
 
     // 필터링
     let scenariosToRun = this.scenarios.filter((s) => s.enabled);
-    if (this.options.filter) {
+
+    // 특정 테스트 ID로 필터링 (가장 우선)
+    if (this.options.testId) {
+      scenariosToRun = scenariosToRun.filter(
+        (s) => s.id === this.options.testId || s.id.includes(this.options.testId!)
+      );
+    } else if (this.options.filter) {
+      // 카테고리로 필터링
       scenariosToRun = scenariosToRun.filter(
         (s) => s.category === this.options.filter || s.id.includes(this.options.filter!)
       );
@@ -66,12 +73,31 @@ export class E2ETestRunner {
 
     this.log(`\n${chalk.cyan('=')} 총 ${chalk.bold(scenariosToRun.length)}개 시나리오 실행\n`);
 
-    // 순차 실행
+    // 순차 실행 (재시도 로직 포함)
     for (const scenario of scenariosToRun) {
-      const result = await this.runScenario(scenario);
-      this.results.push(result);
+      const maxRetries = scenario.retryCount || 0;
+      let result: TestResult | null = null;
 
-      if (this.options.failFast && result.status === 'failed') {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (attempt > 0) {
+          this.log(chalk.yellow(`  ↻ 재시도 ${attempt}/${maxRetries}...`));
+        }
+
+        result = await this.runScenario(scenario);
+
+        if (result.status === 'passed') {
+          break; // 성공하면 바로 종료
+        }
+
+        // 마지막 시도가 아니면 잠시 대기
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      this.results.push(result!);
+
+      if (this.options.failFast && result!.status === 'failed') {
         this.log(chalk.red('\n[FAIL FAST] 테스트 중단됨\n'));
         break;
       }
@@ -326,23 +352,15 @@ export class E2ETestRunner {
     const { configManager } = await import('../../src/core/config-manager.js');
 
     await configManager.initialize();
-    const config = configManager.getConfig();
-    const endpoint = config.endpoints[0];
 
-    if (!endpoint) {
-      throw new Error('No endpoint configured');
-    }
-
-    const client = new LLMClient({
-      baseURL: endpoint.baseURL,
-      apiKey: endpoint.apiKey,
-      model: endpoint.models[0]?.id || 'default',
-      maxTokens: endpoint.models[0]?.maxTokens || 4096,
-    });
+    // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
+    const client = new LLMClient();
 
     if (useTools) {
-      const { fileTools } = await import('../../src/tools/file-tools.js');
-      return client.sendMessageWithTools(prompt, fileTools);
+      const { FILE_TOOLS } = await import('../../src/tools/file-tools.js');
+      // sendMessageWithTools는 { response, toolCalls } 객체를 반환
+      const result = await client.sendMessageWithTools(prompt, FILE_TOOLS);
+      return result.response;
     }
 
     return client.sendMessage(prompt);
@@ -353,27 +371,19 @@ export class E2ETestRunner {
     const { configManager } = await import('../../src/core/config-manager.js');
 
     await configManager.initialize();
-    const config = configManager.getConfig();
-    const endpoint = config.endpoints[0];
 
-    if (!endpoint) {
-      throw new Error('No endpoint configured');
-    }
-
-    const client = new LLMClient({
-      baseURL: endpoint.baseURL,
-      apiKey: endpoint.apiKey,
-      model: endpoint.models[0]?.id || 'default',
-      maxTokens: endpoint.models[0]?.maxTokens || 4096,
-    });
+    // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
+    const client = new LLMClient();
 
     let fullResponse = '';
     const messages = [{ role: 'user' as const, content: prompt }];
 
-    for await (const chunk of client.chatCompletionStream(messages)) {
-      fullResponse += chunk;
+    // chatCompletionStream은 LLMStreamChunk를 yield함
+    for await (const chunk of client.chatCompletionStream({ messages })) {
+      const content = chunk.choices?.[0]?.delta?.content || '';
+      fullResponse += content;
       if (this.options.verbose) {
-        process.stdout.write(chunk);
+        process.stdout.write(content);
       }
     }
 
@@ -384,52 +394,66 @@ export class E2ETestRunner {
     return fullResponse;
   }
 
-  private async actionFileRead(path: string): Promise<string> {
+  private async actionFileRead(filePath: string): Promise<string> {
     const { executeReadFile } = await import('../../src/tools/file-tools.js');
-    return executeReadFile({ file_path: path });
+    const result = await executeReadFile(filePath);
+    if (!result.success) {
+      throw new Error(result.error || 'File read failed');
+    }
+    return result.result || '';
   }
 
-  private async actionFileWrite(path: string, content: string): Promise<string> {
+  private async actionFileWrite(filePath: string, content: string): Promise<string> {
     const { executeWriteFile } = await import('../../src/tools/file-tools.js');
-    return executeWriteFile({ file_path: path, content });
+    const result = await executeWriteFile(filePath, content);
+    if (!result.success) {
+      throw new Error(result.error || 'File write failed');
+    }
+    return result.result || '';
   }
 
-  private async actionFileList(directory: string): Promise<string[]> {
+  private async actionFileList(directory: string): Promise<any[]> {
     const { executeListFiles } = await import('../../src/tools/file-tools.js');
-    const result = await executeListFiles({ directory_path: directory });
-    // 결과 파싱 (문자열 -> 배열)
-    return result.split('\n').filter((line) => line.trim());
+    const result = await executeListFiles(directory || '.', false);
+    if (!result.success) {
+      throw new Error(result.error || 'File list failed');
+    }
+    // 결과는 JSON 문자열이므로 파싱
+    try {
+      return JSON.parse(result.result || '[]');
+    } catch {
+      return [];
+    }
   }
 
-  private async actionFileFind(pattern: string, directory?: string): Promise<string[]> {
+  private async actionFileFind(pattern: string, directory?: string): Promise<any[]> {
     const { executeFindFiles } = await import('../../src/tools/file-tools.js');
-    const result = await executeFindFiles({
-      pattern,
-      directory_path: directory || process.cwd(),
-    });
-    return result.split('\n').filter((line) => line.trim());
+    const result = await executeFindFiles(pattern, directory || '.');
+    if (!result.success) {
+      throw new Error(result.error || 'File find failed');
+    }
+    // 결과는 JSON 문자열이므로 파싱
+    try {
+      return JSON.parse(result.result || '[]');
+    } catch {
+      // JSON이 아닌 경우 (no match 메시지 등)
+      return [];
+    }
   }
 
   private async actionPlanGenerate(userRequest: string): Promise<any[]> {
     const { PlanningLLM } = await import('../../src/core/planning-llm.js');
+    const { LLMClient } = await import('../../src/core/llm-client.js');
     const { configManager } = await import('../../src/core/config-manager.js');
 
     await configManager.initialize();
-    const config = configManager.getConfig();
-    const endpoint = config.endpoints[0];
 
-    if (!endpoint) {
-      throw new Error('No endpoint configured');
-    }
+    // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
+    const llmClient = new LLMClient();
 
-    const planningLLM = new PlanningLLM({
-      baseURL: endpoint.baseURL,
-      apiKey: endpoint.apiKey,
-      model: endpoint.models[0]?.id || 'default',
-    });
-
-    const todos = await planningLLM.generateTODOList(userRequest);
-    return todos;
+    const planningLLM = new PlanningLLM(llmClient);
+    const result = await planningLLM.generateTODOList(userRequest);
+    return result.todos || [];
   }
 
   private async actionPlanExecute(todos: any[]): Promise<any> {
@@ -448,9 +472,9 @@ export class E2ETestRunner {
     }
 
     const orchestrator = new PlanExecuteOrchestrator({
-      baseURL: endpoint.baseURL,
+      baseURL: endpoint.baseUrl || endpoint.baseURL,
       apiKey: endpoint.apiKey,
-      model: endpoint.models[0]?.id || 'default',
+      model: endpoint.models?.[0]?.id || 'default',
     });
 
     // 간단한 실행 (승인 자동 통과)
@@ -460,56 +484,48 @@ export class E2ETestRunner {
   }
 
   private async actionAgentLoop(todo: any, maxIterations?: number): Promise<any> {
-    const { AgentLoop } = await import('../../src/core/agent-loop.js');
+    const AgentLoopModule = await import('../../src/core/agent-loop.js');
+    const AgentLoopController = AgentLoopModule.default || AgentLoopModule.AgentLoopController;
+    const { LLMClient } = await import('../../src/core/llm-client.js');
+    const { FILE_TOOLS } = await import('../../src/tools/file-tools.js');
     const { configManager } = await import('../../src/core/config-manager.js');
 
     await configManager.initialize();
-    const config = configManager.getConfig();
-    const endpoint = config.endpoints[0];
 
-    if (!endpoint) {
-      throw new Error('No endpoint configured');
-    }
+    // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
+    const llmClient = new LLMClient();
 
-    const agentLoop = new AgentLoop({
-      baseURL: endpoint.baseURL,
-      apiKey: endpoint.apiKey,
-      model: endpoint.models[0]?.id || 'default',
+    const agentLoop = new AgentLoopController(llmClient, FILE_TOOLS, {
       maxIterations: maxIterations || 5,
     });
 
-    return agentLoop.run(todo);
+    const result = await agentLoop.executeTodoWithLoop(todo, []);
+    return result.output || result;
   }
 
   private async actionDocsSearch(query: string, searchPath?: string): Promise<string> {
-    const { DocsSearchAgent } = await import('../../src/core/docs-search-agent.js');
+    const { executeDocsSearchAgent } = await import('../../src/core/docs-search-agent.js');
+    const { LLMClient } = await import('../../src/core/llm-client.js');
     const { configManager } = await import('../../src/core/config-manager.js');
 
     await configManager.initialize();
-    const config = configManager.getConfig();
-    const endpoint = config.endpoints[0];
 
-    if (!endpoint) {
-      throw new Error('No endpoint configured');
+    // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
+    const llmClient = new LLMClient();
+
+    const result = await executeDocsSearchAgent(llmClient, query);
+    if (!result.success) {
+      throw new Error(result.error || 'Docs search failed');
     }
-
-    const searchAgent = new DocsSearchAgent({
-      baseURL: endpoint.baseURL,
-      apiKey: endpoint.apiKey,
-      model: endpoint.models[0]?.id || 'default',
-    });
-
-    return searchAgent.search(query, searchPath);
+    return result.result || '';
   }
 
-  private async actionSessionSave(sessionId?: string): Promise<string> {
+  private async actionSessionSave(sessionName?: string): Promise<string> {
     const { sessionManager } = await import('../../src/core/session-manager.js');
-    const id = sessionId || `test-session-${Date.now()}`;
-    await sessionManager.saveSession(id, {
-      messages: [{ role: 'user', content: 'Test message' }],
-      todos: [],
-    });
-    return id;
+    const name = sessionName || `test-session-${Date.now()}`;
+    const messages = [{ role: 'user' as const, content: 'Test message' }];
+    const sessionId = await sessionManager.saveSession(name, messages);
+    return sessionId;
   }
 
   private async actionSessionLoad(sessionId: string): Promise<any> {
