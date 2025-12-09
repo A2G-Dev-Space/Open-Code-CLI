@@ -1,161 +1,144 @@
 /**
- * Config 관리 테스트 시나리오
- * - 설정 읽기
- * - 엔드포인트 확인
- * - 모델 정보 확인
+ * Config 관리 E2E 테스트 시나리오
+ *
+ * 모든 테스트는 LLM을 통해 실행됩니다.
+ * 사용자가 실제로 사용하는 것과 동일한 방식으로 검증합니다.
+ *
+ * Config는 시스템의 기반이 되므로, LLM이 정상 동작하면 config가 올바르게 설정된 것입니다.
  */
 
 import { TestScenario } from '../types.js';
 
 export const configScenarios: TestScenario[] = [
   {
-    id: 'config-read',
-    name: '설정 읽기 테스트',
-    description: '현재 설정을 읽을 수 있는지 테스트합니다.',
+    id: 'config-llm-connection',
+    name: 'LLM 연결 테스트 (Config 기반)',
+    description: 'Config에 설정된 엔드포인트로 LLM과 통신이 가능한지 테스트합니다.',
     category: 'config',
     enabled: true,
-    timeout: 10000,
+    timeout: 300000,
     steps: [
       {
-        name: '전체 설정 읽기',
-        action: { type: 'config_get' },
-        validation: { type: 'is_object', hasKeys: ['endpoints'] },
-      },
-    ],
-  },
-
-  {
-    id: 'config-endpoints',
-    name: '엔드포인트 설정 테스트',
-    description: '엔드포인트가 올바르게 설정되어 있는지 테스트합니다.',
-    category: 'config',
-    enabled: true,
-    timeout: 10000,
-    steps: [
-      {
-        name: '엔드포인트 목록 확인',
-        action: { type: 'config_get', key: 'endpoints' },
-        validation: {
-          type: 'custom',
-          fn: async (endpoints: any) => {
-            if (!Array.isArray(endpoints)) return false;
-            if (endpoints.length === 0) {
-              console.log('Warning: No endpoints configured');
-              return true; // 경고만 하고 통과
-            }
-
-            // 첫 번째 엔드포인트 구조 확인
-            const ep = endpoints[0];
-            return (
-              typeof ep.name === 'string' &&
-              typeof ep.baseUrl === 'string' &&
-              Array.isArray(ep.models)
-            );
-          },
+        name: 'LLM 연결 확인',
+        action: {
+          type: 'llm_chat',
+          prompt: '안녕하세요. 연결 테스트입니다. "연결 성공"이라고 대답해주세요.',
+          useTools: false,
         },
+        validation: { type: 'llm_response_valid' },
       },
     ],
   },
 
   {
-    id: 'config-model-info',
-    name: '모델 정보 테스트',
-    description: '모델 정보가 올바르게 설정되어 있는지 테스트합니다.',
+    id: 'config-endpoint-info',
+    name: '엔드포인트 정보 확인 테스트',
+    description: 'LLM에게 현재 설정 정보를 요청하여 config가 올바른지 확인합니다.',
     category: 'config',
     enabled: true,
-    timeout: 10000,
+    timeout: 300000,
     steps: [
       {
-        name: '모델 정보 확인',
+        name: 'Config 정보 확인 (LLM 응답으로 검증)',
         action: {
           type: 'custom',
           fn: async () => {
             const { configManager } = await import('../../../src/core/config-manager.js');
             await configManager.initialize();
             const config = configManager.getConfig();
-            const endpoint = config.endpoints[0];
-
-            if (!endpoint) {
-              return { warning: 'No endpoint configured' };
-            }
+            const endpoint = configManager.getCurrentEndpoint();
 
             return {
-              endpointName: endpoint.name,
-              baseUrl: endpoint.baseUrl,
-              models: endpoint.models,
+              hasEndpoints: config.endpoints.length > 0,
+              currentEndpoint: endpoint?.name || 'none',
+              baseUrl: endpoint?.baseUrl || 'none',
             };
-          },
-        },
-        validation: { type: 'exists' },
-      },
-    ],
-  },
-
-  {
-    id: 'config-initialization',
-    name: 'ConfigManager 초기화 테스트',
-    description: 'ConfigManager가 올바르게 초기화되는지 테스트합니다.',
-    category: 'config',
-    enabled: true,
-    timeout: 10000,
-    steps: [
-      {
-        name: 'ConfigManager 초기화',
-        action: {
-          type: 'custom',
-          fn: async () => {
-            const { configManager } = await import('../../../src/core/config-manager.js');
-            await configManager.initialize();
-            return configManager.isInitialized();
-          },
-        },
-        validation: { type: 'equals', value: true },
-      },
-    ],
-  },
-
-  {
-    id: 'config-llm-client-creation',
-    name: 'LLM Client 생성 테스트',
-    description: '설정을 기반으로 LLM Client를 생성할 수 있는지 테스트합니다.',
-    category: 'config',
-    enabled: true,
-    timeout: 30000,
-    steps: [
-      {
-        name: 'LLM Client 생성 및 연결 확인',
-        action: {
-          type: 'custom',
-          fn: async () => {
-            const { configManager } = await import('../../../src/core/config-manager.js');
-            const { LLMClient } = await import('../../../src/core/llm-client.js');
-
-            await configManager.initialize();
-            const config = configManager.getConfig();
-            const endpoint = config.endpoints[0];
-
-            if (!endpoint) {
-              return { success: false, error: 'No endpoint configured' };
-            }
-
-            try {
-              // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
-              const client = new LLMClient();
-
-              // 간단한 테스트 요청
-              const response = await client.sendMessage('Hi');
-              return { success: true, responseReceived: response.length > 0 };
-            } catch (error: any) {
-              return { success: false, error: error.message };
-            }
           },
         },
         validation: {
           type: 'custom',
           fn: async (result: any) => {
-            return result.success === true || result.error?.includes('No endpoint');
+            return result.hasEndpoints === true && result.baseUrl !== 'none';
           },
         },
+      },
+      {
+        name: 'LLM으로 설정 동작 확인',
+        action: {
+          type: 'llm_chat',
+          prompt: '현재 대화가 가능하다면 설정이 올바르게 동작하고 있는 것입니다. "설정 정상"이라고 대답해주세요.',
+          useTools: false,
+        },
+        validation: { type: 'llm_response_valid' },
+      },
+    ],
+  },
+
+  {
+    id: 'config-model-functionality',
+    name: '모델 기능 테스트',
+    description: '설정된 모델이 기본 기능(대화, 추론)을 수행할 수 있는지 테스트합니다.',
+    category: 'config',
+    enabled: true,
+    timeout: 300000,
+    steps: [
+      {
+        name: '기본 추론 능력 테스트',
+        action: {
+          type: 'llm_chat',
+          prompt: '5 + 7 = ? 숫자만 대답해주세요.',
+          useTools: false,
+        },
+        validation: { type: 'contains', value: '12' },
+      },
+      {
+        name: '한국어 이해 능력 테스트',
+        action: {
+          type: 'llm_chat',
+          prompt: '대한민국의 수도는 어디인가요? 도시 이름만 대답해주세요.',
+          useTools: false,
+        },
+        validation: { type: 'contains', value: '서울' },
+      },
+    ],
+  },
+
+  {
+    id: 'config-tool-access',
+    name: 'Tool 접근 권한 테스트',
+    description: '설정된 LLM이 도구(tools)에 접근할 수 있는지 테스트합니다.',
+    category: 'config',
+    enabled: true,
+    timeout: 300000,
+    retryCount: 2,
+    steps: [
+      {
+        name: 'Tool Calling 가능 여부 테스트',
+        action: {
+          type: 'llm_chat',
+          prompt: 'package.json 파일을 읽어서 프로젝트 이름을 알려주세요.',
+          useTools: true,
+        },
+        validation: { type: 'contains', value: 'open-cli' },
+      },
+    ],
+  },
+
+  {
+    id: 'config-streaming-support',
+    name: '스트리밍 응답 테스트',
+    description: '설정된 엔드포인트가 스트리밍 응답을 지원하는지 테스트합니다.',
+    category: 'config',
+    enabled: true,
+    timeout: 300000,
+    steps: [
+      {
+        name: '스트리밍 응답 테스트',
+        action: {
+          type: 'llm_stream',
+          prompt: '1부터 5까지 숫자를 나열해주세요.',
+        },
+        validation: { type: 'matches', pattern: '1.*2.*3.*4.*5' },
       },
     ],
   },

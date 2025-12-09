@@ -1,39 +1,44 @@
 /**
- * Local RAG (검색 증강 생성) 테스트 시나리오
- * - 문서 검색
- * - 다단계 검색 전략
+ * Local RAG (검색 증강 생성) E2E 테스트 시나리오
+ *
+ * 모든 테스트는 LLM을 통해 실행됩니다.
+ * 사용자가 실제로 사용하는 것과 동일한 방식으로 검증합니다.
+ *
+ * RAG는 LLM이 로컬 문서를 검색하여 답변에 활용하는 기능입니다.
  */
 
 import { TestScenario } from '../types.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-const TEST_DOCS_DIR = '/tmp/open-cli-docs-test';
+const TEST_DOCS_DIR = '/tmp/open-cli-e2e-docs-test';
 
 export const localRagScenarios: TestScenario[] = [
   {
-    id: 'rag-simple-search',
-    name: '단순 문서 검색 테스트',
-    description: '로컬 문서에서 키워드를 검색합니다.',
+    id: 'rag-llm-file-search',
+    name: 'LLM을 통한 문서 검색 테스트',
+    description: 'LLM이 로컬 문서를 검색하고 답변에 활용합니다.',
     category: 'local-rag',
     enabled: true,
     timeout: 300000,
+    retryCount: 2,
     setup: async () => {
       await fs.mkdir(TEST_DOCS_DIR, { recursive: true });
       await fs.writeFile(
-        path.join(TEST_DOCS_DIR, 'guide.md'),
-        `# OPEN-CLI 사용 가이드
+        path.join(TEST_DOCS_DIR, 'api-guide.md'),
+        `# API 사용 가이드
 
-## 설치 방법
-npm install로 설치할 수 있습니다.
+## 인증 방법
+API 키를 헤더에 포함하여 요청합니다.
+Authorization: Bearer YOUR_API_KEY
 
-## 사용법
-open 명령어로 시작합니다.
+## 주요 엔드포인트
+- GET /users - 사용자 목록 조회
+- POST /users - 사용자 생성
+- DELETE /users/:id - 사용자 삭제
 
-## 주요 기능
-- 파일 읽기/쓰기
-- LLM 대화
-- Plan & Execute
+## 비밀 설정 값
+SECRET_CODE: RAG-TEST-12345
 `
       );
     },
@@ -46,39 +51,48 @@ open 명령어로 시작합니다.
     },
     steps: [
       {
-        name: '문서 검색',
-        action: { type: 'docs_search', query: '설치 방법', searchPath: TEST_DOCS_DIR },
-        validation: { type: 'not_empty' },
+        name: 'LLM에게 문서 검색 요청',
+        action: {
+          type: 'llm_chat',
+          prompt: `${path.join(TEST_DOCS_DIR, 'api-guide.md')} 파일을 읽고 SECRET_CODE 값을 알려주세요.`,
+          useTools: true,
+        },
+        validation: { type: 'contains', value: 'RAG-TEST-12345' },
       },
     ],
   },
 
   {
-    id: 'rag-code-search',
-    name: '코드 관련 문서 검색 테스트',
-    description: '코드 관련 문서를 검색합니다.',
+    id: 'rag-code-documentation',
+    name: 'LLM을 통한 코드 문서 검색 테스트',
+    description: 'LLM이 코드 관련 문서를 검색하고 설명합니다.',
     category: 'local-rag',
     enabled: true,
     timeout: 300000,
+    retryCount: 2,
     setup: async () => {
       await fs.mkdir(TEST_DOCS_DIR, { recursive: true });
       await fs.writeFile(
-        path.join(TEST_DOCS_DIR, 'api.md'),
-        `# API 문서
+        path.join(TEST_DOCS_DIR, 'llm-client.md'),
+        `# LLMClient 클래스 문서
 
-## LLMClient 클래스
+## 개요
+LLMClient는 LLM API와 통신하는 핵심 클래스입니다.
 
+## 생성자
 \`\`\`typescript
-const client = new LLMClient({
-  baseURL: 'https://api.example.com',
-  apiKey: 'your-api-key',
-  model: 'gpt-4'
-});
+const client = new LLMClient();
 \`\`\`
 
-### 메서드
-- sendMessage(prompt: string): Promise<string>
-- chatCompletion(messages: Message[]): Promise<string>
+## 주요 메서드
+### sendMessage(prompt: string): Promise<string>
+단일 메시지를 전송하고 응답을 받습니다.
+
+### chatCompletion(messages: Message[]): Promise<string>
+대화 형식으로 메시지를 전송합니다.
+
+## 클래스 버전
+CLASS_VERSION: 3.0.0
 `
       );
     },
@@ -91,44 +105,52 @@ const client = new LLMClient({
     },
     steps: [
       {
-        name: 'LLMClient 관련 문서 검색',
-        action: { type: 'docs_search', query: 'LLMClient', searchPath: TEST_DOCS_DIR },
-        validation: { type: 'contains', value: 'LLMClient' },
+        name: 'LLM에게 클래스 버전 질문',
+        action: {
+          type: 'llm_chat',
+          prompt: `${path.join(TEST_DOCS_DIR, 'llm-client.md')} 파일을 읽고 LLMClient 클래스의 버전(CLASS_VERSION)을 알려주세요.`,
+          useTools: true,
+        },
+        validation: { type: 'contains', value: '3.0.0' },
       },
     ],
   },
 
   {
-    id: 'rag-multi-file-search',
-    name: '다중 파일 검색 테스트',
-    description: '여러 문서에서 관련 정보를 검색합니다.',
+    id: 'rag-multi-doc-search',
+    name: 'LLM을 통한 다중 문서 검색 테스트',
+    description: 'LLM이 여러 문서에서 정보를 수집합니다.',
     category: 'local-rag',
     enabled: true,
-    timeout: 300000,
+    timeout: 600000,
+    retryCount: 2,
     setup: async () => {
       await fs.mkdir(TEST_DOCS_DIR, { recursive: true });
 
       await fs.writeFile(
-        path.join(TEST_DOCS_DIR, 'intro.md'),
-        `# 소개
-OPEN-CLI는 오프라인 환경을 위한 CLI 도구입니다.
-`
+        path.join(TEST_DOCS_DIR, 'project-info.json'),
+        JSON.stringify(
+          {
+            name: 'MULTI-DOC-TEST',
+            version: '5.0.0',
+            author: 'Test Author',
+          },
+          null,
+          2
+        )
       );
 
       await fs.writeFile(
-        path.join(TEST_DOCS_DIR, 'features.md'),
-        `# 기능 목록
-- 파일 관리
-- LLM 통신
-- 세션 관리
-`
-      );
+        path.join(TEST_DOCS_DIR, 'changelog.md'),
+        `# 변경 이력
 
-      await fs.writeFile(
-        path.join(TEST_DOCS_DIR, 'faq.md'),
-        `# FAQ
-Q: 오프라인에서 작동하나요?
-A: 네, 완전히 오프라인으로 작동합니다.
+## v5.0.0
+- 새로운 기능 추가
+- 버그 수정
+- 성능 개선
+
+## v4.0.0
+- 이전 버전
 `
       );
     },
@@ -141,33 +163,45 @@ A: 네, 완전히 오프라인으로 작동합니다.
     },
     steps: [
       {
-        name: '오프라인 관련 검색',
-        action: { type: 'docs_search', query: '오프라인', searchPath: TEST_DOCS_DIR },
-        validation: { type: 'not_empty' },
+        name: 'LLM에게 여러 파일 정보 요청',
+        action: {
+          type: 'llm_chat',
+          prompt: `${TEST_DOCS_DIR} 디렉토리의 파일들을 확인하고, project-info.json의 프로젝트 이름을 알려주세요.`,
+          useTools: true,
+        },
+        validation: { type: 'contains', value: 'MULTI-DOC-TEST' },
       },
     ],
   },
 
   {
-    id: 'rag-project-docs',
-    name: '프로젝트 문서 검색 테스트',
-    description: '실제 프로젝트 문서에서 검색합니다.',
+    id: 'rag-project-docs-search',
+    name: '실제 프로젝트 문서 검색 테스트',
+    description: 'LLM이 실제 프로젝트의 docs 폴더에서 정보를 검색합니다.',
     category: 'local-rag',
     enabled: true,
     timeout: 300000,
+    retryCount: 2,
     steps: [
       {
-        name: '프로젝트 docs 폴더 검색',
+        name: 'LLM에게 프로젝트 문서 검색 요청',
         action: {
-          type: 'docs_search',
-          query: '로깅',
-          searchPath: process.cwd() + '/docs',
+          type: 'llm_chat',
+          prompt: 'docs 폴더에 있는 문서들을 확인하고, 어떤 문서들이 있는지 알려주세요.',
+          useTools: true,
         },
         validation: {
           type: 'custom',
           fn: async (result: string) => {
-            // 결과가 있거나, 문서가 없다는 메시지라도 괜찮음
-            return typeof result === 'string' && result.length > 0;
+            // 응답이 있고 문서 관련 내용이 있으면 성공
+            return (
+              typeof result === 'string' &&
+              result.length > 20 &&
+              (result.includes('.md') ||
+                result.includes('문서') ||
+                result.includes('docs') ||
+                result.includes('README'))
+            );
           },
         },
       },

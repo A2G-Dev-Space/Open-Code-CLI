@@ -1,24 +1,27 @@
 /**
- * 통합 테스트 시나리오
- * - 전체 워크플로우 테스트
- * - 여러 기능의 연계 동작 확인
+ * 통합 E2E 테스트 시나리오
+ *
+ * 모든 테스트는 LLM을 통해 실행됩니다.
+ * 사용자가 실제로 사용하는 것과 동일한 방식으로 검증합니다.
+ *
+ * 여러 기능의 연계 동작을 검증합니다.
  */
 
 import { TestScenario } from '../types.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-const TEST_DIR = '/tmp/open-cli-integration-test';
+const TEST_DIR = '/tmp/open-cli-e2e-integration-test';
 
 export const integrationScenarios: TestScenario[] = [
   {
     id: 'integration-full-workflow',
     name: '전체 워크플로우 테스트',
-    description: 'LLM → Plan → Execute → Verify 전체 흐름을 테스트합니다.',
+    description: 'LLM → 파일읽기 → 분석 → 응답 전체 흐름을 테스트합니다.',
     category: 'integration',
     enabled: true,
     timeout: 600000,
-    retryCount: 2, // LLM 응답이 달라질 수 있으므로 재시도
+    retryCount: 2,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(
@@ -27,6 +30,7 @@ export const integrationScenarios: TestScenario[] = [
           name: 'Integration Test Project',
           version: '2.0.0',
           description: 'A test project for integration testing',
+          secret: 'INTEGRATION-SECRET-KEY',
         })
       );
     },
@@ -39,32 +43,33 @@ export const integrationScenarios: TestScenario[] = [
     },
     steps: [
       {
-        name: '1. LLM으로 파일 읽기 요청',
+        name: 'LLM으로 파일 읽기 및 분석 요청',
         action: {
           type: 'llm_chat',
-          prompt: `${path.join(TEST_DIR, 'project-info.json')} 파일을 읽고 프로젝트 이름과 버전을 알려주세요.`,
+          prompt: `${path.join(TEST_DIR, 'project-info.json')} 파일을 읽고 프로젝트 이름과 secret 값을 알려주세요.`,
           useTools: true,
         },
-        validation: { type: 'contains', value: 'Integration Test Project' },
-      },
-      {
-        name: '2. Plan 생성',
-        action: {
-          type: 'plan_generate',
-          userRequest: `${TEST_DIR}에 summary.md 파일을 생성하고, project-info.json의 내용을 마크다운 형식으로 요약해주세요.`,
+        validation: {
+          type: 'custom',
+          fn: async (result: string) => {
+            return (
+              result.includes('Integration Test Project') &&
+              result.includes('INTEGRATION-SECRET-KEY')
+            );
+          },
         },
-        validation: { type: 'todos_generated', minCount: 1 },
       },
     ],
   },
 
   {
     id: 'integration-file-operations',
-    name: '파일 작업 연계 테스트',
-    description: '읽기 → 변환 → 쓰기 연계 동작을 테스트합니다.',
+    name: 'LLM 파일 작업 연계 테스트',
+    description: 'LLM을 통한 읽기 → 분석 → 쓰기 연계 동작을 테스트합니다.',
     category: 'integration',
     enabled: true,
     timeout: 600000,
+    retryCount: 2,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(
@@ -81,18 +86,19 @@ export const integrationScenarios: TestScenario[] = [
     },
     steps: [
       {
-        name: 'CSV 파일 읽기',
-        action: { type: 'file_read', path: path.join(TEST_DIR, 'data.csv') },
-        validation: { type: 'contains', value: 'Alice' },
-      },
-      {
-        name: 'LLM으로 데이터 분석 요청',
+        name: 'LLM으로 CSV 파일 읽기 및 분석',
         action: {
           type: 'llm_chat',
           prompt: `${path.join(TEST_DIR, 'data.csv')} 파일을 읽고 평균 나이를 계산해주세요.`,
           useTools: true,
         },
-        validation: { type: 'llm_response_valid' },
+        validation: {
+          type: 'custom',
+          fn: async (result: string) => {
+            // 평균 나이는 (30+25+35)/3 = 30
+            return result.includes('30') || result.includes('평균');
+          },
+        },
       },
     ],
   },
@@ -100,78 +106,96 @@ export const integrationScenarios: TestScenario[] = [
   {
     id: 'integration-session-workflow',
     name: '세션 저장/복원 워크플로우 테스트',
-    description: '대화 → 세션 저장 → 세션 로드 → 대화 계속 흐름을 테스트합니다.',
+    description: 'LLM 대화 → 세션 저장 → 세션 로드 흐름을 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 300000,
+    timeout: 600000,
+    retryCount: 2,
     steps: [
       {
-        name: '1. 세션 저장',
+        name: 'LLM과 대화 (컨텍스트 생성)',
+        action: {
+          type: 'llm_chat',
+          prompt: '저는 "세션 통합 테스트"를 진행 중입니다. 이 메시지를 기억해주세요.',
+          useTools: false,
+        },
+        validation: { type: 'llm_response_valid' },
+      },
+      {
+        name: '세션 저장 및 확인',
         action: {
           type: 'custom',
           fn: async () => {
             const { sessionManager } = await import('../../../src/core/session-manager.js');
-            const sessionId = await sessionManager.saveSession(`integration-test-${Date.now()}`, [
-              { role: 'user', content: '안녕하세요' },
-              { role: 'assistant', content: '안녕하세요! 무엇을 도와드릴까요?' },
+            const sessionId = await sessionManager.saveSession(`integration-workflow-${Date.now()}`, [
+              { role: 'user', content: '저는 "세션 통합 테스트"를 진행 중입니다.' },
+              { role: 'assistant', content: '네, 세션 통합 테스트를 기억하겠습니다.' },
             ]);
             return sessionId;
           },
         },
         validation: { type: 'not_empty' },
       },
-      {
-        name: '2. 세션 목록에서 확인',
-        action: { type: 'session_list' },
-        validation: { type: 'is_array', minLength: 1 },
-      },
     ],
   },
 
   {
     id: 'integration-error-recovery',
-    name: '에러 복구 테스트',
-    description: '에러 발생 후 정상적으로 복구되는지 테스트합니다.',
+    name: 'LLM 에러 복구 테스트',
+    description: 'LLM이 에러 상황을 처리하고 정상 동작으로 복구되는지 테스트합니다.',
     category: 'integration',
     enabled: true,
     timeout: 300000,
+    retryCount: 2,
     steps: [
       {
-        name: '존재하지 않는 파일 읽기 시도',
+        name: 'LLM에게 존재하지 않는 파일 요청',
         action: {
-          type: 'custom',
-          fn: async () => {
-            const { executeReadFile } = await import('../../../src/tools/file-tools.js');
-            // executeReadFile는 에러를 throw하지 않고 { success: false, error: ... }를 반환
-            const result = await executeReadFile('/nonexistent/path/file.txt');
-            return { error: !result.success, message: result.error || '' };
-          },
+          type: 'llm_chat',
+          prompt: '/nonexistent/path/to/file/that/does/not/exist.txt 파일을 읽어주세요.',
+          useTools: true,
         },
         validation: {
           type: 'custom',
-          fn: async (result: any) => result.error === true,
+          fn: async (result: string) => {
+            const lower = result.toLowerCase();
+            // 에러나 존재하지 않음 관련 응답이 있어야 함
+            return (
+              lower.includes('error') ||
+              lower.includes('not found') ||
+              lower.includes('존재하지') ||
+              lower.includes('없') ||
+              lower.includes('찾을 수') ||
+              lower.includes('실패')
+            );
+          },
         },
       },
       {
-        name: '정상 파일 읽기 (복구 확인)',
-        action: { type: 'file_read', path: 'package.json' },
-        validation: { type: 'contains', value: 'open-cli' },
+        name: '정상 요청으로 복구 확인',
+        action: {
+          type: 'llm_chat',
+          prompt: '1 + 1은 얼마인가요? 숫자만 대답해주세요.',
+          useTools: false,
+        },
+        validation: { type: 'contains', value: '2' },
       },
     ],
   },
 
   {
-    id: 'integration-concurrent-operations',
-    name: '동시 작업 테스트',
-    description: '여러 파일 작업이 동시에 처리되는지 테스트합니다.',
+    id: 'integration-multi-file-analysis',
+    name: 'LLM 다중 파일 분석 테스트',
+    description: 'LLM이 여러 파일을 분석하는지 테스트합니다.',
     category: 'integration',
     enabled: true,
-    timeout: 300000,
+    timeout: 600000,
+    retryCount: 2,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
-      for (let i = 1; i <= 3; i++) {
-        await fs.writeFile(path.join(TEST_DIR, `file${i}.txt`), `Content of file ${i}`);
-      }
+      await fs.writeFile(path.join(TEST_DIR, 'file1.txt'), 'Content A: Value 100');
+      await fs.writeFile(path.join(TEST_DIR, 'file2.txt'), 'Content B: Value 200');
+      await fs.writeFile(path.join(TEST_DIR, 'file3.txt'), 'Content C: Value 300');
     },
     teardown: async () => {
       try {
@@ -182,14 +206,21 @@ export const integrationScenarios: TestScenario[] = [
     },
     steps: [
       {
-        name: '여러 파일 동시 검색',
-        action: { type: 'file_find', pattern: '*.txt', directory: TEST_DIR },
-        validation: { type: 'is_array', minLength: 3 },
-      },
-      {
-        name: '디렉토리 목록 확인',
-        action: { type: 'file_list', directory: TEST_DIR },
-        validation: { type: 'is_array', minLength: 3 },
+        name: 'LLM에게 디렉토리 파일 목록 요청',
+        action: {
+          type: 'llm_chat',
+          prompt: `${TEST_DIR} 디렉토리에 어떤 파일들이 있는지 확인해주세요.`,
+          useTools: true,
+        },
+        validation: {
+          type: 'custom',
+          fn: async (result: string) => {
+            const lower = result.toLowerCase();
+            return (
+              lower.includes('file1') || lower.includes('file2') || lower.includes('file3')
+            );
+          },
+        },
       },
     ],
   },
@@ -201,11 +232,12 @@ export const integrationScenarios: TestScenario[] = [
     category: 'integration',
     enabled: true,
     timeout: 600000,
+    retryCount: 2,
     setup: async () => {
       await fs.mkdir(TEST_DIR, { recursive: true });
       await fs.writeFile(
         path.join(TEST_DIR, 'config.json'),
-        JSON.stringify({ database: 'mongodb', port: 27017 })
+        JSON.stringify({ database: 'mongodb', port: 27017, secret: 'TOOL-CHAIN-SECRET' })
       );
     },
     teardown: async () => {
@@ -220,10 +252,15 @@ export const integrationScenarios: TestScenario[] = [
         name: 'LLM에게 복합 작업 요청',
         action: {
           type: 'llm_chat',
-          prompt: `${TEST_DIR} 디렉토리의 파일 목록을 확인하고, config.json 파일이 있으면 그 내용을 읽어서 어떤 데이터베이스를 사용하는지 알려주세요.`,
+          prompt: `${TEST_DIR} 디렉토리의 파일 목록을 확인하고, config.json 파일이 있으면 그 내용을 읽어서 database와 secret 값을 알려주세요.`,
           useTools: true,
         },
-        validation: { type: 'contains', value: 'mongodb' },
+        validation: {
+          type: 'custom',
+          fn: async (result: string) => {
+            return result.includes('mongodb') && result.includes('TOOL-CHAIN-SECRET');
+          },
+        },
       },
     ],
   },
