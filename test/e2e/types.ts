@@ -21,7 +21,6 @@ export type TestCategory =
   | 'file-tools'      // read_file, write_file, list_files, find_files
   | 'llm-client'      // chatCompletion, streaming
   | 'plan-execute'    // Plan & Execute 아키텍처
-  | 'agent-loop'      // Gather → Act → Verify
   | 'hitl'            // Human-in-the-Loop 승인
   | 'local-rag'       // 문서 검색
   | 'session'         // 세션 저장/로드
@@ -44,7 +43,6 @@ export type TestAction =
   | { type: 'file_find'; pattern: string; directory?: string }
   | { type: 'plan_generate'; userRequest: string }
   | { type: 'plan_execute'; todos: any[] }
-  | { type: 'agent_loop'; todo: any; maxIterations?: number }
   | { type: 'docs_search'; query: string; searchPath?: string }
   | { type: 'session_save'; sessionId?: string }
   | { type: 'session_load'; sessionId: string }

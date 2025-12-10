@@ -16,7 +16,6 @@ import {
   TestValidation,
   TestStatus,
 } from './types.js';
-import { cleanupActiveProcesses } from '../../src/core/context-gatherer.js';
 
 export class E2ETestRunner {
   private scenarios: TestScenario[] = [];
@@ -97,10 +96,12 @@ export class E2ETestRunner {
 
       this.results.push(result!);
 
-      // agent-loop 카테고리 테스트 후 프로세스 정리 (core dump 방지)
-      if (scenario.category === 'agent-loop') {
-        await this.cleanupChildProcesses();
-      }
+      // 프로세스 정리 (core dump 방지)
+      await this.cleanupChildProcesses();
+
+      // 테스트 간 딜레이 (로컬 LLM 과부하 방지)
+      this.log(chalk.gray('  ⏳ 다음 테스트 전 대기 중...'));
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
       if (this.options.failFast && result!.status === 'failed') {
         this.log(chalk.red('\n[FAIL FAST] 테스트 중단됨\n'));
@@ -254,8 +255,6 @@ export class E2ETestRunner {
       case 'plan_execute':
         return this.actionPlanExecute(action.todos);
 
-      case 'agent_loop':
-        return this.actionAgentLoop(action.todo, action.maxIterations);
 
       case 'docs_search':
         return this.actionDocsSearch(action.query, action.searchPath);
@@ -481,26 +480,6 @@ export class E2ETestRunner {
     // execute 메서드 사용 (todos를 userRequest 문자열로 변환)
     const userRequest = todos.map((t: any) => t.title || t.description || String(t)).join(', ');
     return orchestrator.execute(userRequest);
-  }
-
-  private async actionAgentLoop(todo: any, maxIterations?: number): Promise<any> {
-    const AgentLoopModule = await import('../../src/core/agent-loop.js');
-    const AgentLoopController = AgentLoopModule.default || AgentLoopModule.AgentLoopController;
-    const { LLMClient } = await import('../../src/core/llm-client.js');
-    const { FILE_TOOLS } = await import('../../src/tools/file-tools.js');
-    const { configManager } = await import('../../src/core/config-manager.js');
-
-    await configManager.initialize();
-
-    // LLMClient는 인자 없이 생성 - configManager에서 설정을 가져옴
-    const llmClient = new LLMClient();
-
-    const agentLoop = new AgentLoopController(llmClient, FILE_TOOLS, {
-      maxIterations: maxIterations || 5,
-    });
-
-    const result = await agentLoop.executeTodoWithLoop(todo, []);
-    return result.result || result;
   }
 
   private async actionDocsSearch(query: string, _searchPath?: string): Promise<string> {
@@ -733,13 +712,9 @@ export class E2ETestRunner {
 
   /**
    * 자식 프로세스 정리 (core dump 방지)
-   * agent-loop 테스트에서 생성된 find, grep 등의 프로세스를 정리합니다.
    */
   private async cleanupChildProcesses(): Promise<void> {
     try {
-      // Clean up tracked child processes from context-gatherer
-      cleanupActiveProcesses();
-
       // 잠시 대기하여 프로세스가 정리될 시간을 줌
       await new Promise(resolve => setTimeout(resolve, 200));
 
