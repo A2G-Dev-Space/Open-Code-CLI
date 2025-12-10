@@ -74,6 +74,7 @@ export class LLMClient {
   private baseUrl: string;
   private apiKey: string;
   private model: string;
+  private modelName: string;
 
   constructor() {
     // ConfigManager에서 현재 설정 가져오기
@@ -87,6 +88,7 @@ export class LLMClient {
     this.baseUrl = endpoint.baseUrl;
     this.apiKey = endpoint.apiKey || '';
     this.model = currentModel.id;
+    this.modelName = currentModel.name;
 
     // Axios 인스턴스 생성
     this.axiosInstance = axios.create({
@@ -706,7 +708,7 @@ export class LLMClient {
    */
   getModelInfo(): { model: string; endpoint: string } {
     return {
-      model: this.model,
+      model: this.modelName,
       endpoint: this.baseUrl,
     };
   }
@@ -1047,6 +1049,137 @@ export class LLMClient {
   }
 
   /**
+   * 현재 설정된 엔드포인트 Health Check
+   */
+  async healthCheck(): Promise<{
+    success: boolean;
+    latency?: number;
+    error?: string;
+  }> {
+    const endpoint = configManager.getCurrentEndpoint();
+    const model = configManager.getCurrentModel();
+
+    if (!endpoint || !model) {
+      return { success: false, error: 'No endpoint or model configured' };
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const response = await this.axiosInstance.post<LLMResponse>('/chat/completions', {
+        model: model.id,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 5,
+      });
+
+      const latency = Date.now() - startTime;
+
+      if (response.status === 200 && response.data.choices?.[0]?.message) {
+        return { success: true, latency };
+      } else {
+        return { success: false, latency, error: 'Invalid response format' };
+      }
+    } catch (error) {
+      const latency = Date.now() - startTime;
+      const axiosError = error as AxiosError;
+
+      if (axiosError.response) {
+        const status = axiosError.response.status;
+        return { success: false, latency, error: `HTTP ${status}` };
+      } else if (axiosError.request) {
+        return { success: false, latency, error: 'Connection failed' };
+      } else {
+        return { success: false, latency, error: axiosError.message || 'Unknown error' };
+      }
+    }
+  }
+
+  /**
+   * 모든 등록된 엔드포인트 일괄 Health Check
+   */
+  static async healthCheckAll(): Promise<
+    Map<string, { modelId: string; healthy: boolean; latency?: number; error?: string }[]>
+  > {
+    const endpoints = configManager.getAllEndpoints();
+    const results = new Map<
+      string,
+      { modelId: string; healthy: boolean; latency?: number; error?: string }[]
+    >();
+
+    for (const endpoint of endpoints) {
+      const modelResults: { modelId: string; healthy: boolean; latency?: number; error?: string }[] = [];
+
+      for (const model of endpoint.models) {
+        if (!model.enabled) {
+          modelResults.push({
+            modelId: model.id,
+            healthy: false,
+            error: 'Model disabled',
+          });
+          continue;
+        }
+
+        const startTime = Date.now();
+
+        try {
+          const axiosInstance = axios.create({
+            baseURL: endpoint.baseUrl,
+            headers: {
+              'Content-Type': 'application/json',
+              ...(endpoint.apiKey && { Authorization: `Bearer ${endpoint.apiKey}` }),
+            },
+            timeout: 30000, // 30초 타임아웃
+          });
+
+          const response = await axiosInstance.post<LLMResponse>('/chat/completions', {
+            model: model.id,
+            messages: [{ role: 'user', content: 'ping' }],
+            max_tokens: 5,
+          });
+
+          const latency = Date.now() - startTime;
+
+          if (response.status === 200 && response.data.choices?.[0]?.message) {
+            modelResults.push({ modelId: model.id, healthy: true, latency });
+          } else {
+            modelResults.push({
+              modelId: model.id,
+              healthy: false,
+              latency,
+              error: 'Invalid response',
+            });
+          }
+        } catch (error) {
+          const latency = Date.now() - startTime;
+          const axiosError = error as AxiosError;
+
+          let errorMessage = 'Unknown error';
+          if (axiosError.response) {
+            errorMessage = `HTTP ${axiosError.response.status}`;
+          } else if (axiosError.code === 'ECONNREFUSED') {
+            errorMessage = 'Connection refused';
+          } else if (axiosError.code === 'ETIMEDOUT' || axiosError.code === 'ECONNABORTED') {
+            errorMessage = 'Timeout';
+          } else if (axiosError.request) {
+            errorMessage = 'Network error';
+          }
+
+          modelResults.push({
+            modelId: model.id,
+            healthy: false,
+            latency,
+            error: errorMessage,
+          });
+        }
+      }
+
+      results.set(endpoint.id, modelResults);
+    }
+
+    return results;
+  }
+
+  /**
    * 엔드포인트 연결 테스트 (Static)
    * config init 시 사용하기 위한 정적 메서드
    */
@@ -1054,7 +1187,9 @@ export class LLMClient {
     baseUrl: string,
     apiKey: string,
     model: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; latency?: number; error?: string }> {
+    const startTime = Date.now();
+
     try {
       const axiosInstance = axios.create({
         baseURL: baseUrl,
@@ -1062,7 +1197,7 @@ export class LLMClient {
           'Content-Type': 'application/json',
           ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
         },
-        timeout: 300000, // 300초 (5분)
+        timeout: 60000, // 60초 타임아웃
       });
 
       // 간단한 테스트 메시지로 연결 확인
@@ -1077,12 +1212,15 @@ export class LLMClient {
         max_tokens: 10,
       });
 
+      const latency = Date.now() - startTime;
+
       if (response.status === 200 && response.data.choices?.[0]?.message) {
-        return { success: true };
+        return { success: true, latency };
       } else {
-        return { success: false, error: '유효하지 않은 응답 형식' };
+        return { success: false, latency, error: '유효하지 않은 응답 형식' };
       }
     } catch (error) {
+      const latency = Date.now() - startTime;
       const axiosError = error as AxiosError;
 
       if (axiosError.response) {
@@ -1091,16 +1229,16 @@ export class LLMClient {
         const message = data?.error?.message || axiosError.message;
 
         if (status === 401) {
-          return { success: false, error: 'API 키가 유효하지 않습니다.' };
+          return { success: false, latency, error: 'API 키가 유효하지 않습니다.' };
         } else if (status === 404) {
-          return { success: false, error: '엔드포인트 또는 모델을 찾을 수 없습니다.' };
+          return { success: false, latency, error: '엔드포인트 또는 모델을 찾을 수 없습니다.' };
         } else {
-          return { success: false, error: `API 에러 (${status}): ${message}` };
+          return { success: false, latency, error: `API 에러 (${status}): ${message}` };
         }
       } else if (axiosError.request) {
-        return { success: false, error: `네트워크 에러: 엔드포인트에 연결할 수 없습니다.` };
+        return { success: false, latency, error: `네트워크 에러: 엔드포인트에 연결할 수 없습니다.` };
       } else {
-        return { success: false, error: axiosError.message || '알 수 없는 에러' };
+        return { success: false, latency, error: axiosError.message || '알 수 없는 에러' };
       }
     }
   }

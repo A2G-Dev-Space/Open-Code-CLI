@@ -17,6 +17,8 @@ import { initializeDocsDirectory } from '../../core/docs-search-agent.js';
 import { FileBrowser } from './FileBrowser.js';
 import { SessionBrowser } from './SessionBrowser.js';
 import { SettingsBrowser } from './SettingsBrowser.js';
+import { LLMSetupWizard } from './LLMSetupWizard.js';
+import { ModelSelector } from './ModelSelector.js';
 import { PlanApprovalPrompt, TaskApprovalPrompt } from './ApprovalPrompt.js';
 import { CommandBrowser } from './CommandBrowser.js';
 import { ChatView } from './views/ChatView.js';
@@ -31,9 +33,10 @@ import {
   type PlanningMode,
 } from '../../core/slash-command-handler.js';
 import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
+import { configManager } from '../../core/config-manager.js';
 
 interface PlanExecuteAppProps {
-  llmClient: LLMClient;
+  llmClient: LLMClient | null;
   modelInfo: {
     model: string;
     endpoint: string;
@@ -54,14 +57,60 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
   // Settings browser state
   const [showSettings, setShowSettings] = useState(false);
 
+  // LLM Setup Wizard state
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [healthStatus, setHealthStatus] = useState<'checking' | 'healthy' | 'unhealthy' | 'unknown'>('checking');
+
+  // Model Selector state
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [currentModelInfo, setCurrentModelInfo] = useState(modelInfo);
+
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
   const commandBrowserState = useCommandBrowserState(input, isProcessing);
   const planExecutionState = usePlanExecution();
 
-  // Initialize docs directory on startup
+  // Initialize on startup: check LLM configuration and run health check
   useEffect(() => {
-    initializeDocsDirectory().catch(console.warn);
+    const initialize = async () => {
+      try {
+        // Initialize docs directory
+        await initializeDocsDirectory().catch(console.warn);
+
+        // Check if endpoints are configured
+        if (!configManager.hasEndpoints()) {
+          setShowSetupWizard(true);
+          setIsInitializing(false);
+          setHealthStatus('unknown');
+          return;
+        }
+
+        // Run health check
+        setHealthStatus('checking');
+        const healthResults = await LLMClient.healthCheckAll();
+
+        // Check if any model is healthy
+        let hasHealthy = false;
+        for (const [, modelResults] of healthResults) {
+          if (modelResults.some((r) => r.healthy)) {
+            hasHealthy = true;
+            break;
+          }
+        }
+
+        setHealthStatus(hasHealthy ? 'healthy' : 'unhealthy');
+
+        // Update health status in config
+        await configManager.updateAllHealthStatus(healthResults);
+      } catch {
+        setHealthStatus('unknown');
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initialize();
   }, []);
 
   // Wrapped exit function to ensure cleanup
@@ -136,8 +185,60 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
     setShowSettings(false);
   }, []);
 
+  // Handle setup wizard completion
+  const handleSetupComplete = useCallback(() => {
+    setShowSetupWizard(false);
+    // Exit and let user restart
+    exit();
+  }, [exit]);
+
+  // Handle setup wizard skip
+  const handleSetupSkip = useCallback(() => {
+    setShowSetupWizard(false);
+  }, []);
+
+  // Handle model selection
+  const handleModelSelect = useCallback(
+    (endpointId: string, modelId: string) => {
+      const endpoint = configManager.getAllEndpoints().find((ep) => ep.id === endpointId);
+      const model = endpoint?.models.find((m) => m.id === modelId);
+
+      if (endpoint && model) {
+        setCurrentModelInfo({
+          model: model.name,
+          endpoint: endpoint.baseUrl,
+        });
+      }
+
+      setShowModelSelector(false);
+
+      // Add confirmation message
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant' as const,
+          content: `모델이 변경되었습니다: ${model?.name || modelId} (${endpoint?.name || endpointId})`,
+        },
+      ]);
+    },
+    []
+  );
+
+  // Handle model selector cancel
+  const handleModelSelectorCancel = useCallback(() => {
+    setShowModelSelector(false);
+  }, []);
+
   const handleSubmit = useCallback(async (value: string) => {
-    if (!value.trim() || isProcessing || fileBrowserState.showFileBrowser || showSessionBrowser || showSettings) {
+    if (!value.trim() || isProcessing || fileBrowserState.showFileBrowser || showSessionBrowser || showSettings || showSetupWizard) {
+      return;
+    }
+
+    if (!llmClient) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant' as const, content: 'LLM이 설정되지 않았습니다. /settings → LLMs에서 설정해주세요.' },
+      ]);
       return;
     }
 
@@ -164,6 +265,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
         exit: handleExit,
         onShowSessionBrowser: () => setShowSessionBrowser(true),
         onShowSettings: () => setShowSettings(true),
+        onShowModelSelector: () => setShowModelSelector(true),
       };
 
       const result = await executeSlashCommand(userMessage, commandContext);
@@ -208,6 +310,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
     fileBrowserState.showFileBrowser,
     showSessionBrowser,
     showSettings,
+    showSetupWizard,
     commandBrowserState,
     planningMode,
     messages,
@@ -216,16 +319,51 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
     handleExit,
   ]);
 
+  // Show loading spinner during initialization
+  if (isInitializing) {
+    return (
+      <Box flexDirection="column" padding={2}>
+        <Box>
+          <Spinner type="dots" />
+          <Text> Initializing OPEN-CLI...</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Show setup wizard if no endpoints configured
+  if (showSetupWizard) {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <LLMSetupWizard onComplete={handleSetupComplete} onSkip={handleSetupSkip} />
+      </Box>
+    );
+  }
+
+  // Get health status indicator
+  const getHealthIndicator = () => {
+    switch (healthStatus) {
+      case 'checking':
+        return <Text color="yellow">⋯</Text>;
+      case 'healthy':
+        return <Text color="green">✓</Text>;
+      case 'unhealthy':
+        return <Text color="red">✗</Text>;
+      default:
+        return <Text color="gray">?</Text>;
+    }
+  };
+
   return (
     <Box flexDirection="column" height="100%">
       {/* Header */}
       <Box borderStyle="round" borderColor="cyan" paddingX={1}>
         <Box justifyContent="space-between" width="100%">
           <Text bold color="cyan">
-            OPEN-CLI Interactive Mode
+            OPEN-CLI Interactive Mode {getHealthIndicator()}
           </Text>
           <Text color="gray">
-            Model: {modelInfo.model} | Planning: {planningMode}
+            Model: {currentModelInfo.model} | Planning: {planningMode}
           </Text>
         </Box>
       </Box>
@@ -320,6 +458,16 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
             currentPlanningMode={planningMode}
             onPlanningModeChange={handleSettingsPlanningModeChange}
             onClose={handleSettingsClose}
+          />
+        </Box>
+      )}
+
+      {/* Model Selector (shown when /model command is submitted) */}
+      {showModelSelector && !isProcessing && (
+        <Box marginTop={0}>
+          <ModelSelector
+            onSelect={handleModelSelect}
+            onCancel={handleModelSelectorCancel}
           />
         </Box>
       )}

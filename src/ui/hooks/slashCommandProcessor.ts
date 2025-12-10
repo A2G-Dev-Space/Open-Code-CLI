@@ -38,6 +38,10 @@ export const SLASH_COMMANDS: CommandMetadata[] = [
     description: 'Open settings menu',
   },
   {
+    name: '/model',
+    description: 'Switch between LLM models',
+  },
+  {
     name: '/load',
     description: 'Load a saved session',
   },

@@ -21,6 +21,7 @@ export interface CommandHandlerContext {
   // Optional UI control callbacks
   onShowSessionBrowser?: () => void;
   onShowSettings?: () => void;
+  onShowModelSelector?: () => void;
 }
 
 export interface CommandExecutionResult {
@@ -85,6 +86,31 @@ export async function executeSlashCommand(
     };
   }
 
+  // Model command - show model selector
+  if (trimmedCommand === '/model') {
+    if (context.onShowModelSelector) {
+      context.onShowModelSelector();
+      return {
+        handled: true,
+        shouldContinue: false,
+      };
+    }
+    // Fallback if no UI callback
+    const modelMessage = `Use /model in interactive mode to switch between LLM models.`;
+    const updatedMessages = [
+      ...context.messages,
+      { role: 'assistant' as const, content: modelMessage },
+    ];
+    context.setMessages(updatedMessages);
+    return {
+      handled: true,
+      shouldContinue: false,
+      updatedContext: {
+        messages: updatedMessages,
+      },
+    };
+  }
+
   // Help command
   if (trimmedCommand === '/help') {
     const helpMessage = `
@@ -92,6 +118,7 @@ Available commands:
   /exit, /quit    - Exit the application
   /clear          - Clear conversation and TODOs
   /settings       - Open settings menu
+  /model          - Switch between LLM models
   /load           - Load a saved session
 
 Keyboard shortcuts:

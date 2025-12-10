@@ -280,6 +280,117 @@ export class ConfigManager {
     this.config = { ...DEFAULT_CONFIG };
     await this.saveConfig();
   }
+
+  /**
+   * 엔드포인트 업데이트
+   */
+  async updateEndpoint(
+    endpointId: string,
+    updates: Partial<Omit<EndpointConfig, 'id' | 'createdAt'>>
+  ): Promise<void> {
+    const config = this.getConfig();
+    const endpointIndex = config.endpoints.findIndex((ep) => ep.id === endpointId);
+
+    if (endpointIndex === -1) {
+      throw new Error(`Endpoint ${endpointId} not found`);
+    }
+
+    const endpoint = config.endpoints[endpointIndex]!;
+    config.endpoints[endpointIndex] = {
+      ...endpoint,
+      ...updates,
+      updatedAt: new Date(),
+    };
+
+    await this.saveConfig();
+  }
+
+  /**
+   * 모델 health 상태 업데이트
+   */
+  async updateModelHealth(
+    endpointId: string,
+    modelId: string,
+    status: 'healthy' | 'degraded' | 'unhealthy',
+    _latency?: number
+  ): Promise<void> {
+    const config = this.getConfig();
+    const endpoint = config.endpoints.find((ep) => ep.id === endpointId);
+
+    if (!endpoint) {
+      throw new Error(`Endpoint ${endpointId} not found`);
+    }
+
+    const model = endpoint.models.find((m) => m.id === modelId);
+    if (!model) {
+      throw new Error(`Model ${modelId} not found in endpoint ${endpointId}`);
+    }
+
+    model.healthStatus = status;
+    model.lastHealthCheck = new Date();
+
+    await this.saveConfig();
+  }
+
+  /**
+   * 모든 모델의 health 상태 일괄 업데이트
+   */
+  async updateAllHealthStatus(
+    healthResults: Map<string, { modelId: string; healthy: boolean; latency?: number }[]>
+  ): Promise<void> {
+    const config = this.getConfig();
+
+    for (const [endpointId, modelResults] of healthResults) {
+      const endpoint = config.endpoints.find((ep) => ep.id === endpointId);
+      if (!endpoint) continue;
+
+      for (const result of modelResults) {
+        const model = endpoint.models.find((m) => m.id === result.modelId);
+        if (model) {
+          model.healthStatus = result.healthy ? 'healthy' : 'unhealthy';
+          model.lastHealthCheck = new Date();
+        }
+      }
+    }
+
+    await this.saveConfig();
+  }
+
+  /**
+   * 모든 healthy 모델 목록 조회
+   */
+  getHealthyModels(): { endpoint: EndpointConfig; model: ModelInfo }[] {
+    const config = this.getConfig();
+    const healthyModels: { endpoint: EndpointConfig; model: ModelInfo }[] = [];
+
+    for (const endpoint of config.endpoints) {
+      for (const model of endpoint.models) {
+        if (model.enabled && model.healthStatus === 'healthy') {
+          healthyModels.push({ endpoint, model });
+        }
+      }
+    }
+
+    return healthyModels;
+  }
+
+  /**
+   * 모든 모델 목록 조회 (엔드포인트 정보 포함)
+   */
+  getAllModels(): { endpoint: EndpointConfig; model: ModelInfo; isCurrent: boolean }[] {
+    const config = this.getConfig();
+    const allModels: { endpoint: EndpointConfig; model: ModelInfo; isCurrent: boolean }[] = [];
+
+    for (const endpoint of config.endpoints) {
+      for (const model of endpoint.models) {
+        const isCurrent =
+          endpoint.id === config.currentEndpoint && model.id === config.currentModel;
+        allModels.push({ endpoint, model, isCurrent });
+      }
+    }
+
+    return allModels;
+  }
 }
 
 /**

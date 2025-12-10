@@ -4,12 +4,15 @@
  * Displays settings menu for interactive selection
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
+import TextInput from 'ink-text-input';
 import SelectInput from 'ink-select-input';
 import { PlanningMode } from '../../core/slash-command-handler.js';
 import { configManager } from '../../core/config-manager.js';
 import { sessionManager } from '../../core/session-manager.js';
+import { LLMClient } from '../../core/llm/llm-client.js';
+import { EndpointConfig } from '../../types/index.js';
 
 interface SettingsBrowserProps {
   currentPlanningMode: PlanningMode;
@@ -30,7 +33,32 @@ interface SystemStatus {
   llmModel: string;
 }
 
-type SettingsView = 'main' | 'status' | 'planning-mode';
+interface EndpointHealthStatus {
+  endpointId: string;
+  modelId: string;
+  healthy: boolean;
+  latency?: number;
+  error?: string;
+}
+
+interface LLMFormData {
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  modelId: string;
+}
+
+type SettingsView =
+  | 'main'
+  | 'status'
+  | 'planning-mode'
+  | 'llms'
+  | 'llm-add'
+  | 'llm-detail'
+  | 'llm-edit'
+  | 'llm-delete-confirm';
+
+type FormField = 'name' | 'baseUrl' | 'apiKey' | 'modelId' | 'buttons';
 
 export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
   currentPlanningMode,
@@ -39,6 +67,59 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
 }) => {
   const [view, setView] = useState<SettingsView>('main');
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+
+  // LLMs state
+  const [endpoints, setEndpoints] = useState<EndpointConfig[]>([]);
+  const [healthStatus, setHealthStatus] = useState<EndpointHealthStatus[]>([]);
+  const [isHealthChecking, setIsHealthChecking] = useState(false);
+  const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointConfig | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState<LLMFormData>({
+    name: '',
+    baseUrl: '',
+    apiKey: '',
+    modelId: '',
+  });
+  const [formField, setFormField] = useState<FormField>('name');
+  const [formButtonIndex, setFormButtonIndex] = useState(0);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  // Load endpoints
+  const loadEndpoints = useCallback(() => {
+    setEndpoints(configManager.getAllEndpoints());
+  }, []);
+
+  // Run health check
+  const runHealthCheck = useCallback(async () => {
+    setIsHealthChecking(true);
+    try {
+      const results = await LLMClient.healthCheckAll();
+      const statusList: EndpointHealthStatus[] = [];
+
+      for (const [endpointId, modelResults] of results) {
+        for (const result of modelResults) {
+          statusList.push({
+            endpointId,
+            modelId: result.modelId,
+            healthy: result.healthy,
+            latency: result.latency,
+            error: result.error,
+          });
+        }
+      }
+
+      setHealthStatus(statusList);
+
+      // Update config with health status
+      await configManager.updateAllHealthStatus(results);
+    } catch {
+      // Ignore health check errors
+    } finally {
+      setIsHealthChecking(false);
+    }
+  }, []);
 
   // Load system status when status view is shown
   useEffect(() => {
@@ -76,15 +157,208 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
     }
   }, [view]);
 
+  // Load endpoints and run health check when LLMs view is shown
+  useEffect(() => {
+    if (view === 'llms') {
+      loadEndpoints();
+      runHealthCheck();
+    }
+  }, [view, loadEndpoints, runHealthCheck]);
+
+  // Get health status for endpoint
+  const getEndpointHealth = useCallback(
+    (endpointId: string): 'healthy' | 'degraded' | 'unhealthy' | 'unknown' => {
+      const statuses = healthStatus.filter((s) => s.endpointId === endpointId);
+      if (statuses.length === 0) return 'unknown';
+
+      const healthyCount = statuses.filter((s) => s.healthy).length;
+      if (healthyCount === statuses.length) return 'healthy';
+      if (healthyCount > 0) return 'degraded';
+      return 'unhealthy';
+    },
+    [healthStatus]
+  );
+
+  // Get health icon
+  const getHealthIcon = (status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown'): string => {
+    switch (status) {
+      case 'healthy':
+        return '✓';
+      case 'degraded':
+        return '⚠';
+      case 'unhealthy':
+        return '✗';
+      default:
+        return '?';
+    }
+  };
+
+  // Get health color
+  const getHealthColor = (
+    status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown'
+  ): string => {
+    switch (status) {
+      case 'healthy':
+        return 'green';
+      case 'degraded':
+        return 'yellow';
+      case 'unhealthy':
+        return 'red';
+      default:
+        return 'gray';
+    }
+  };
+
+  // Handle form field navigation with Tab
+  const handleFormNavigation = useCallback(
+    (key: { tab?: boolean; shift?: boolean; return?: boolean; upArrow?: boolean; downArrow?: boolean }) => {
+      const fields: FormField[] = ['name', 'baseUrl', 'apiKey', 'modelId', 'buttons'];
+      const currentIndex = fields.indexOf(formField);
+
+      if (key.tab) {
+        if (key.shift) {
+          // Previous field
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : fields.length - 1;
+          setFormField(fields[prevIndex]!);
+        } else {
+          // Next field
+          const nextIndex = currentIndex < fields.length - 1 ? currentIndex + 1 : 0;
+          setFormField(fields[nextIndex]!);
+        }
+      }
+
+      // Arrow keys for button selection when on buttons
+      if (formField === 'buttons') {
+        if (key.upArrow || key.downArrow) {
+          setFormButtonIndex((prev) => (prev === 0 ? 1 : 0));
+        }
+      }
+    },
+    [formField]
+  );
+
+  // Handle form submit
+  const handleFormSubmit = useCallback(async () => {
+    if (formButtonIndex === 1) {
+      // Cancel
+      setView('llms');
+      return;
+    }
+
+    // Validate
+    if (!formData.name.trim()) {
+      setFormError('Name is required');
+      return;
+    }
+    if (!formData.baseUrl.trim()) {
+      setFormError('Base URL is required');
+      return;
+    }
+    if (!formData.modelId.trim()) {
+      setFormError('Model ID is required');
+      return;
+    }
+
+    // Test connection
+    setIsTesting(true);
+    setFormError(null);
+
+    try {
+      const result = await LLMClient.testConnection(
+        formData.baseUrl,
+        formData.apiKey,
+        formData.modelId
+      );
+
+      if (!result.success) {
+        setFormError(result.error || 'Connection failed');
+        setIsTesting(false);
+        return;
+      }
+
+      // Save endpoint
+      const newEndpoint: EndpointConfig = {
+        id: `ep-${Date.now()}`,
+        name: formData.name,
+        baseUrl: formData.baseUrl,
+        apiKey: formData.apiKey || undefined,
+        models: [
+          {
+            id: formData.modelId,
+            name: formData.modelId,
+            maxTokens: 128000,
+            enabled: true,
+            healthStatus: 'healthy',
+            lastHealthCheck: new Date(),
+          },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      if (view === 'llm-edit' && selectedEndpoint) {
+        // Update existing
+        await configManager.updateEndpoint(selectedEndpoint.id, {
+          name: formData.name,
+          baseUrl: formData.baseUrl,
+          apiKey: formData.apiKey || undefined,
+          models: [
+            {
+              id: formData.modelId,
+              name: formData.modelId,
+              maxTokens: 128000,
+              enabled: true,
+              healthStatus: 'healthy',
+              lastHealthCheck: new Date(),
+            },
+          ],
+        });
+      } else {
+        // Add new
+        await configManager.addEndpoint(newEndpoint);
+
+        // If this is the first endpoint, set it as current
+        if (endpoints.length === 0) {
+          await configManager.setCurrentEndpoint(newEndpoint.id);
+        }
+      }
+
+      setIsTesting(false);
+      setView('llms');
+      loadEndpoints();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unknown error');
+      setIsTesting(false);
+    }
+  }, [formData, formButtonIndex, view, selectedEndpoint, endpoints.length, loadEndpoints]);
+
   // Custom keyboard handling
   useInput((_inputChar, key) => {
     if (key.escape) {
-      if (view === 'planning-mode' || view === 'status') {
+      if (view === 'llm-add' || view === 'llm-edit') {
+        setView('llms');
+        setFormError(null);
+      } else if (view === 'llm-detail' || view === 'llm-delete-confirm') {
+        setView('llms');
+      } else if (view === 'llms' || view === 'planning-mode' || view === 'status') {
         setView('main');
       } else {
         onClose();
       }
       return;
+    }
+
+    // Form navigation
+    if (view === 'llm-add' || view === 'llm-edit') {
+      if (key.tab) {
+        handleFormNavigation({ tab: true, shift: key.shift });
+      } else if (formField === 'buttons') {
+        if (key.upArrow || key.downArrow) {
+          handleFormNavigation({ upArrow: key.upArrow, downArrow: key.downArrow });
+        } else if (key.return) {
+          handleFormSubmit();
+        }
+      }
     }
   });
 
@@ -97,6 +371,10 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
     {
       label: `1. Planning Mode (current: ${currentPlanningMode})`,
       value: 'planning-mode',
+    },
+    {
+      label: '2. LLMs',
+      value: 'llms',
     },
   ];
 
@@ -116,12 +394,43 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
     },
   ];
 
+  // LLMs menu items
+  const llmsMenuItems: SelectItem[] = [
+    { label: '+ Add new endpoint...', value: 'add' },
+    ...endpoints.map((ep) => {
+      const health = getEndpointHealth(ep.id);
+      const icon = getHealthIcon(health);
+      const currentEndpoint = configManager.getCurrentEndpoint();
+      const isCurrent = currentEndpoint?.id === ep.id;
+      return {
+        label: `  ${ep.name}${isCurrent ? ' (current)' : ''} ${icon}`,
+        value: ep.id,
+      };
+    }),
+  ];
+
+  // Detail menu items
+  const detailMenuItems: SelectItem[] = [
+    { label: 'Edit', value: 'edit' },
+    { label: 'Delete', value: 'delete' },
+    { label: 'Set as Current', value: 'set-current' },
+    { label: 'Refresh Health', value: 'refresh' },
+  ];
+
+  // Delete confirm items
+  const deleteConfirmItems: SelectItem[] = [
+    { label: 'Yes, delete', value: 'confirm' },
+    { label: 'Cancel', value: 'cancel' },
+  ];
+
   // Handle main menu selection
   const handleMainSelect = (item: SelectItem) => {
     if (item.value === 'planning-mode') {
       setView('planning-mode');
     } else if (item.value === 'status') {
       setView('status');
+    } else if (item.value === 'llms') {
+      setView('llms');
     }
   };
 
@@ -130,6 +439,66 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
     const newMode = item.value as PlanningMode;
     onPlanningModeChange(newMode);
     onClose();
+  };
+
+  // Handle LLMs menu selection
+  const handleLLMsSelect = (item: SelectItem) => {
+    if (item.value === 'add') {
+      setFormData({ name: '', baseUrl: '', apiKey: '', modelId: '' });
+      setFormField('name');
+      setFormButtonIndex(0);
+      setFormError(null);
+      setView('llm-add');
+    } else {
+      const endpoint = endpoints.find((ep) => ep.id === item.value);
+      if (endpoint) {
+        setSelectedEndpoint(endpoint);
+        setView('llm-detail');
+      }
+    }
+  };
+
+  // Handle detail menu selection
+  const handleDetailSelect = async (item: SelectItem) => {
+    if (!selectedEndpoint) return;
+
+    switch (item.value) {
+      case 'edit':
+        setFormData({
+          name: selectedEndpoint.name,
+          baseUrl: selectedEndpoint.baseUrl,
+          apiKey: selectedEndpoint.apiKey || '',
+          modelId: selectedEndpoint.models[0]?.id || '',
+        });
+        setFormField('name');
+        setFormButtonIndex(0);
+        setFormError(null);
+        setView('llm-edit');
+        break;
+      case 'delete':
+        setView('llm-delete-confirm');
+        break;
+      case 'set-current':
+        await configManager.setCurrentEndpoint(selectedEndpoint.id);
+        setView('llms');
+        loadEndpoints();
+        break;
+      case 'refresh':
+        await runHealthCheck();
+        break;
+    }
+  };
+
+  // Handle delete confirm
+  const handleDeleteConfirm = async (item: SelectItem) => {
+    if (item.value === 'confirm' && selectedEndpoint) {
+      await configManager.removeEndpoint(selectedEndpoint.id);
+      setSelectedEndpoint(null);
+      setView('llms');
+      loadEndpoints();
+    } else {
+      setView('llm-detail');
+    }
   };
 
   // Main settings menu view
@@ -145,17 +514,12 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
 
         {/* Menu List */}
         <Box borderStyle="single" borderColor="gray" paddingX={1}>
-          <SelectInput
-            items={mainMenuItems}
-            onSelect={handleMainSelect}
-          />
+          <SelectInput items={mainMenuItems} onSelect={handleMainSelect} />
         </Box>
 
         {/* Footer */}
         <Box marginTop={1}>
-          <Text dimColor>
-            ↑↓: move | Enter: select | ESC: close
-          </Text>
+          <Text dimColor>↑↓: move | Enter: select | ESC: close</Text>
         </Box>
       </Box>
     );
@@ -177,15 +541,15 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
           {systemStatus ? (
             <>
               <Box>
-                <Text color="yellow">Version:      </Text>
+                <Text color="yellow">Version: </Text>
                 <Text>{systemStatus.version}</Text>
               </Box>
               <Box>
-                <Text color="yellow">Session ID:   </Text>
+                <Text color="yellow">Session ID: </Text>
                 <Text>{systemStatus.sessionId}</Text>
               </Box>
               <Box>
-                <Text color="yellow">Working Dir:  </Text>
+                <Text color="yellow">Working Dir: </Text>
                 <Text>{systemStatus.workingDir}</Text>
               </Box>
               <Box>
@@ -193,7 +557,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
                 <Text>{systemStatus.endpointUrl}</Text>
               </Box>
               <Box>
-                <Text color="yellow">LLM Model:    </Text>
+                <Text color="yellow">LLM Model: </Text>
                 <Text>{systemStatus.llmModel}</Text>
               </Box>
             </>
@@ -204,55 +568,292 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
 
         {/* Footer */}
         <Box marginTop={1}>
-          <Text dimColor>
-            ESC: back
-          </Text>
+          <Text dimColor>ESC: back</Text>
         </Box>
       </Box>
     );
   }
 
   // Planning mode selection view
-  return (
-    <Box flexDirection="column">
-      {/* Header */}
-      <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1}>
-        <Text color="cyan" bold>
-          Settings &gt; Planning Mode
-        </Text>
-      </Box>
+  if (view === 'planning-mode') {
+    return (
+      <Box flexDirection="column">
+        {/* Header */}
+        <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1}>
+          <Text color="cyan" bold>
+            Settings &gt; Planning Mode
+          </Text>
+        </Box>
 
-      {/* Description */}
-      <Box paddingX={1} marginBottom={1}>
-        <Text color="gray">
-          Select the planning mode for task execution:
-        </Text>
-      </Box>
+        {/* Description */}
+        <Box paddingX={1} marginBottom={1}>
+          <Text color="gray">Select the planning mode for task execution:</Text>
+        </Box>
 
-      {/* Mode descriptions */}
-      <Box paddingX={1} marginBottom={1} flexDirection="column">
-        <Text color="yellow">• planning: </Text>
-        <Text color="gray">  Always create TODO list before execution</Text>
-        <Text color="yellow">• no-planning: </Text>
-        <Text color="gray">  Execute directly without planning</Text>
-        <Text color="yellow">• auto: </Text>
-        <Text color="gray">  Automatically decide based on task complexity</Text>
-      </Box>
+        {/* Mode descriptions */}
+        <Box paddingX={1} marginBottom={1} flexDirection="column">
+          <Text color="yellow">• planning: </Text>
+          <Text color="gray"> Always create TODO list before execution</Text>
+          <Text color="yellow">• no-planning: </Text>
+          <Text color="gray"> Execute directly without planning</Text>
+          <Text color="yellow">• auto: </Text>
+          <Text color="gray"> Automatically decide based on task complexity</Text>
+        </Box>
 
-      {/* Options List */}
-      <Box borderStyle="single" borderColor="gray" paddingX={1}>
-        <SelectInput
-          items={planningModeItems}
-          onSelect={handlePlanningModeSelect}
-        />
-      </Box>
+        {/* Options List */}
+        <Box borderStyle="single" borderColor="gray" paddingX={1}>
+          <SelectInput items={planningModeItems} onSelect={handlePlanningModeSelect} />
+        </Box>
 
-      {/* Footer */}
-      <Box marginTop={1}>
-        <Text dimColor>
-          ↑↓: move | Enter: select | ESC: back
-        </Text>
+        {/* Footer */}
+        <Box marginTop={1}>
+          <Text dimColor>↑↓: move | Enter: select | ESC: back</Text>
+        </Box>
       </Box>
-    </Box>
-  );
+    );
+  }
+
+  // LLMs list view
+  if (view === 'llms') {
+    return (
+      <Box flexDirection="column">
+        {/* Header */}
+        <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1}>
+          <Text color="cyan" bold>
+            Settings &gt; LLM Endpoints
+          </Text>
+          {isHealthChecking && (
+            <Text color="yellow"> (checking health...)</Text>
+          )}
+        </Box>
+
+        {/* Endpoints List */}
+        <Box borderStyle="single" borderColor="gray" paddingX={1}>
+          {endpoints.length === 0 && !llmsMenuItems.find((i) => i.value === 'add') ? (
+            <Text color="gray">No endpoints configured</Text>
+          ) : (
+            <SelectInput items={llmsMenuItems} onSelect={handleLLMsSelect} />
+          )}
+        </Box>
+
+        {/* Health Legend */}
+        <Box marginTop={1} paddingX={1}>
+          <Text color="green">✓ healthy </Text>
+          <Text color="yellow">⚠ degraded </Text>
+          <Text color="red">✗ unhealthy</Text>
+        </Box>
+
+        {/* Footer */}
+        <Box marginTop={1}>
+          <Text dimColor>↑↓: move | Enter: select | ESC: back</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // LLM Detail view
+  if (view === 'llm-detail' && selectedEndpoint) {
+    const health = getEndpointHealth(selectedEndpoint.id);
+    const healthColor = getHealthColor(health);
+    const healthIcon = getHealthIcon(health);
+    const modelStatus = healthStatus.find(
+      (s) => s.endpointId === selectedEndpoint.id
+    );
+
+    return (
+      <Box flexDirection="column">
+        {/* Header */}
+        <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1}>
+          <Text color="cyan" bold>
+            {selectedEndpoint.name}
+          </Text>
+          <Text> </Text>
+          <Text color={healthColor}>{healthIcon} {health}</Text>
+        </Box>
+
+        {/* Endpoint Info */}
+        <Box borderStyle="single" borderColor="gray" paddingX={1} flexDirection="column" marginBottom={1}>
+          <Box>
+            <Text color="yellow">URL: </Text>
+            <Text>{selectedEndpoint.baseUrl}</Text>
+          </Box>
+          <Box>
+            <Text color="yellow">Model: </Text>
+            <Text>{selectedEndpoint.models[0]?.id || 'N/A'}</Text>
+          </Box>
+          <Box>
+            <Text color="yellow">API Key: </Text>
+            <Text>{selectedEndpoint.apiKey ? '••••••••' : '(not set)'}</Text>
+          </Box>
+          {modelStatus?.latency && (
+            <Box>
+              <Text color="yellow">Latency: </Text>
+              <Text>{modelStatus.latency}ms</Text>
+            </Box>
+          )}
+        </Box>
+
+        {/* Actions */}
+        <Box borderStyle="single" borderColor="gray" paddingX={1}>
+          <SelectInput items={detailMenuItems} onSelect={handleDetailSelect} />
+        </Box>
+
+        {/* Footer */}
+        <Box marginTop={1}>
+          <Text dimColor>↑↓: move | Enter: select | ESC: back</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Delete confirm view
+  if (view === 'llm-delete-confirm' && selectedEndpoint) {
+    return (
+      <Box flexDirection="column">
+        {/* Header */}
+        <Box borderStyle="single" borderColor="red" paddingX={1} marginBottom={1}>
+          <Text color="red" bold>
+            Delete Endpoint
+          </Text>
+        </Box>
+
+        {/* Confirmation */}
+        <Box paddingX={1} marginBottom={1}>
+          <Text>
+            Are you sure you want to delete <Text color="yellow">{selectedEndpoint.name}</Text>?
+          </Text>
+        </Box>
+
+        {/* Options */}
+        <Box borderStyle="single" borderColor="gray" paddingX={1}>
+          <SelectInput items={deleteConfirmItems} onSelect={handleDeleteConfirm} />
+        </Box>
+
+        {/* Footer */}
+        <Box marginTop={1}>
+          <Text dimColor>↑↓: move | Enter: select | ESC: cancel</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // LLM Add/Edit form view
+  if (view === 'llm-add' || view === 'llm-edit') {
+    const isEdit = view === 'llm-edit';
+
+    return (
+      <Box flexDirection="column">
+        {/* Header */}
+        <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1}>
+          <Text color="cyan" bold>
+            {isEdit ? 'Edit Endpoint' : 'Add New Endpoint'}
+          </Text>
+        </Box>
+
+        {/* Form */}
+        <Box borderStyle="single" borderColor="gray" paddingX={1} flexDirection="column">
+          {/* Name Field */}
+          <Box>
+            <Text color={formField === 'name' ? 'cyan' : 'yellow'}>
+              {formField === 'name' ? '> ' : '  '}Name:
+            </Text>
+            {formField === 'name' ? (
+              <TextInput
+                value={formData.name}
+                onChange={(value) => setFormData({ ...formData, name: value })}
+                placeholder="My LLM Endpoint"
+              />
+            ) : (
+              <Text>{formData.name || '(empty)'}</Text>
+            )}
+          </Box>
+
+          {/* Base URL Field */}
+          <Box>
+            <Text color={formField === 'baseUrl' ? 'cyan' : 'yellow'}>
+              {formField === 'baseUrl' ? '> ' : '  '}Base URL:
+            </Text>
+            {formField === 'baseUrl' ? (
+              <TextInput
+                value={formData.baseUrl}
+                onChange={(value) => setFormData({ ...formData, baseUrl: value })}
+                placeholder="http://localhost:11434/v1"
+              />
+            ) : (
+              <Text>{formData.baseUrl || '(empty)'}</Text>
+            )}
+          </Box>
+
+          {/* API Key Field */}
+          <Box>
+            <Text color={formField === 'apiKey' ? 'cyan' : 'yellow'}>
+              {formField === 'apiKey' ? '> ' : '  '}API Key:
+            </Text>
+            {formField === 'apiKey' ? (
+              <TextInput
+                value={formData.apiKey}
+                onChange={(value) => setFormData({ ...formData, apiKey: value })}
+                placeholder="(optional)"
+              />
+            ) : (
+              <Text>{formData.apiKey ? '••••••••' : '(optional)'}</Text>
+            )}
+          </Box>
+
+          {/* Model ID Field */}
+          <Box>
+            <Text color={formField === 'modelId' ? 'cyan' : 'yellow'}>
+              {formField === 'modelId' ? '> ' : '  '}Model ID:
+            </Text>
+            {formField === 'modelId' ? (
+              <TextInput
+                value={formData.modelId}
+                onChange={(value) => setFormData({ ...formData, modelId: value })}
+                placeholder="qwen2.5-coder:32b"
+              />
+            ) : (
+              <Text>{formData.modelId || '(empty)'}</Text>
+            )}
+          </Box>
+        </Box>
+
+        {/* Error Message */}
+        {formError && (
+          <Box marginTop={1} paddingX={1}>
+            <Text color="red">Error: {formError}</Text>
+          </Box>
+        )}
+
+        {/* Buttons */}
+        <Box marginTop={1} flexDirection="column" paddingX={1}>
+          <Box>
+            <Text
+              color={formField === 'buttons' && formButtonIndex === 0 ? 'cyan' : undefined}
+              bold={formField === 'buttons' && formButtonIndex === 0}
+            >
+              {formField === 'buttons' && formButtonIndex === 0 ? '> ' : '  '}
+              {isTesting ? 'Testing...' : 'Test & Save'}
+            </Text>
+          </Box>
+          <Box>
+            <Text
+              color={formField === 'buttons' && formButtonIndex === 1 ? 'cyan' : undefined}
+              bold={formField === 'buttons' && formButtonIndex === 1}
+            >
+              {formField === 'buttons' && formButtonIndex === 1 ? '> ' : '  '}
+              Cancel
+            </Text>
+          </Box>
+        </Box>
+
+        {/* Footer */}
+        <Box marginTop={1}>
+          <Text dimColor>Tab: next field | Shift+Tab: prev | ↑↓: buttons | Enter: select | ESC: cancel</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Fallback
+  return null;
 };
