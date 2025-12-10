@@ -402,8 +402,9 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
       const icon = getHealthIcon(health);
       const currentEndpoint = configManager.getCurrentEndpoint();
       const isCurrent = currentEndpoint?.id === ep.id;
+      const modelName = ep.models[0]?.id || ep.models[0]?.name || 'unknown';
       return {
-        label: `  ${ep.name}${isCurrent ? ' (current)' : ''} ${icon}`,
+        label: `  ${modelName} (${ep.name})${isCurrent ? ' *' : ''} ${icon}`,
         value: ep.id,
       };
     }),
