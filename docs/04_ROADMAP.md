@@ -1,7 +1,7 @@
 # OPEN-CLI Roadmap & TODO List
 
-> **문서 버전**: 1.0.0
-> **최종 수정일**: 2024-12-10
+> **문서 버전**: 1.0.1
+> **최종 수정일**: 2025-12-10
 > **작성자**: Development Team
 
 ## 목차
@@ -143,13 +143,13 @@ ui/components/
 ```
 
 **TODO**:
-- [ ] `PlanExecuteApp.tsx`에서 채팅 렌더링 로직 분리 → `ChatView.tsx`
-- [ ] 파일 브라우저 관련 상태/로직 분리 → `FilePanel.tsx`
+- [x] `PlanExecuteApp.tsx`에서 채팅 렌더링 로직 분리 → `ChatView.tsx`
+- [x] 파일 브라우저 관련 상태/로직 분리 → `useFileBrowserState.ts` 훅으로 구현
 - [ ] 세션 브라우저 관련 상태/로직 분리 → `SessionPanel.tsx`
 - [ ] 승인 프롬프트 로직 분리 → `ApprovalDialog.tsx`
 - [ ] 설정 브라우저 로직 분리 → `SettingsDialog.tsx`
-- [ ] 명령어 브라우저 로직 분리 → `CommandDialog.tsx`
-- [ ] 커스텀 훅 추출: `usePlanExecution`, `useApproval`, `useFileSelection`
+- [x] 명령어 브라우저 로직 분리 → `useCommandBrowserState.ts` 훅으로 구현
+- [x] 커스텀 훅 추출: `usePlanExecution`, `useFileBrowserState`, `useCommandBrowserState`
 
 ### 3.2 Core 모듈 재구성
 
@@ -168,6 +168,9 @@ core/llm/
 ```
 
 **TODO**:
+- [x] `core/llm/` 폴더 구조 생성 완료
+- [x] `llm-client.ts` → `core/llm/llm-client.ts` 이동 (re-export 유지)
+- [x] `planning-llm.ts` → `core/llm/planning-llm.ts` 이동 (re-export 유지)
 - [ ] `llm-client.ts`에서 토큰 카운팅 로직 분리 → `token-manager.ts`
 - [ ] 프롬프트 빌더 로직 분리 → `prompt-builder.ts`
 - [ ] 응답 파싱 로직 분리 → `response-parser.ts`
@@ -187,6 +190,9 @@ core/config/
 ```
 
 **TODO**:
+- [x] `core/config/` 폴더 구조 생성 완료
+- [x] `config-manager.ts` → `core/config/config-manager.ts` 이동 (re-export 유지)
+- [x] `project-config.ts` → `core/config/project-config.ts` 이동 (re-export 유지)
 - [ ] 엔드포인트 관련 로직 분리 → `endpoint-manager.ts`
 - [ ] 모델 관련 로직 분리 → `model-manager.ts`
 - [ ] 사용자 설정 로직 분리 → `preference-manager.ts`
@@ -872,10 +878,10 @@ Effort│                 │                  │  Effort
 ### A. 파일 생성 체크리스트
 
 #### 신규 폴더
-- [ ] `src/core/llm/`
-- [ ] `src/core/config/`
-- [ ] `src/core/session/`
-- [ ] `src/core/knowledge/`
+- [x] `src/core/llm/`
+- [x] `src/core/config/`
+- [x] `src/core/session/`
+- [x] `src/core/knowledge/`
 - [ ] `src/tools/base/`
 - [ ] `src/tools/native/`
 - [ ] `src/tools/rag/`
@@ -884,9 +890,10 @@ Effort│                 │                  │  Effort
 - [ ] `src/rag/`
 - [ ] `src/analytics/`
 - [ ] `src/documentation/`
-- [ ] `src/ui/components/views/`
-- [ ] `src/ui/components/panels/`
-- [ ] `src/ui/components/dialogs/`
+- [x] `src/ui/components/views/`
+- [x] `src/ui/components/panels/`
+- [x] `src/ui/components/dialogs/`
+- [x] `src/ui/hooks/` (커스텀 훅 폴더)
 
 #### 신규 파일 (주요)
 - [ ] `tools/base/base-tool.ts`
