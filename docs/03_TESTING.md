@@ -14,6 +14,13 @@
 5. [테스트 출력 이해하기](#5-테스트-출력-이해하기)
 6. [새 테스트 추가하기](#6-새-테스트-추가하기)
 7. [문제 해결](#7-문제-해결)
+8. [Demo 테스트 시나리오 상세](#8-demo-테스트-시나리오-상세)
+9. [Agno 코드 생성 평가 시나리오 상세](#9-agno-코드-생성-평가-시나리오-상세)
+10. [Human-in-the-Loop (HITL) 테스트](#10-human-in-the-loop-hitl-테스트)
+11. [Real LLM 테스트](#11-real-llm-테스트)
+12. [테스트 프롬프트 예시](#12-테스트-프롬프트-예시)
+13. [Agno Agent 코드 생성 평가 시스템 (CLI)](#13-agno-agent-코드-생성-평가-시스템-cli)
+14. [데모 스크립트](#14-데모-스크립트)
 
 ---
 
@@ -40,7 +47,13 @@ npm run test:e2e
   file-tools     ██████░░░░ 6개
   llm-client     ████████░░ 8개
   plan-execute   ███████░░░ 7개
-  ...
+  session        ████░░░░░░ 4개
+  config         █████░░░░░ 5개
+  local-rag      ████░░░░░░ 4개
+  integration    ██████░░░░ 6개
+  settings       ██████░░░░ 6개
+  demos          ████░░░░░░ 4개
+  agno-eval      ███░░░░░░░ 3개
 
 ════════════════════════════════════════════════════════════
                         테스트 결과 요약
@@ -48,8 +61,8 @@ npm run test:e2e
 
   ████████████████████████████████████████
 
-  Total:   45
-  Passed:  45
+  Total:   53
+  Passed:  53
   Failed:  0
 
   ✓ 모든 테스트가 통과했습니다!
@@ -119,12 +132,6 @@ npm run test:e2e -- -t llm-basic-chat -v
 - TODO 구조 검증
 - 의존성 처리
 
-### agent-loop (Agent Loop)
-- 단순 작업 실행
-- 파일 생성 작업
-- Context Gathering
-- 다단계 작업
-
 ### session (세션 관리)
 - 세션 저장
 - 세션 로드
@@ -149,6 +156,18 @@ npm run test:e2e -- -t llm-basic-chat -v
 - 세션 워크플로우
 - 에러 복구
 - LLM Tool Chain
+
+### demos (데모 테스트)
+- Simple Demo (Mock LLM)
+- HITL Demo (Auto-approve)
+- Logger Demo
+- Real LLM Plan & Execute
+
+### agno-eval (Agno 코드 생성 평가)
+- Agno Code Generation (Quick)
+- Agno Evaluation System Init
+- Agno Code Validator
+- Agno Single Code Generation
 
 ---
 
@@ -758,6 +777,702 @@ PR 생성 전 다음을 확인하세요:
 # 한 번에 검증
 npm run prepr
 ```
+
+---
+
+## 8. Demo 테스트 시나리오 상세
+
+데모 테스트는 Plan & Execute 시스템의 핵심 기능을 검증합니다.
+
+### 8.1 demo-simple (Mock LLM 기반 테스트)
+
+```
+파일: test/e2e/scenarios/demos.ts
+ID: demo-simple
+카테고리: demos
+타임아웃: 30000ms (30초)
+```
+
+**목적**: Mock LLM을 사용하여 Plan & Execute의 기본 동작을 검증합니다. 실제 LLM 없이도 시스템의 핵심 흐름을 테스트할 수 있습니다.
+
+**테스트 로직**:
+
+```typescript
+// 1. SimpleMockLLM 클래스 - 실제 LLM 대신 사용
+class SimpleMockLLM extends LLMClient {
+  async sendMessage(): Promise<string> {
+    // JSON 형태의 성공 응답 반환
+    return JSON.stringify({
+      status: 'success',
+      result: `Task ${this.taskNumber} completed successfully!`,
+      log_entries: [...],
+      files_changed: [...],
+    });
+  }
+}
+
+// 2. 테스트 계획 (3개 태스크)
+const testPlan = [
+  { id: 'task-1', title: 'Setup project structure', dependencies: [] },
+  { id: 'task-2', title: 'Implement core functionality', dependencies: ['task-1'] },
+  { id: 'task-3', title: 'Add tests', dependencies: ['task-2'] },
+];
+
+// 3. 실행 및 결과 검증
+const summary = await orchestrator.executePhase(testPlan);
+```
+
+**검증 조건**:
+- ✅ `planSize === 3` (3개 태스크 계획)
+- ✅ `logsCount > 0` (로그가 캡처됨)
+
+**사용 시점**: LLM 서버 없이 빠른 통합 테스트가 필요할 때
+
+---
+
+### 8.2 demo-hitl (Human-in-the-Loop 자동 승인)
+
+```
+파일: test/e2e/scenarios/demos.ts
+ID: demo-hitl
+카테고리: demos
+타임아웃: 120000ms (2분)
+```
+
+**목적**: HITL(Human-in-the-Loop) 승인 흐름이 정상 동작하는지 검증합니다. 자동 승인 콜백을 사용하여 E2E 테스트에서 사용자 입력 없이 실행합니다.
+
+**테스트 로직**:
+
+```typescript
+// 1. HITL 설정 활성화
+const orchestrator = new PlanExecuteOrchestrator(llmClient, {
+  hitl: {
+    enabled: true,        // HITL 활성화
+    approvePlan: true,    // 계획 승인 요청
+    riskConfig: {
+      approvalThreshold: 'medium',  // medium 이상 작업에 승인 필요
+    },
+  },
+});
+
+// 2. 자동 승인 콜백 설정 (E2E 테스트용)
+approvalManager.setPlanApprovalCallback(async () => 'approve');
+approvalManager.setTaskApprovalCallback(async () => 'approve');
+
+// 3. 실행
+const summary = await orchestrator.execute(
+  'Create a simple hello.txt file with "Hello World" content'
+);
+```
+
+**자동 승인 콜백 동작**:
+- `setPlanApprovalCallback`: LLM이 계획을 생성한 후 자동으로 'approve' 반환
+- `setTaskApprovalCallback`: 위험 레벨이 높은 태스크 실행 전 자동으로 'approve' 반환
+
+**검증 조건**:
+- ✅ `hitlEnabled === true` (HITL이 활성화된 상태로 실행됨)
+
+**사용 시점**: HITL 기능이 올바르게 동작하는지 확인할 때, 실제 LLM 사용
+
+---
+
+### 8.3 demo-logger (로깅 시스템 테스트)
+
+```
+파일: test/e2e/scenarios/demos.ts
+ID: demo-logger
+카테고리: demos
+타임아웃: 10000ms (10초)
+```
+
+**목적**: 로깅 시스템(`src/utils/logger.ts`)의 다양한 기능이 정상 동작하는지 검증합니다.
+
+**테스트 로직**:
+
+```typescript
+// 테스트하는 로거 기능들:
+logger.info('Test info message');            // 정보 로깅
+logger.debug('Test debug message', {...});   // 디버그 로깅 (데이터 포함)
+logger.warn('Test warning', {...});          // 경고 로깅
+logger.enter('testFunction', {...});         // 함수 진입 추적
+logger.flow('Test flow step');               // 흐름 단계 추적
+logger.exit('testFunction', {...});          // 함수 종료 추적
+logger.vars({ name: 'testVar', ... });       // 변수 추적
+logger.state('State change', 'old', 'new');  // 상태 변경 추적
+
+// 타이머 기능
+logger.startTimer('test-timer');
+await new Promise(resolve => setTimeout(resolve, 10));
+const elapsed = logger.endTimer('test-timer');
+```
+
+**검증 조건**:
+- ✅ `functionsUsed` 배열에 모든 로거 함수 포함
+- ✅ `timerWorked === true` (타이머가 0보다 큰 값 반환)
+
+**사용 시점**: 로깅 시스템의 기능이 깨지지 않았는지 확인할 때
+
+---
+
+### 8.4 demo-real-llm (실제 LLM Plan & Execute)
+
+```
+파일: test/e2e/scenarios/demos.ts
+ID: demo-real-llm
+카테고리: demos
+타임아웃: 180000ms (3분)
+```
+
+**목적**: 실제 LLM 엔드포인트를 사용하여 전체 Plan & Execute 흐름을 검증합니다.
+
+**테스트 로직**:
+
+```typescript
+// 1. 실제 LLM 클라이언트 사용
+const llmClient = new LLMClient();
+const orchestrator = new PlanExecuteOrchestrator(llmClient, {
+  maxDebugAttempts: 3,    // 실패 시 최대 3회 재시도
+  taskTimeout: 60000,      // 태스크당 1분 타임아웃
+  hitl: { enabled: true, approvePlan: true },
+});
+
+// 2. 이벤트 리스너 등록
+orchestrator.on('planCreated', () => { planCreated = true; });
+orchestrator.on('todoCompleted', () => { tasksCompleted++; });
+
+// 3. 실제 요청 실행
+const summary = await orchestrator.execute(
+  'Create a simple calculator module with add and subtract functions'
+);
+```
+
+**이벤트 흐름**:
+1. `planCreated` - LLM이 태스크 계획 생성
+2. `todoStarted` - 각 태스크 시작
+3. `todoCompleted` - 각 태스크 완료
+4. 최종 `summary` 반환
+
+**검증 조건**:
+- ✅ `planCreated === true` (계획이 생성됨)
+- ✅ `completedTasks >= 1` (최소 1개 태스크 완료)
+
+**사용 시점**: LLM 서버와의 실제 통합 테스트, 전체 워크플로우 검증
+
+---
+
+## 9. Agno 코드 생성 평가 시나리오 상세
+
+Agno 평가 테스트는 LLM의 코드 생성 품질을 점수화하여 검증합니다.
+
+### 9.1 점수 기반 평가 시스템
+
+```typescript
+// 임계값 설정 (test/e2e/scenarios/agno-evaluation.ts)
+const PASS_THRESHOLD = 50;   // 50% 이상 → 완전 통과
+const WARN_THRESHOLD = 30;   // 30% 이상 → 경고와 함께 통과
+                              // 30% 미만 → 실패
+```
+
+**점수 계산 로직** (100점 만점):
+
+| 항목 | 배점 | 설명 |
+|------|------|------|
+| 코드 블록 생성 | 30점 | Python 코드 블록이 1개 이상 생성되었는지 |
+| 문법 유효성 | 40점 | 생성된 코드의 Python 문법이 올바른지 |
+| Import 유효성 | 30점 | import 구문이 올바른 형식인지 |
+
+```typescript
+// 점수 계산 예시
+let score = 0;
+if (codeBlocks.length > 0) score += 30;
+score += (syntaxValidCount / codeBlocks.length) * 40;
+score += (importValidCount / codeBlocks.length) * 30;
+```
+
+### 9.2 agno-evaluation-quick (빠른 평가)
+
+```
+파일: test/e2e/scenarios/agno-evaluation.ts
+ID: agno-evaluation-quick
+카테고리: agno-eval
+타임아웃: 300000ms (5분)
+```
+
+**목적**: 테스트 케이스 1-2번을 사용하여 LLM의 Agno 코드 생성 품질을 빠르게 평가합니다.
+
+**테스트 로직**:
+
+```typescript
+// 1. LLMClient 직접 생성 (subprocess 대신)
+const { createLLMClient } = await import('../../../src/core/llm-client.js');
+const llmClient = createLLMClient();
+
+// 2. 테스트 케이스 로드 (test/fixtures/prompts/agno_prompts.md)
+const allTestCases = await parseTestCases(promptsPath);
+const testCases = selectTestCases(allTestCases, [1, 2]);
+
+// 3. 각 테스트 케이스 평가
+for (const testCase of testCases) {
+  const result = await evaluateTestCase(testCase, llmClient);
+  // result.score: 0-100
+}
+
+// 4. 전체 통계 계산
+const successRate = (passedCount / totalCount) * 100;
+```
+
+**evaluateTestCase() 함수 상세**:
+
+```typescript
+async function evaluateTestCase(testCase, llmClient) {
+  // 시스템 프롬프트
+  const systemPrompt = `You are an expert Python developer...`;
+
+  // LLM 호출 (sendMessage 메서드 사용)
+  const responseText = await llmClient.sendMessage(testCase.prompt, systemPrompt);
+
+  // 코드 블록 추출
+  const codeBlocks = extractCodeBlocks(responseText);
+
+  // 각 코드 블록 검증
+  for (const code of codeBlocks) {
+    const validation = await validateCode(code);
+    // validation.syntaxValid, validation.importsValid
+  }
+
+  // 점수 계산 및 반환
+  return { score, passed: score >= WARN_THRESHOLD };
+}
+```
+
+**코드 블록 추출 정규식**:
+
+```typescript
+function extractCodeBlocks(response: string): string[] {
+  const codeBlockRegex = /```(?:python|py)\n([\s\S]*?)```/gm;
+  // ```python 또는 ```py로 시작하는 코드 블록 추출
+}
+```
+
+**검증 조건**:
+- ✅ `successRate >= 50%` → `✅ Agno evaluation PASSED`
+- ✅ `successRate >= 30%` → `⚠️ Agno evaluation PASSED with warning`
+- ❌ `successRate < 30%` → `❌ Agno evaluation FAILED`
+
+**출력 예시**:
+```
+📝 Evaluating Test Case 1... Score: 100/100, Code blocks: 2
+📝 Evaluating Test Case 2... Score: 100/100, Code blocks: 1
+✅ Agno evaluation PASSED: 100.0% success, avg score: 100.0/100
+```
+
+---
+
+### 9.3 agno-evaluation-init (시스템 초기화)
+
+```
+파일: test/e2e/scenarios/agno-evaluation.ts
+ID: agno-evaluation-init
+카테고리: agno-eval
+타임아웃: 30000ms (30초)
+```
+
+**목적**: 테스트 케이스 파서(`parseTestCases`)가 `agno_prompts.md` 파일을 올바르게 파싱하는지 검증합니다.
+
+**테스트 로직**:
+
+```typescript
+const promptsPath = path.join(process.cwd(), 'test/fixtures/prompts', 'agno_prompts.md');
+const testCases = await parseTestCases(promptsPath);
+
+return {
+  testCasesFound: testCases.length,          // 파싱된 테스트 케이스 수
+  hasPrompts: testCases.every(tc => tc.prompt?.length > 0),  // 모든 케이스에 프롬프트 존재
+  hasIds: testCases.every(tc => typeof tc.id === 'number'),  // 모든 케이스에 ID 존재
+};
+```
+
+**검증 조건**:
+- ✅ `testCasesFound > 0` (테스트 케이스가 1개 이상 파싱됨)
+- ✅ `hasPrompts === true` (모든 케이스에 프롬프트 존재)
+- ✅ `hasIds === true` (모든 케이스에 숫자 ID 존재)
+
+**사용 시점**: 테스트 데이터 파일이 손상되지 않았는지 확인
+
+---
+
+### 9.4 agno-code-validator (코드 검증기)
+
+```
+파일: test/e2e/scenarios/agno-evaluation.ts
+ID: agno-code-validator
+카테고리: agno-eval
+타임아웃: 30000ms (30초)
+```
+
+**목적**: 코드 검증기(`validateCode`)가 Python 코드의 문법 오류를 올바르게 감지하는지 검증합니다.
+
+**테스트 로직**:
+
+```typescript
+// 유효한 Python 코드
+const validPython = `
+def hello():
+    print("Hello, World!")
+
+if __name__ == "__main__":
+    hello()
+`;
+
+// 문법 오류가 있는 Python 코드
+const invalidPython = `
+def hello(
+    print("Hello, World!")
+`;  // 괄호 닫힘 누락
+
+const validResult = await validateCode(validPython);
+const invalidResult = await validateCode(invalidPython);
+```
+
+**검증 조건**:
+- ✅ 유효한 코드: `hasCode=true`, `syntaxValid=true`
+- ✅ 무효한 코드: `hasCode=true`, `syntaxValid=false`, `hasErrors=true`
+
+**사용 시점**: 코드 검증 로직이 올바르게 동작하는지 확인
+
+---
+
+### 9.5 agno-single-generation (단일 코드 생성)
+
+```
+파일: test/e2e/scenarios/agno-evaluation.ts
+ID: agno-single-generation
+카테고리: agno-eval
+타임아웃: 120000ms (2분)
+```
+
+**목적**: LLM에게 단일 Agno Agent 코드 생성을 요청하고 품질을 점수로 평가합니다.
+
+**테스트 로직**:
+
+```typescript
+// llm_chat 액션 사용
+action: {
+  type: 'llm_chat',
+  prompt: `Python으로 간단한 Agno Agent를 만들어주세요.
+요구사항:
+1. agno 라이브러리의 Agent 클래스 사용
+2. OpenAI 모델 사용
+3. 간단한 인사 기능 구현
+
+완전한 실행 가능한 코드를 \`\`\`python 블록으로 제공해주세요.`,
+  useTools: false,
+}
+
+// 커스텀 검증
+validation: {
+  type: 'custom',
+  fn: async (result) => {
+    const response = result?.content || result || '';
+    const codeBlocks = extractCodeBlocks(response);
+
+    // 코드 블록이 없으면 경고
+    if (codeBlocks.length === 0) {
+      console.log(`⚠️ No Python code blocks found`);
+      return response.length > 50;  // 최소 응답 길이 확인
+    }
+
+    // 첫 번째 코드 블록 검증 및 점수 계산
+    const validation = await validateCode(codeBlocks[0]);
+    let score = 0;
+    if (codeBlocks.length > 0) score += 30;
+    if (validation.syntaxValid) score += 40;
+    if (validation.importsValid) score += 30;
+
+    console.log(`📊 Code Generation Score: ${score}/100`);
+    return score >= WARN_THRESHOLD;  // 30점 이상이면 통과
+  },
+}
+```
+
+**출력 예시**:
+```
+📊 Code Generation Score: 100/100
+   - Code blocks: 1
+   - Syntax valid: true
+   - Imports valid: true
+```
+
+**검증 조건**:
+- ✅ `score >= 30` (30점 이상이면 통과)
+
+**사용 시점**: 단일 코드 생성 요청에 대한 LLM 응답 품질 확인
+
+---
+
+## 10. Human-in-the-Loop (HITL) 개요
+
+### HITL이란?
+
+Human-in-the-Loop은 위험한 작업 실행 전 사용자 승인을 요청하는 안전 기능입니다.
+
+### 두 가지 승인 게이트
+
+| 게이트 | 시점 | 설명 |
+|--------|------|------|
+| **Plan Approval** | 계획 수립 후 | 전체 태스크 리스트 승인/거부 |
+| **Task Approval** | 위험 태스크 실행 전 | 개별 태스크 승인/거부 |
+
+### 위험 레벨
+
+| 레벨 | 예시 | 기본 동작 |
+|------|------|----------|
+| 🔴 Critical | `rm -rf`, `DROP DATABASE`, `chmod 777` | 항상 승인 필요 |
+| 🟠 High | Delete `.ts` files, global installs, `sudo` | 승인 필요 |
+| 🟡 Medium | 파일 쓰기, `npm install`, `.env` 변경 | 승인 필요 |
+| 🟢 Low | 파일 읽기, `ls`, 조회 작업 | 자동 승인 |
+
+### HITL 설정
+
+```typescript
+const orchestrator = new PlanExecuteOrchestrator(llmClient, {
+  hitl: {
+    enabled: true,        // HITL 활성화
+    approvePlan: true,    // 계획 승인 요청
+    riskConfig: {
+      approvalThreshold: 'medium',  // 승인 필요 최소 레벨
+      autoApprovePatterns: ['^Read.*\\.md$', '^List files'],
+      blockPatterns: ['production', 'rm -rf /'],
+    }
+  }
+});
+```
+
+### 승인 옵션
+
+**계획 승인 시:**
+- `[a]` Approve - 계획 실행
+- `[r]` Reject - 실행 취소
+- `[s]` Stop - 종료
+
+**태스크 승인 시:**
+- `[a]` Approve - 이 태스크 실행
+- `[r]` Reject - 이 태스크 건너뛰기
+- `[A]` Approve All - 이후 모든 태스크 자동 승인
+- `[R]` Reject All - 이후 모든 태스크 거부
+- `[s]` Stop - 실행 중단
+
+---
+
+## 11. Real LLM 테스트
+
+### 빠른 시작
+
+```bash
+# 빠른 테스트 (1개 시나리오)
+npm run test:real-llm
+
+# 전체 테스트 (4개 시나리오)
+TEST_MODE=full npm run test:real-llm
+
+# 상세 로그
+VERBOSE=true npm run test:real-llm
+```
+
+### 테스트 시나리오
+
+| 시나리오 | 카테고리 | 설명 |
+|----------|----------|------|
+| Simple Calculator | SIMPLE | 기본 순차 실행 |
+| Todo List Manager | SIMPLE | CRUD 작업 |
+| User Authentication | MEDIUM | JWT, bcrypt 의존성 |
+| REST API with Express | COMPLEX | 멀티스텝 프로젝트 |
+
+### 결과 해석
+
+**성공 지표:**
+- ✅ Plan created - LLM이 태스크 계획 생성
+- ✅ All tasks completed - 모든 태스크 완료
+- ✅ Log entries captured - 구조화된 로그 캡처
+
+**경고 신호:**
+- ⚠️ Plan size outside range - 태스크 수 비정상
+- ⚠️ Debug attempts - 재시도 필요
+- ⚠️ Long duration - 예상 시간 초과
+
+---
+
+## 12. 테스트 프롬프트 예시
+
+### 순차 태스크 (기본)
+
+```
+Create a simple calculator with add, subtract, multiply, and divide functions
+```
+- 예상: 3-4개 태스크
+- 테스트: 순차 실행, 컨텍스트 전달
+
+### 의존성 태스크
+
+```
+Build a REST API with Express that includes:
+- Database connection
+- User model
+- CRUD endpoints
+- Error handling middleware
+```
+- 예상: 5-6개 태스크 (의존성 포함)
+- 테스트: 의존성 순서, previous_context 사용
+
+### 에러 처리 테스트
+
+```
+Implement a type-safe HTTP client with:
+- Generic request/response types
+- Error handling
+- Retry logic
+- Request interceptors
+```
+- 예상: 4-5개 태스크, Debug 모드 트리거 가능
+- 테스트: 에러 감지, Debug 워크플로우
+
+---
+
+## 13. Agno Agent 코드 생성 평가 시스템 (CLI)
+
+별도의 CLI를 통해 Agno Agent의 코드 생성 능력을 더 자세히 평가할 수 있습니다.
+
+### 파일 위치
+
+```
+test/
+├── evaluation/                    # 평가 시스템 코드
+│   ├── test-case-parser.ts       # agno_prompts.md 파싱
+│   ├── subprocess-executor.ts     # 'open chat' 명령 실행
+│   ├── code-validator.ts          # 코드 검증 로직
+│   ├── report-generator.ts        # 결과 리포트 생성
+│   ├── evaluator.ts               # 메인 orchestrator
+│   └── run-evaluation.ts          # CLI 실행 스크립트
+├── fixtures/prompts/
+│   └── agno_prompts.md            # 테스트 케이스 프롬프트 데이터
+└── demos/                         # 데모 스크립트
+    ├── demo-hitl.ts               # HITL 데모
+    ├── simple-demo.ts             # 간단한 P&E 데모
+    ├── test-plan-execute.ts       # Real LLM 테스트
+    └── logger-demo.ts             # 로깅 데모
+```
+
+### 평가 기준
+
+1. **Docs Search 사용 여부**: 코드 생성 시 문서 검색 기능 활용 확인
+2. **Import 구문 검증**: 생성된 코드의 import 구문이 올바른지 검증
+3. **문법 에러 검증**: Python/TypeScript 문법 에러가 없는지 확인
+4. **코드 생성 여부**: 마크다운 코드 블록이 실제로 생성되었는지 확인
+
+### 사용법
+
+```bash
+# 전체 테스트 실행
+npm run evaluate
+
+# 특정 테스트만 실행
+npm run evaluate -- --test 1,2,3
+
+# 빠른 테스트 (1-3번 + JSON 리포트)
+npm run evaluate:quick
+
+# 타임아웃 설정 (밀리초)
+npm run evaluate -- --timeout 600000
+
+# JSON 리포트 생성
+npm run evaluate -- --format json
+
+# 마크다운 + JSON 둘 다 생성
+npm run evaluate -- --format both
+```
+
+### CLI 옵션
+
+| 옵션 | 축약형 | 설명 | 기본값 |
+|------|--------|------|--------|
+| `--test` | `-t` | 실행할 테스트 케이스 ID (쉼표 구분) | 모든 테스트 |
+| `--timeout` | - | 실행 타임아웃 (밀리초) | 300000 (5분) |
+| `--format` | `-f` | 리포트 포맷 (markdown, json, both) | markdown |
+| `--output` | `-o` | 리포트 출력 디렉토리 | evaluation-reports/ |
+| `--help` | `-h` | 도움말 표시 | - |
+
+### 성공 조건
+
+테스트 케이스가 성공하려면 다음을 **모두** 만족해야 합니다:
+
+- ✅ Subprocess 정상 종료 (exit code 0)
+- ✅ 최소 1개 이상의 코드 블록 생성
+- ✅ Docs search 기능 사용
+- ✅ 모든 코드 블록의 문법이 유효
+- ✅ 모든 코드 블록의 import 구문이 유효
+
+### 리포트 예시
+
+```markdown
+# Agno Agent Code Generation Evaluation Report
+
+**Generated**: 2025-01-26 10:30:45
+
+## Summary
+- **Total Tests**: 10
+- **Passed**: 7 (70.0%)
+- **Failed**: 3 (30.0%)
+
+### Metrics
+- **Average Duration**: 45.23s
+- **Docs Search Usage**: 80.0%
+- **Code Generation Rate**: 90.0%
+- **Syntax Validity Rate**: 70.0%
+- **Import Validity Rate**: 75.0%
+```
+
+---
+
+## 14. 데모 스크립트
+
+### Simple Demo (기본)
+
+```bash
+npm run demo
+```
+
+Plan & Execute의 기본 동작을 보여주는 데모입니다.
+
+### HITL Demo
+
+```bash
+npm run demo:hitl
+```
+
+Human-in-the-Loop 승인 흐름을 실제로 체험해볼 수 있습니다.
+
+### Real LLM Test
+
+```bash
+# 빠른 테스트
+npm run test:real-llm
+
+# 전체 테스트
+TEST_MODE=full npm run test:real-llm
+
+# 상세 로그
+VERBOSE=true npm run test:real-llm
+```
+
+실제 LLM 엔드포인트를 사용한 Plan & Execute 테스트입니다.
+
+### Logger Demo
+
+```bash
+npm run demo:logger
+```
+
+로깅 시스템의 다양한 기능을 보여주는 데모입니다.
 
 ---
 
