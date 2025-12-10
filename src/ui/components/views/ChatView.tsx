@@ -66,19 +66,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
-  // Check if message contains error
-  const isErrorMessage = (content: string) => {
-    return content.includes('❌') ||
-           content.toLowerCase().includes('error') ||
-           content.toLowerCase().includes('failed');
-  };
-
   return (
     <Box flexDirection="column" flexGrow={1} paddingX={1} paddingY={1}>
       {/* Existing messages */}
       {messages.slice(-maxDisplayMessages).map((msg, idx) => {
         const style = getMessageStyle(msg.role);
-        const isError = msg.role === 'assistant' && isErrorMessage(msg.content);
+        // 에러는 role이 'error'인 경우에만 표시 (LLM 응답 실패 등)
+        const isError = msg.role === 'error';
 
         return (
           <Box key={idx} marginBottom={1}>
