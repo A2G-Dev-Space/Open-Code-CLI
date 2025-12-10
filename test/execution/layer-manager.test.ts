@@ -165,7 +165,9 @@ describe('ExecutionLayerManager', () => {
 
   describe('Metrics', () => {
     it('should record execution metrics', async () => {
-      // Clear any previous metrics
+      // Clear any previous metrics and create fresh manager
+      await manager.clearMetrics();
+      manager = new ExecutionLayerManager(mockLLMClient as any);
       await manager.clearMetrics();
 
       const task: Task = {

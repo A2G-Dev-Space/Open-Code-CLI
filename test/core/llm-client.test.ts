@@ -8,7 +8,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { Message } from '../../src/types/index.js';
 
 // Mock configManager to avoid modifying real config files
-jest.unstable_mockModule('../../src/core/config-manager.js', () => ({
+jest.unstable_mockModule('../../src/core/config/config-manager.js', () => ({
   configManager: {
     initialize: jest.fn().mockResolvedValue(undefined),
     getConfig: jest.fn().mockReturnValue({
@@ -66,7 +66,7 @@ jest.unstable_mockModule('../../src/core/config-manager.js', () => ({
 }));
 
 // Dynamic import after mock setup
-const { LLMClient } = await import('../../src/core/llm-client.js');
+const { LLMClient } = await import('../../src/core/llm/llm-client.js');
 
 describe('LLMClient - Model Compatibility Layer', () => {
   let client: LLMClient;
