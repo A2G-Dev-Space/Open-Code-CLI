@@ -24,10 +24,6 @@
     "test:e2e:list": "npx tsx test/e2e/run-e2e.ts --list",
     "test:all": "npm run test && npm run test:e2e",
     "prepr": "npm run lint && npm run test:e2e",
-    "demo": "npx tsx test/demos/simple-demo.ts",
-    "demo:hitl": "npx tsx test/demos/demo-hitl.ts",
-    "demo:logger": "npx tsx test/demos/logger-demo.ts",
-    "test:real-llm": "npx tsx test/demos/test-plan-execute.ts",
     "evaluate": "npx tsx evaluation/run-evaluation.ts",
     "evaluate:quick": "npx tsx evaluation/run-evaluation.ts -- --test 1,2,3 --format both"
   },
