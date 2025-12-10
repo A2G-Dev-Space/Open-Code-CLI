@@ -23,6 +23,7 @@
 6. [새 기능 추가하기](#6-새-기능-추가하기)
 7. [코딩 규칙](#7-코딩-규칙)
 8. [CLI 실행 모드](#8-cli-실행-모드)
+9. [UI/UX 컴포넌트 상세](#9-uiux-컴포넌트-상세)
 
 ---
 
@@ -201,9 +202,10 @@ src/
 │
 ├── ui/                             # UI 컴포넌트 (React/Ink)
 │   ├── ink-entry.tsx              # Ink 렌더링 진입점
+│   ├── TodoPanel.tsx              # TODO 패널 (미니맵, 예상시간, 토큰)
 │   ├── components/
 │   │   ├── views/                 # 뷰 컴포넌트 (Phase 0 리팩토링)
-│   │   │   └── ChatView.tsx       # 채팅 뷰
+│   │   │   └── ChatView.tsx       # 채팅 뷰 (마크다운 렌더링)
 │   │   ├── panels/                # 패널 컴포넌트
 │   │   ├── dialogs/               # 다이얼로그 컴포넌트
 │   │   ├── PlanExecuteApp.tsx     # 메인 앱 (가장 중요!)
@@ -212,13 +214,19 @@ src/
 │   │   ├── CommandBrowser.tsx     # / 명령어 선택기
 │   │   ├── ApprovalPrompt.tsx     # HITL 승인 프롬프트
 │   │   ├── TodoListView.tsx       # TODO 리스트 뷰
-│   │   ├── StatusBar.tsx          # 상태바
+│   │   ├── StatusBar.tsx          # 상태바 (컨텍스트, 시계, 토큰)
 │   │   ├── ProgressBar.tsx        # 진행 상태바
 │   │   ├── SessionBrowser.tsx     # 세션 브라우저
 │   │   ├── SettingsBrowser.tsx    # 설정 브라우저 (LLMs 관리 포함)
 │   │   ├── LLMSetupWizard.tsx     # 첫 실행 LLM 설정 마법사
 │   │   ├── ModelSelector.tsx      # /model 명령어용 모델 선택기
+│   │   ├── Logo.tsx               # 시작 화면 로고 (애니메이션)
+│   │   ├── MarkdownRenderer.tsx   # 마크다운/코드 구문 강조
+│   │   ├── ActivityIndicator.tsx  # 활동 표시기 (토큰 메트릭)
 │   │   └── index.ts               # 컴포넌트 내보내기
+│   │
+│   ├── contexts/                  # React Context (상태 관리)
+│   │   └── TokenContext.tsx       # 토큰 사용량 추적 컨텍스트
 │   │
 │   └── hooks/                     # React 커스텀 훅 (Phase 0 리팩토링)
 │       ├── usePlanExecution.ts    # Plan 실행 상태 관리 훅
@@ -1174,6 +1182,157 @@ try {
   Body: { "messages": [...] }
 [2025-11-12T10:30:00.456Z] [OPEN-CLI] [http.ts:67:request] ← HTTP RESPONSE: 200 OK
   Data: { "choices": [...] }
+```
+
+---
+
+## 9. UI/UX 컴포넌트 상세
+
+### 9.1 시작 화면 (Logo.tsx)
+
+**위치**: `src/ui/components/Logo.tsx`
+
+#### 애니메이션 효과
+- **그라데이션 색상 순환**: ASCII 로고가 cyan → blue → magenta 색상으로 애니메이션
+- **타이핑 효과**: 태그라인이 한 글자씩 타이핑되는 효과
+- **초기화 단계 표시**: 체크마크 애니메이션으로 초기화 진행 상황 표시
+
+```tsx
+// 그라데이션 애니메이션
+const GRADIENT_COLORS = ['cyan', 'cyanBright', 'blue', 'magenta', 'magentaBright'];
+useEffect(() => {
+  const interval = setInterval(() => {
+    setColorIndex((prev) => (prev + 1) % GRADIENT_COLORS.length);
+  }, 500);
+  return () => clearInterval(interval);
+}, []);
+```
+
+### 9.2 메시지 영역 (ChatView.tsx + MarkdownRenderer.tsx)
+
+**위치**: `src/ui/components/views/ChatView.tsx`, `src/ui/components/MarkdownRenderer.tsx`
+
+#### 마크다운 렌더링
+- **헤더**: `#`, `##`, `###` 지원 (색상 및 스타일 구분)
+- **코드 블록**: 구문 강조 지원 (TypeScript, JavaScript, Python, Bash)
+- **인라인 스타일**: `**굵게**`, `*기울임*`, `` `코드` ``
+- **목록**: 번호 목록, 글머리 기호 목록
+
+```tsx
+// 구문 강조 색상
+const SYNTAX_COLORS = {
+  keyword: 'magenta',   // const, function, class
+  string: 'green',      // "문자열"
+  number: 'yellow',     // 123
+  comment: 'gray',      // // 주석
+  function: 'cyan',     // 함수명()
+};
+```
+
+### 9.3 입력 영역 (PlanExecuteApp.tsx)
+
+**위치**: `src/ui/components/PlanExecuteApp.tsx`
+
+#### 글자 수 카운터
+- 입력 길이에 따른 색상 변화:
+  - 0-2000자: gray (정상)
+  - 2000-4000자: yellow (경고)
+  - 4000자 이상: red (위험)
+
+```tsx
+{input.length > 0 && (
+  <Text color={input.length > 4000 ? 'red' : input.length > 2000 ? 'yellow' : 'gray'}>
+    {input.length.toLocaleString()}
+  </Text>
+)}
+```
+
+### 9.4 활동 표시기 (ActivityIndicator.tsx)
+
+**위치**: `src/ui/components/ActivityIndicator.tsx`
+
+#### 토큰 메트릭 표시
+- **토큰 카운터**: 애니메이션된 브레일 스피너와 함께 실시간 토큰 수 표시
+- **Tokens per Second**: 생성 속도 표시
+- **레이턴시**: API 응답 시간 표시 (색상으로 상태 구분)
+- **Prompt/Completion 분리**: ↑(입력) ↓(출력) 토큰 수
+
+```tsx
+// 토큰 애니메이션 프레임
+const tokenAnimFrames = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'];
+
+// 레이턴시 색상
+{latencyMs > 1000 ? 'red' : latencyMs > 500 ? 'yellow' : 'green'}
+```
+
+### 9.5 TODO 패널 (TodoPanel.tsx)
+
+**위치**: `src/ui/TodoPanel.tsx`
+
+#### 향상된 기능
+- **미니맵 진행률**: `[✓✓▶○○]` 형식으로 전체 진행 상황 한눈에 표시
+- **예상 시간**: 완료된 작업 기반으로 남은 시간 예측
+- **토큰 사용량**: 작업별 토큰 사용량 표시
+- **트리 구조**: 계층적 연결선으로 작업 관계 표시
+
+```tsx
+// 미니맵 컴포넌트
+<Box>
+  <Text color="gray">[</Text>
+  {todos.map((todo) => (
+    <Text color={config.color}>
+      {todo.status === 'in_progress' ? '▶' : config.emoji}
+    </Text>
+  ))}
+  <Text color="gray">]</Text>
+</Box>
+```
+
+### 9.6 상태바 (StatusBar.tsx)
+
+**위치**: `src/ui/components/StatusBar.tsx`
+
+#### 표시 정보
+- **Health 상태**: ● (healthy), ○ (unknown), ◐ (checking), ● (unhealthy)
+- **실행 상태**: IDLE, THINK, EXEC, ERR
+- **모델명**: 현재 사용 중인 모델
+- **메시지 수**: 💬 카운트
+- **세션 토큰**: ⚡ 총 사용 토큰
+- **컨텍스트 사용률**: 색상 코딩된 미니 바 (녹색→노랑→빨강)
+- **TODO 상태**: 완료/전체
+- **실시간 시계**: HH:MM 형식
+
+```tsx
+// 컨텍스트 사용률 색상
+let color: string;
+if (percentage < 50) color = 'green';
+else if (percentage < 75) color = 'yellow';
+else if (percentage < 90) color = 'red';
+else color = 'redBright';
+```
+
+### 9.7 토큰 추적 시스템 (TokenContext.tsx)
+
+**위치**: `src/ui/contexts/TokenContext.tsx`
+
+#### 기능
+- **세션 토큰 합계**: 전체 대화의 토큰 사용량 추적
+- **Tokens per Second**: 생성 속도 계산
+- **Prompt/Completion 분리**: 입력과 출력 토큰 구분 추적
+
+```tsx
+interface TokenUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+interface TokenStats {
+  sessionTotal: number;
+  tokensPerSecond: number;
+  lastPromptTokens: number;
+  lastCompletionTokens: number;
+}
 ```
 
 ---

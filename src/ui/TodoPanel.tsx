@@ -2,10 +2,14 @@
  * TODO Panel Component
  *
  * Displays TODO list at the bottom of the screen for Plan-and-Execute mode
- * With improved progress bar and visual indicators
+ * Features:
+ * - Visual progress bar
+ * - Mini-map style progress
+ * - Time tracking per task
+ * - Token usage per task
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import { TodoItem } from '../types/index.js';
@@ -15,6 +19,7 @@ interface TodoPanelProps {
   todos: TodoItem[];
   currentTodoId?: string;
   showDetails?: boolean;
+  tokenUsage?: Map<string, number>;
 }
 
 // Status configuration
@@ -47,6 +52,29 @@ const ProgressBar: React.FC<{ completed: number; total: number; width?: number }
 };
 
 /**
+ * Mini-map style progress indicator
+ * Shows each task as a single character
+ */
+const MiniMap: React.FC<{ todos: TodoItem[] }> = ({ todos }) => {
+  if (todos.length === 0) return null;
+
+  return (
+    <Box>
+      <Text color="gray">[</Text>
+      {todos.map((todo, idx) => {
+        const config = STATUS_CONFIG[todo.status] || STATUS_CONFIG.pending;
+        return (
+          <Text key={idx} color={config.color}>
+            {todo.status === 'in_progress' ? '▶' : config.emoji}
+          </Text>
+        );
+      })}
+      <Text color="gray">]</Text>
+    </Box>
+  );
+};
+
+/**
  * Format duration from ISO timestamps
  */
 function formatDuration(startedAt?: string, completedAt?: string): string {
@@ -70,13 +98,52 @@ function formatDuration(startedAt?: string, completedAt?: string): string {
 }
 
 /**
+ * Format token count
+ */
+function formatTokens(count: number): string {
+  if (count < 1000) return count.toString();
+  return `${(count / 1000).toFixed(1)}k`;
+}
+
+/**
+ * Estimate remaining time based on completed tasks
+ */
+function estimateRemaining(todos: TodoItem[]): string {
+  const completed = todos.filter(t => t.status === 'completed' && t.startedAt && t.completedAt);
+  if (completed.length === 0) return '';
+
+  // Calculate average duration
+  let totalDuration = 0;
+  completed.forEach(todo => {
+    const start = new Date(todo.startedAt!).getTime();
+    const end = new Date(todo.completedAt!).getTime();
+    totalDuration += (end - start);
+  });
+  const avgDuration = totalDuration / completed.length;
+
+  // Remaining tasks
+  const remaining = todos.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+  const estimatedMs = remaining * avgDuration;
+
+  const seconds = Math.floor(estimatedMs / 1000);
+  if (seconds < 60) return `~${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `~${minutes}m`;
+  return `~${Math.floor(minutes / 60)}h`;
+}
+
+/**
  * TODO Panel Component
  */
 export const TodoPanel: React.FC<TodoPanelProps> = ({
   todos,
   currentTodoId,
   showDetails = false,
+  tokenUsage,
 }) => {
+  const [_elapsedTime, setElapsedTime] = useState(0);
+  // elapsedTime reserved for future use (display in UI)
+
   // Log component lifecycle
   useEffect(() => {
     logger.enter('TodoPanel', {
@@ -87,6 +154,14 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
     return () => {
       logger.exit('TodoPanel', { todoCount: todos.length });
     };
+  }, []);
+
+  // Update elapsed time for current task
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Log when todos change
@@ -110,20 +185,36 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
   const completedCount = todos.filter(t => t.status === 'completed').length;
   const failedCount = todos.filter(t => t.status === 'failed').length;
   const inProgressCount = todos.filter(t => t.status === 'in_progress').length;
+  const remaining = estimateRemaining(todos);
+
+  // Calculate total tokens used
+  let totalTokens = 0;
+  if (tokenUsage) {
+    tokenUsage.forEach(count => totalTokens += count);
+  }
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
-      {/* Header with progress bar */}
+      {/* Header with progress bar and mini-map */}
       <Box flexDirection="column" marginBottom={1}>
         <Box justifyContent="space-between">
-          <Text bold color="cyan">📋 TODO List</Text>
-          <Text color="gray">
-            {completedCount}/{todos.length}
+          <Box>
+            <Text bold color="cyan">📋 TODO </Text>
+            <MiniMap todos={todos} />
+          </Box>
+          <Box>
+            <Text color="gray">
+              {completedCount}/{todos.length}
+            </Text>
             {failedCount > 0 && <Text color="red"> ({failedCount} failed)</Text>}
-          </Text>
+            {remaining && <Text color="yellow"> {remaining} left</Text>}
+          </Box>
         </Box>
         <Box marginTop={0}>
-          <ProgressBar completed={completedCount} total={todos.length} width={25} />
+          <ProgressBar completed={completedCount} total={todos.length} width={30} />
+          {totalTokens > 0 && (
+            <Text color="gray" dimColor> | {formatTokens(totalTokens)} tokens</Text>
+          )}
         </Box>
       </Box>
 
@@ -134,6 +225,7 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
           const isCurrent = todo.id === currentTodoId;
           const duration = formatDuration(todo.startedAt, todo.completedAt);
           const isLast = index === todos.length - 1;
+          const taskTokens = tokenUsage?.get(todo.id);
 
           return (
             <Box key={todo.id} flexDirection="column">
@@ -167,6 +259,11 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
                 {/* Duration */}
                 {duration && (
                   <Text color="gray" dimColor> ({duration})</Text>
+                )}
+
+                {/* Token usage for this task */}
+                {taskTokens && (
+                  <Text color="cyan" dimColor> [{formatTokens(taskTokens)}]</Text>
                 )}
               </Box>
 
@@ -213,7 +310,7 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
  * Compact TODO Status Bar
  * Shows inline status for space-constrained layouts
  */
-export const TodoStatusBar: React.FC<{ todos: TodoItem[] }> = ({ todos }) => {
+export const TodoStatusBar: React.FC<{ todos: TodoItem[]; tokenCount?: number }> = ({ todos, tokenCount }) => {
   // Log component render
   useEffect(() => {
     logger.debug('TodoStatusBar rendered', { todoCount: todos.length });
@@ -239,8 +336,15 @@ export const TodoStatusBar: React.FC<{ todos: TodoItem[] }> = ({ todos }) => {
         <>
           <Text color="gray"> | </Text>
           <Text color="yellow">
-            <Spinner type="dots" /> {currentTodo.title}
+            <Spinner type="dots" /> {currentTodo.title.slice(0, 30)}{currentTodo.title.length > 30 ? '...' : ''}
           </Text>
+        </>
+      )}
+
+      {tokenCount && tokenCount > 0 && (
+        <>
+          <Text color="gray"> | </Text>
+          <Text color="cyan">{formatTokens(tokenCount)} tok</Text>
         </>
       )}
 

@@ -531,7 +531,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
       )}
 
       {/* Input Area */}
-      <Box borderStyle="single" borderColor="gray" paddingX={1}>
+      <Box borderStyle="single" borderColor="gray" paddingX={1} flexDirection="column">
         <Box>
           <Text color="green">👤 </Text>
           <Box flexGrow={1}>
@@ -556,6 +556,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
               focus={!showSessionBrowser && !showSettings && !planExecutionState.planApprovalRequest && !planExecutionState.taskApprovalRequest}
             />
           </Box>
+          {/* Character counter */}
+          {input.length > 0 && (
+            <Text color={input.length > 4000 ? 'red' : input.length > 2000 ? 'yellow' : 'gray'} dimColor>
+              {input.length.toLocaleString()}
+            </Text>
+          )}
         </Box>
       </Box>
 

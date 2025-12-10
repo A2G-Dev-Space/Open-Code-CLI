@@ -6,6 +6,7 @@
  * - Local RAG (docs search)
  * - Tool execution (file read/write, etc.)
  * - Planning/Executing
+ * - Token usage and performance metrics
  */
 
 import React, { useState, useEffect } from 'react';
@@ -59,13 +60,49 @@ interface ActivityIndicatorProps {
   startTime: number;
   detail?: string;
   subActivities?: SubActivity[];
+  // Token metrics
   tokenCount?: number;
+  tokensPerSecond?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  // Model info
   modelName?: string;
   // For planning/executing
   currentStep?: number;
   totalSteps?: number;
   stepName?: string;
+  // Latency
+  latencyMs?: number;
 }
+
+/**
+ * Format token count for display
+ */
+function formatTokens(count: number): string {
+  if (count < 1000) return count.toString();
+  if (count < 1000000) return `${(count / 1000).toFixed(1)}k`;
+  return `${(count / 1000000).toFixed(2)}M`;
+}
+
+/**
+ * Mini progress bar component
+ */
+const MiniProgressBar: React.FC<{ value: number; max: number; width?: number; color?: string }> = ({
+  value,
+  max,
+  width = 10,
+  color = 'green',
+}) => {
+  const filled = Math.min(Math.round((value / max) * width), width);
+  const empty = width - filled;
+
+  return (
+    <Text>
+      <Text color={color}>{'█'.repeat(filled)}</Text>
+      <Text color="gray">{'░'.repeat(empty)}</Text>
+    </Text>
+  );
+};
 
 export const ActivityIndicator: React.FC<ActivityIndicatorProps> = ({
   activity,
@@ -73,12 +110,20 @@ export const ActivityIndicator: React.FC<ActivityIndicatorProps> = ({
   detail,
   subActivities = [],
   tokenCount,
+  tokensPerSecond,
+  promptTokens,
+  completionTokens,
   modelName,
   currentStep,
   totalSteps,
   stepName,
+  latencyMs,
 }) => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [animFrame, setAnimFrame] = useState(0);
+
+  // Animation frames for token counter
+  const tokenAnimFrames = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'];
 
   // Log component lifecycle
   useEffect(() => {
@@ -98,10 +143,11 @@ export const ActivityIndicator: React.FC<ActivityIndicatorProps> = ({
     );
   }, [activity, detail, subActivities.length]);
 
-  // Update elapsed time
+  // Update elapsed time and animation
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+      setAnimFrame(prev => (prev + 1) % tokenAnimFrames.length);
     }, 100);
     return () => clearInterval(interval);
   }, [startTime]);
@@ -119,15 +165,11 @@ export const ActivityIndicator: React.FC<ActivityIndicatorProps> = ({
   // Render progress bar for planning/executing
   const renderProgressBar = () => {
     if (!totalSteps || currentStep === undefined) return null;
-    const barWidth = 15;
-    const filled = Math.round((currentStep / totalSteps) * barWidth);
-    const empty = barWidth - filled;
     const percent = Math.round((currentStep / totalSteps) * 100);
 
     return (
       <Box marginLeft={1}>
-        <Text color="green">{'█'.repeat(filled)}</Text>
-        <Text color="gray">{'░'.repeat(empty)}</Text>
+        <MiniProgressBar value={currentStep} max={totalSteps} width={15} color="green" />
         <Text color="gray"> {percent}%</Text>
       </Box>
     );
@@ -141,6 +183,53 @@ export const ActivityIndicator: React.FC<ActivityIndicatorProps> = ({
       case 'done': return <Text color="green">✓</Text>;
       case 'error': return <Text color="red">✗</Text>;
     }
+  };
+
+  // Render token metrics
+  const renderTokenMetrics = () => {
+    const hasTokens = tokenCount !== undefined || promptTokens !== undefined || completionTokens !== undefined;
+    if (!hasTokens && !tokensPerSecond && !latencyMs) return null;
+
+    return (
+      <Box marginTop={0} flexDirection="row" gap={2}>
+        {/* Token count with animation */}
+        {tokenCount !== undefined && (
+          <Box>
+            <Text color="cyan">
+              <Text color="cyan">{tokenAnimFrames[animFrame]}</Text>
+              {' '}Tokens: {formatTokens(tokenCount)}
+            </Text>
+          </Box>
+        )}
+
+        {/* Prompt/Completion breakdown */}
+        {promptTokens !== undefined && completionTokens !== undefined && (
+          <Box>
+            <Text color="gray" dimColor>
+              (↑{formatTokens(promptTokens)} ↓{formatTokens(completionTokens)})
+            </Text>
+          </Box>
+        )}
+
+        {/* Tokens per second */}
+        {tokensPerSecond !== undefined && tokensPerSecond > 0 && (
+          <Box>
+            <Text color="yellow">
+              ⚡ {tokensPerSecond.toFixed(1)} tok/s
+            </Text>
+          </Box>
+        )}
+
+        {/* Latency */}
+        {latencyMs !== undefined && (
+          <Box>
+            <Text color={latencyMs > 1000 ? 'red' : latencyMs > 500 ? 'yellow' : 'green'}>
+              📡 {latencyMs}ms
+            </Text>
+          </Box>
+        )}
+      </Box>
+    );
   };
 
   return (
@@ -199,19 +288,15 @@ export const ActivityIndicator: React.FC<ActivityIndicatorProps> = ({
         </Box>
       )}
 
-      {/* Footer with tokens and model */}
-      {(tokenCount !== undefined || modelName) && (
-        <Box marginTop={0} justifyContent="space-between">
-          {tokenCount !== undefined && (
-            <Text color="gray" dimColor>
-              Tokens: ~{tokenCount.toLocaleString()}
-            </Text>
-          )}
-          {modelName && (
-            <Text color="gray" dimColor>
-              {modelName}
-            </Text>
-          )}
+      {/* Token metrics */}
+      {renderTokenMetrics()}
+
+      {/* Footer with model name */}
+      {modelName && (
+        <Box marginTop={0} justifyContent="flex-end">
+          <Text color="gray" dimColor>
+            {modelName}
+          </Text>
         </Box>
       )}
     </Box>
