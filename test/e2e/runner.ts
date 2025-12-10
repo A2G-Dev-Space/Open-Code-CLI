@@ -25,11 +25,17 @@ export class E2ETestRunner {
   constructor(options: TestRunnerOptions = {}) {
     this.options = {
       verbose: false,
+      live: false,
       failFast: false,
       timeout: 60000,
       parallel: false,
       ...options,
     };
+
+    // live 모드에서는 verbose도 자동 활성화
+    if (this.options.live) {
+      this.options.verbose = true;
+    }
   }
 
   /**

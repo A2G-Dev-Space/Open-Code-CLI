@@ -10,6 +10,8 @@ export { configScenarios } from './config.js';
 export { localRagScenarios } from './local-rag.js';
 export { integrationScenarios } from './integration.js';
 export { settingsScenarios } from './settings.js';
+export { demoScenarios } from './demos.js';
+export { agnoEvaluationScenarios } from './agno-evaluation.js';
 
 import { fileToolsScenarios } from './file-tools.js';
 import { llmClientScenarios } from './llm-client.js';
@@ -19,6 +21,8 @@ import { configScenarios } from './config.js';
 import { localRagScenarios } from './local-rag.js';
 import { integrationScenarios } from './integration.js';
 import { settingsScenarios } from './settings.js';
+import { demoScenarios } from './demos.js';
+import { agnoEvaluationScenarios } from './agno-evaluation.js';
 import { TestScenario } from '../types.js';
 
 /**
@@ -34,6 +38,8 @@ export function getAllScenarios(): TestScenario[] {
     ...localRagScenarios,
     ...integrationScenarios,
     ...settingsScenarios,
+    ...demoScenarios,
+    ...agnoEvaluationScenarios,
   ];
 }
 
@@ -50,5 +56,7 @@ export function getScenarioStats(): Record<string, number> {
     'local-rag': localRagScenarios.length,
     integration: integrationScenarios.length,
     settings: settingsScenarios.length,
+    demos: demoScenarios.length,
+    'agno-eval': agnoEvaluationScenarios.length,
   };
 }

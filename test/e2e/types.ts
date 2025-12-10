@@ -27,7 +27,9 @@ export type TestCategory =
   | 'config'          // 설정 관리
   | 'slash-commands'  // /exit, /clear, /settings 등
   | 'settings'        // /settings UI 및 planning mode
-  | 'integration';    // 통합 테스트
+  | 'integration'     // 통합 테스트
+  | 'demos'           // 데모 스크립트 테스트
+  | 'agno-eval';      // Agno 코드 생성 평가
 
 export interface TestStep {
   name: string;
@@ -101,6 +103,7 @@ export interface TestReport {
 
 export interface TestRunnerOptions {
   verbose?: boolean;       // 상세 로그 출력
+  live?: boolean;          // 실시간 LLM/CLI 출력 스트리밍
   filter?: string;         // 특정 카테고리만 실행
   testId?: string;         // 특정 테스트 ID만 실행 (단일 테스트)
   failFast?: boolean;      // 첫 실패 시 중단

@@ -5,13 +5,14 @@
  * 사용법:
  *   npm run test:e2e              # 전체 테스트 실행
  *   npm run test:e2e -- --verbose # 상세 로그
+ *   npm run test:e2e -- --live    # 실시간 LLM 출력 스트리밍
  *   npm run test:e2e -- --filter file-tools  # 특정 카테고리만
  *   npm run test:e2e -- --test llm-basic-chat  # 특정 테스트만
  *   npm run test:e2e -- --fail-fast # 첫 실패 시 중단
  *
  * 카테고리:
- *   file-tools, llm-client, plan-execute, agent-loop,
- *   session, config, local-rag, integration
+ *   file-tools, llm-client, plan-execute, session, config,
+ *   local-rag, integration, settings, demos, agno-eval
  */
 
 import { E2ETestRunner } from './runner.js';
@@ -22,6 +23,7 @@ async function main() {
   // 커맨드라인 인자 파싱
   const args = process.argv.slice(2);
   const verbose = args.includes('--verbose') || args.includes('-v');
+  const live = args.includes('--live') || args.includes('--stream');
   const failFast = args.includes('--fail-fast') || args.includes('-f');
   const filterIndex = args.findIndex((a) => a === '--filter' || a === '-c');
   const filter = filterIndex !== -1 ? args[filterIndex + 1] : undefined;
@@ -71,6 +73,7 @@ async function main() {
   // 옵션 출력
   console.log(chalk.bold('실행 옵션:'));
   console.log(`  Verbose:   ${verbose ? chalk.green('ON') : chalk.gray('OFF')}`);
+  console.log(`  Live:      ${live ? chalk.green('ON') : chalk.gray('OFF')}`);
   console.log(`  Fail Fast: ${failFast ? chalk.green('ON') : chalk.gray('OFF')}`);
   console.log(`  Filter:    ${filter ? chalk.yellow(filter) : chalk.gray('없음')}`);
   console.log(`  Test ID:   ${testId ? chalk.yellow(testId) : chalk.gray('없음')}`);
@@ -79,6 +82,7 @@ async function main() {
   // 테스트 러너 생성 및 실행
   const runner = new E2ETestRunner({
     verbose,
+    live,
     failFast,
     filter,
     testId,
@@ -120,6 +124,7 @@ ${chalk.bold('사용법:')}
 
 ${chalk.bold('옵션:')}
   -v, --verbose     상세 로그 출력
+  --live, --stream  실시간 LLM/CLI 출력 스트리밍 (open-cli 동작 실시간 확인)
   -f, --fail-fast   첫 실패 시 테스트 중단
   -c, --filter <카테고리>  특정 카테고리만 실행
   -t, --test <ID>   특정 테스트 ID만 실행 (단일 테스트)
@@ -130,18 +135,21 @@ ${chalk.bold('카테고리:')}
   file-tools        파일 도구 테스트 (read, write, list, find)
   llm-client        LLM 클라이언트 테스트 (chat, stream, tools)
   plan-execute      Plan & Execute 테스트
-  agent-loop        Agent Loop 테스트
   session           세션 관리 테스트
   config            설정 관리 테스트
   local-rag         로컬 RAG 테스트
   integration       통합 테스트
+  settings          설정 UI 테스트
+  demos             데모 스크립트 테스트
+  agno-eval         Agno 코드 생성 평가 테스트
 
 ${chalk.bold('예시:')}
   npm run test:e2e                        # 전체 테스트
   npm run test:e2e -- --verbose           # 상세 로그
-  npm run test:e2e -- --filter llm-client # LLM 카테고리 전체
-  npm run test:e2e -- --test llm-basic-chat  # 단일 테스트만
-  npm run test:e2e -- -t agent-simple-task   # 단일 테스트 (축약)
+  npm run test:e2e -- --live              # 실시간 출력 (open-cli 동작 확인)
+  npm run test:e2e -- --filter demos      # 데모 카테고리만
+  npm run test:e2e -- --filter agno-eval  # Agno 평가만
+  npm run test:e2e -- --test demo-hitl    # 단일 테스트만
   npm run test:e2e -- -v -f               # 상세 + 첫 실패시 중단
 `);
 }

@@ -20,13 +20,16 @@
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --config jest.config.mjs --coverage",
     "test:e2e": "node --max-old-space-size=512 --expose-gc node_modules/tsx/dist/cli.mjs test/e2e/run-e2e.ts",
     "test:e2e:verbose": "node --max-old-space-size=512 --expose-gc node_modules/tsx/dist/cli.mjs test/e2e/run-e2e.ts --verbose",
+    "test:e2e:live": "node --max-old-space-size=512 --expose-gc node_modules/tsx/dist/cli.mjs test/e2e/run-e2e.ts --live",
     "test:e2e:list": "npx tsx test/e2e/run-e2e.ts --list",
     "test:all": "npm run test && npm run test:e2e",
     "prepr": "npm run lint && npm run test:e2e",
-    "test:plan-execute": "npx tsx examples/test-plan-execute.ts",
-    "demo:plan-execute": "npx tsx examples/simple-demo.ts",
-    "evaluate": "npx tsx src/evaluation/run-evaluation.ts",
-    "evaluate:quick": "npx tsx src/evaluation/run-evaluation.ts -- --test 1,2,3 --format both"
+    "demo": "npx tsx test/demos/simple-demo.ts",
+    "demo:hitl": "npx tsx test/demos/demo-hitl.ts",
+    "demo:logger": "npx tsx test/demos/logger-demo.ts",
+    "test:real-llm": "npx tsx test/demos/test-plan-execute.ts",
+    "evaluate": "npx tsx test/evaluation/run-evaluation.ts",
+    "evaluate:quick": "npx tsx test/evaluation/run-evaluation.ts -- --test 1,2,3 --format both"
   },
   "keywords": [
     "cli",
