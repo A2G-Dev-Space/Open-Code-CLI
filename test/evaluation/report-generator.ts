@@ -25,6 +25,7 @@ export interface EvaluationReport {
   totalExecutionTime: number;  // Total time for all test cases in milliseconds
   results: TestResult[];
   summary: {
+    successRate: number;       // Pass rate as percentage (0-100)
     averageDuration: number;
     docsSearchUsageRate: number;
     codeGenerationRate: number;
@@ -40,6 +41,8 @@ export function generateReport(results: TestResult[], totalExecutionTime: number
   const totalTests = results.length;
   const passedTests = results.filter(r => r.overallSuccess).length;
   const failedTests = totalTests - passedTests;
+
+  const successRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
 
   const totalDuration = results.reduce((sum, r) => sum + r.execution.duration, 0);
   const averageDuration = totalTests > 0 ? totalDuration / totalTests : 0;
@@ -68,6 +71,7 @@ export function generateReport(results: TestResult[], totalExecutionTime: number
     totalExecutionTime,
     results,
     summary: {
+      successRate,
       averageDuration,
       docsSearchUsageRate,
       codeGenerationRate,
@@ -119,6 +123,7 @@ export function formatReportAsMarkdown(report: EvaluationReport): string {
 
   lines.push('### Metrics');
   lines.push('');
+  lines.push(`- **Success Rate**: ${report.summary.successRate.toFixed(1)}%`);
   lines.push(`- **Average Duration**: ${(report.summary.averageDuration / 1000).toFixed(2)}s`);
   lines.push(`- **Docs Search Usage**: ${report.summary.docsSearchUsageRate.toFixed(1)}%`);
   lines.push(`- **Code Generation Rate**: ${report.summary.codeGenerationRate.toFixed(1)}%`);
@@ -395,11 +400,12 @@ export function printSummary(report: EvaluationReport): void {
   console.log('EVALUATION SUMMARY');
   console.log(separator);
   console.log(`Total Tests: ${report.totalTests}`);
-  console.log(`Passed: ${report.passedTests} (${((report.passedTests / report.totalTests) * 100).toFixed(1)}%)`);
-  console.log(`Failed: ${report.failedTests} (${((report.failedTests / report.totalTests) * 100).toFixed(1)}%)`);
+  console.log(`Passed: ${report.passedTests} (${report.summary.successRate.toFixed(1)}%)`);
+  console.log(`Failed: ${report.failedTests} (${(100 - report.summary.successRate).toFixed(1)}%)`);
   console.log(`Total Execution Time: ${formatDuration(report.totalExecutionTime)}`);
   console.log('');
   console.log('Metrics:');
+  console.log(`  Success Rate: ${report.summary.successRate.toFixed(1)}%`);
   console.log(`  Average Duration: ${(report.summary.averageDuration / 1000).toFixed(2)}s`);
   console.log(`  Docs Search Usage: ${report.summary.docsSearchUsageRate.toFixed(1)}%`);
   console.log(`  Code Generation Rate: ${report.summary.codeGenerationRate.toFixed(1)}%`);

@@ -124,22 +124,6 @@ export const configScenarios: TestScenario[] = [
     ],
   },
 
-  {
-    id: 'config-streaming-support',
-    name: '스트리밍 응답 테스트',
-    description: '설정된 엔드포인트가 스트리밍 응답을 지원하는지 테스트합니다.',
-    category: 'config',
-    enabled: true,
-    timeout: 300000,
-    steps: [
-      {
-        name: '스트리밍 응답 테스트',
-        action: {
-          type: 'llm_stream',
-          prompt: '1부터 5까지 숫자를 나열해주세요.',
-        },
-        validation: { type: 'matches', pattern: '1.*2.*3.*4.*5' },
-      },
-    ],
-  },
+  // NOTE: config-streaming-support 테스트 제거됨
+  // 환경에 따라 스트리밍 지원 여부가 다르고, llm-streaming 테스트에서 이미 검증함
 ];

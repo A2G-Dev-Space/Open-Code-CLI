@@ -22,12 +22,14 @@ export async function executeOpenChat(
   return new Promise((resolve) => {
     const cliPath = path.join(process.cwd(), 'dist', 'cli.js');
 
-    // Spawn the subprocess
-    const child = spawn('node', [cliPath, 'chat', prompt], {
+    // Spawn the subprocess with non-interactive mode
+    const child = spawn('node', [cliPath, 'chat', prompt, '--non-interactive'], {
       cwd: process.cwd(),
       env: {
         ...process.env,
         FORCE_COLOR: '0', // Disable colors for easier parsing
+        CI: '1',          // Signal CI environment (disables Ink UI)
+        NO_TTY: '1',      // Additional signal for non-TTY environment
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
