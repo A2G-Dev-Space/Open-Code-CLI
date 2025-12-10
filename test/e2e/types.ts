@@ -25,7 +25,8 @@ export type TestCategory =
   | 'local-rag'       // 문서 검색
   | 'session'         // 세션 저장/로드
   | 'config'          // 설정 관리
-  | 'slash-commands'  // /exit, /clear, /mode 등
+  | 'slash-commands'  // /exit, /clear, /settings 등
+  | 'settings'        // /settings UI 및 planning mode
   | 'integration';    // 통합 테스트
 
 export interface TestStep {

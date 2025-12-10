@@ -34,17 +34,12 @@ export const SLASH_COMMANDS: CommandMetadata[] = [
     description: 'Clear conversation and TODOs',
   },
   {
-    name: '/mode',
-    description: 'Switch mode',
-    argsHint: 'Available modes: direct | plan-execute | auto',
+    name: '/settings',
+    description: 'Open settings menu',
   },
   {
     name: '/load',
     description: 'Load a saved session',
-  },
-  {
-    name: '/status',
-    description: 'Show system status',
   },
   {
     name: '/help',

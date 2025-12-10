@@ -9,6 +9,7 @@ export { sessionScenarios } from './session.js';
 export { configScenarios } from './config.js';
 export { localRagScenarios } from './local-rag.js';
 export { integrationScenarios } from './integration.js';
+export { settingsScenarios } from './settings.js';
 
 import { fileToolsScenarios } from './file-tools.js';
 import { llmClientScenarios } from './llm-client.js';
@@ -17,6 +18,7 @@ import { sessionScenarios } from './session.js';
 import { configScenarios } from './config.js';
 import { localRagScenarios } from './local-rag.js';
 import { integrationScenarios } from './integration.js';
+import { settingsScenarios } from './settings.js';
 import { TestScenario } from '../types.js';
 
 /**
@@ -31,6 +33,7 @@ export function getAllScenarios(): TestScenario[] {
     ...configScenarios,
     ...localRagScenarios,
     ...integrationScenarios,
+    ...settingsScenarios,
   ];
 }
 
@@ -46,5 +49,6 @@ export function getScenarioStats(): Record<string, number> {
     config: configScenarios.length,
     'local-rag': localRagScenarios.length,
     integration: integrationScenarios.length,
+    settings: settingsScenarios.length,
   };
 }

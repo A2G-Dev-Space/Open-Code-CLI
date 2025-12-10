@@ -19,7 +19,6 @@ import { sessionManager } from './core/session-manager.js';
 import { documentManager } from './core/document-manager.js';
 import { EndpointConfig } from './types/index.js';
 import { PlanExecuteApp } from './ui/components/PlanExecuteApp.js';
-import { GitAutoUpdater } from './core/git-auto-updater.js';
 import { logger, setupLogging } from './utils/logger.js';
 
 const program = new Command();
@@ -33,11 +32,9 @@ program.name('open').description('OPEN-CLI - 오프라인 기업용 AI 코딩 �
  * 기본 명령어: 대화형 모드 시작
  */
 program
-  .option('--no-update', 'Skip auto-update check')
-  .option('--plan-execute', 'Use Plan & Execute mode (default: auto-detect)')
   .option('--verbose', 'Enable verbose logging (shows detailed error messages, HTTP requests, tool execution)')
   .option('--debug', 'Enable debug logging (shows all debug information)')
-  .action(async (options: { noUpdate?: boolean; planExecute?: boolean; verbose?: boolean; debug?: boolean }) => {
+  .action(async (options: { verbose?: boolean; debug?: boolean }) => {
   let cleanup: (() => Promise<void>) | null = null;
   try {
     // Setup logging (log level, JSON stream logger, exit handlers)
@@ -46,12 +43,6 @@ program
       debug: options.debug,
     });
     cleanup = loggingSetup.cleanup;
-
-    // Git-based auto-update (unless disabled)
-    if (!options.noUpdate) {
-      const updater = new GitAutoUpdater();
-      await updater.run({ noUpdate: options.noUpdate });
-    }
 
     // ConfigManager 초기화 확인
     const isInitialized = await configManager.isInitialized();

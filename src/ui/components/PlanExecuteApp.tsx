@@ -17,6 +17,7 @@ import { initializeDocsDirectory } from '../../core/docs-search-agent.js';
 import { performDocsSearchIfNeeded } from '../../core/agent-framework-handler.js';
 import { FileBrowser } from './FileBrowser.js';
 import { SessionBrowser } from './SessionBrowser.js';
+import { SettingsBrowser } from './SettingsBrowser.js';
 import { PlanApprovalPrompt, TaskApprovalPrompt, ApprovalAction } from './ApprovalPrompt.js';
 import { detectAtTrigger, insertFilePaths } from '../hooks/atFileProcessor.js';
 import { loadFileList, FileItem } from '../hooks/useFileList.js';
@@ -31,7 +32,7 @@ import {
   executeSlashCommand,
   isSlashCommand,
   type CommandHandlerContext,
-  type AppMode,
+  type PlanningMode,
 } from '../../core/slash-command-handler.js';
   import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
 
@@ -101,7 +102,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
-  const [mode, setMode] = useState<AppMode>('auto');
+  const [planningMode, setPlanningMode] = useState<PlanningMode>('auto');
 
   // Plan & Execute specific state
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -125,6 +126,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
 
   // Session browser state
   const [showSessionBrowser, setShowSessionBrowser] = useState(false);
+
+  // Settings browser state
+  const [showSettings, setShowSettings] = useState(false);
 
   // HITL approval state
   const [planApprovalRequest, setPlanApprovalRequest] = useState<{
@@ -246,12 +250,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
     if (key.ctrl && inputChar === 't') {
       setShowTodoPanel(!showTodoPanel);
     }
-    // Switch modes with Tab
+    // Switch planning modes with Tab
     if (inputChar === '\t' && !isProcessing) {
-      const modes: AppMode[] = ['auto', 'direct', 'plan-execute'];
-      const currentIndex = modes.indexOf(mode);
+      const modes: PlanningMode[] = ['auto', 'no-planning', 'planning'];
+      const currentIndex = modes.indexOf(planningMode);
       const nextIndex = (currentIndex + 1) % modes.length;
-      setMode(modes[nextIndex]!);
+      setPlanningMode(modes[nextIndex]!);
     }
   });
 
@@ -335,6 +339,16 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
   const handleSessionBrowserCancel = () => {
     // Close session browser
     setShowSessionBrowser(false);
+  };
+
+  // Handle settings planning mode change
+  const handleSettingsPlanningModeChange = (mode: PlanningMode) => {
+    setPlanningMode(mode);
+  };
+
+  // Handle settings close
+  const handleSettingsClose = () => {
+    setShowSettings(false);
   };
 
   // TODO update callback
@@ -525,8 +539,8 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
   };
 
   const handleSubmit = async (value: string) => {
-    // Prevent message submission while file browser or session browser is open
-    if (!value.trim() || isProcessing || showFileBrowser || showSessionBrowser) {
+    // Prevent message submission while file browser, session browser, or settings is open
+    if (!value.trim() || isProcessing || showFileBrowser || showSessionBrowser || showSettings) {
       return;
     }
 
@@ -548,16 +562,20 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
 
     if (isSlashCommand(userMessage)) {
       const commandContext: CommandHandlerContext = {
-        mode,
+        planningMode,
         messages,
         todos,
-        setMode,
+        setPlanningMode,
         setMessages,
         setTodos,
         exit: handleExit,
         // Provide UI control callback for SessionBrowser
         onShowSessionBrowser: () => {
           setShowSessionBrowser(true);
+        },
+        // Provide UI control callback for Settings
+        onShowSettings: () => {
+          setShowSettings(true);
         },
       };
 
@@ -571,12 +589,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
     setIsProcessing(true);
 
     try {
-      // Determine whether to use Plan & Execute based on mode and request complexity
-      let usePlanExecute = false;
+      // Determine whether to use Planning based on planning mode and request complexity
+      let usePlanning = false;
 
-      if (mode === 'plan-execute') {
-        usePlanExecute = true;
-      } else if (mode === 'auto') {
+      if (planningMode === 'planning') {
+        usePlanning = true;
+      } else if (planningMode === 'auto') {
         // Auto-detect based on keywords or complexity
         const complexKeywords = [
           'create', 'build', 'implement', 'develop', 'make',
@@ -586,10 +604,10 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
         ];
 
         const lowerMessage = userMessage.toLowerCase();
-        usePlanExecute = complexKeywords.some(keyword => lowerMessage.includes(keyword));
+        usePlanning = complexKeywords.some(keyword => lowerMessage.includes(keyword));
       }
 
-      if (usePlanExecute) {
+      if (usePlanning) {
         await handlePlanExecuteMode(userMessage);
       } else {
         await handleDirectMode(userMessage);
@@ -609,7 +627,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
             OPEN-CLI Interactive Mode
           </Text>
           <Text color="gray">
-            Model: {modelInfo.model} | Mode: {mode}
+            Model: {modelInfo.model} | Planning: {planningMode}
           </Text>
         </Box>
       </Box>
@@ -658,8 +676,8 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
             <CustomTextInput
               value={input}
               onChange={(value) => {
-                // Block input while SessionBrowser is open
-                if (showSessionBrowser) {
+                // Block input while SessionBrowser or Settings is open
+                if (showSessionBrowser || showSettings) {
                   return;
                 }
                 setInput(value);
@@ -670,9 +688,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
                   ? "Processing..."
                   : showSessionBrowser
                   ? "Select a session or press ESC to cancel..."
+                  : showSettings
+                  ? "Press ESC to close settings..."
                   : "Type your message..."
               }
-              focus={!showSessionBrowser && !planApprovalRequest && !taskApprovalRequest}
+              focus={!showSessionBrowser && !showSettings && !planApprovalRequest && !taskApprovalRequest}
             />
           </Box>
         </Box>
@@ -718,6 +738,17 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
         </Box>
       )}
 
+      {/* Settings Browser (shown when /settings command is submitted) */}
+      {showSettings && !isProcessing && (
+        <Box marginTop={0}>
+          <SettingsBrowser
+            currentPlanningMode={planningMode}
+            onPlanningModeChange={handleSettingsPlanningModeChange}
+            onClose={handleSettingsClose}
+          />
+        </Box>
+      )}
+
       {/* HITL Plan Approval Prompt */}
       {planApprovalRequest && (
         <Box marginTop={1}>
@@ -758,7 +789,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
           )}
         </Box>
         <Text color="gray" dimColor>
-          Tab: switch mode | Ctrl+T: toggle TODOs | /help: commands
+          Tab: switch planning mode | Ctrl+T: toggle TODOs | /help: commands
         </Text>
       </Box>
     </Box>
