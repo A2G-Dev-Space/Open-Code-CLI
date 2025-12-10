@@ -18,7 +18,6 @@ export type ExecutionPhase = 'idle' | 'planning' | 'executing';
 export interface PlanExecutionState {
   todos: TodoItem[];
   currentTodoId: string | undefined;
-  showTodoPanel: boolean;
   executionPhase: ExecutionPhase;
 }
 
@@ -36,7 +35,6 @@ export interface ApprovalState {
 
 export interface PlanExecutionActions {
   setTodos: React.Dispatch<React.SetStateAction<TodoItem[]>>;
-  setShowTodoPanel: React.Dispatch<React.SetStateAction<boolean>>;
   handleTodoUpdate: (todo: TodoItem) => void;
   handleApprovalResponse: (action: ApprovalAction) => void;
   executePlanMode: (
@@ -95,7 +93,6 @@ function formatErrorMessage(error: unknown): string {
 export function usePlanExecution(): PlanExecutionState & ApprovalState & PlanExecutionActions {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [currentTodoId, setCurrentTodoId] = useState<string | undefined>();
-  const [showTodoPanel, setShowTodoPanel] = useState(true);
   const [executionPhase, setExecutionPhase] = useState<ExecutionPhase>('idle');
 
   // Approval state
@@ -287,12 +284,10 @@ export function usePlanExecution(): PlanExecutionState & ApprovalState & PlanExe
   return {
     todos,
     currentTodoId,
-    showTodoPanel,
     executionPhase,
     planApprovalRequest,
     taskApprovalRequest,
     setTodos,
-    setShowTodoPanel,
     handleTodoUpdate,
     handleApprovalResponse,
     executePlanMode,

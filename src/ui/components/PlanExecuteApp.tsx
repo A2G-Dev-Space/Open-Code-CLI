@@ -166,15 +166,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
   }, [exit]);
 
   // Keyboard shortcuts
-  useInput((inputChar: string, key: { ctrl: boolean; shift: boolean; meta: boolean; escape: boolean }) => {
+  useInput((inputChar: string, key: { ctrl: boolean; shift: boolean; meta: boolean; escape: boolean; tab?: boolean }) => {
     if (key.ctrl && inputChar === 'c') {
       handleExit().catch(console.error);
     }
-    if (key.ctrl && inputChar === 't') {
-      logger.debug('Toggle TODO panel', { current: planExecutionState.showTodoPanel });
-      planExecutionState.setShowTodoPanel(!planExecutionState.showTodoPanel);
-    }
-    if (inputChar === '\t' && !isProcessing) {
+    // Tab key to cycle through planning modes
+    if ((key.tab || inputChar === '\t') && !isProcessing) {
       const modes: PlanningMode[] = ['auto', 'no-planning', 'planning'];
       const currentIndex = modes.indexOf(planningMode);
       const nextIndex = (currentIndex + 1) % modes.length;
@@ -522,13 +519,13 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
         </Box>
       )}
 
-      {/* TODO Panel (if in Plan & Execute mode) */}
-      {planExecutionState.showTodoPanel && planExecutionState.todos.length > 0 && !isProcessing && (
+      {/* TODO Panel (always visible when there are todos) */}
+      {planExecutionState.todos.length > 0 && (
         <Box marginY={1}>
           <TodoPanel
             todos={planExecutionState.todos}
             currentTodoId={planExecutionState.currentTodoId}
-            showDetails={planExecutionState.executionPhase === 'executing'}
+            showDetails={true}
           />
         </Box>
       )}
@@ -655,7 +652,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient, model
           )}
         </Box>
         <Text color="gray" dimColor>
-          Tab: mode | Ctrl+T: todos | /help
+          Tab: mode | /help
         </Text>
       </Box>
     </Box>
