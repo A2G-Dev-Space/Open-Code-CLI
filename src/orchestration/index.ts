@@ -45,6 +45,7 @@ export {
   validateLLMOutput,
   parseLLMResponse,
   formatLLMInput,
+  DEFAULT_SYSTEM_PROMPT,
   PLAN_EXECUTE_SYSTEM_PROMPT,
 } from './llm-schemas.js';
 

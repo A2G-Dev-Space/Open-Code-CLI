@@ -25,6 +25,7 @@ import {
   type AskUserRequest,
   type AskUserResponse,
 } from '../../tools/llm/simple/ask-user-tool.js';
+import { DEFAULT_SYSTEM_PROMPT } from '../../orchestration/llm-schemas.js';
 
 export type ExecutionPhase = 'idle' | 'classifying' | 'planning' | 'executing';
 
@@ -273,8 +274,14 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
 
       const { FILE_TOOLS } = await import('../../tools/llm/simple/file-tools.js');
 
+      // Prepare messages with system prompt if not already present
+      const hasSystemMessage = messagesWithDocs.some(m => m.role === 'system');
+      const messagesWithSystem = hasSystemMessage
+        ? messagesWithDocs
+        : [{ role: 'system' as const, content: DEFAULT_SYSTEM_PROMPT }, ...messagesWithDocs];
+
       const result = await llmClient.chatCompletionWithTools(
-        messagesWithDocs.concat({ role: 'user', content: userMessage }),
+        messagesWithSystem.concat({ role: 'user', content: userMessage }),
         FILE_TOOLS,
         5
       );
