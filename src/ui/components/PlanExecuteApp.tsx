@@ -719,7 +719,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
                 const ctxColor = ctxPercent > 50 ? 'green' : ctxPercent > 20 ? 'yellow' : 'red';
                 return (
                   <>
-                    <Text color={ctxColor}>CTX {ctxPercent}%</Text>
+                    <Text color={ctxColor}>Context {ctxPercent}%</Text>
                     <Text color="gray"> │ </Text>
                   </>
                 );

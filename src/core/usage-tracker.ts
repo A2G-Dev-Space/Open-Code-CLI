@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../utils/logger.js';
+import { contextTracker } from './compact/context-tracker.js';
 
 /**
  * 단일 사용 기록
@@ -192,6 +193,8 @@ class UsageTrackerClass {
     // Update lastPromptTokens for context tracking
     if (promptTokens !== undefined) {
       this.currentSession.lastPromptTokens = promptTokens;
+      // Also update contextTracker for auto-compact detection
+      contextTracker.updateUsage(promptTokens);
     }
 
     // Add record
