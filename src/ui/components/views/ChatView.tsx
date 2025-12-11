@@ -137,8 +137,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <Box flexDirection="column" flexGrow={1} paddingX={1} paddingY={1}>
-      {/* Existing messages */}
-      {messages.slice(-maxDisplayMessages).map((msg, idx) => {
+      {/* Existing messages (filter out system messages - they should not be visible to user) */}
+      {messages.slice(-maxDisplayMessages)
+        .filter((msg) => msg.role !== 'system')
+        .map((msg, idx) => {
         const actualIdx = messages.length - maxDisplayMessages + idx;
         const style = getMessageStyle(msg.role);
         const isError = msg.role === 'error';

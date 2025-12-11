@@ -7,6 +7,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
+import { createRequire } from 'module';
+
+// Get version from package.json
+const require = createRequire(import.meta.url);
+const pkg = require('../../../package.json') as { version: string };
+const VERSION = pkg.version;
 
 // ASCII Art Logo for OPEN-CLI
 const LOGO_LINES = [
@@ -87,7 +93,7 @@ export const Logo: React.FC<LogoProps> = ({
       <Box marginTop={1} flexDirection="column" alignItems="center">
         {showVersion && (
           <Text color="gray">
-            v0.1.0 - Local LLM Coding Assistant
+            v{VERSION} - Local LLM Coding Assistant
           </Text>
         )}
         {showTagline && (

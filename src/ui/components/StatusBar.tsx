@@ -27,13 +27,16 @@ export interface StatusBarProps {
     current: number;
     max: number;
   };
+  // Context remaining percentage for auto-compact indicator
+  contextRemainingPercent?: number;
   // TODO status
   todoCount?: number;
   todoCompleted?: number;
-  // Planning mode
-  planningMode?: string;
   // Health status
   healthStatus?: 'healthy' | 'unhealthy' | 'checking' | 'unknown';
+  // Claude Code style execution status
+  currentActivity?: string;  // LLM이 업데이트하는 현재 활동 (예: "파일 분석", "코드 작성")
+  sessionElapsedSeconds?: number;  // 세션 경과 시간
 }
 
 /**
@@ -66,6 +69,30 @@ const Clock: React.FC = () => {
 };
 
 /**
+ * Animated star component - pulses between large and small
+ */
+const AnimatedStar: React.FC = () => {
+  const [phase, setPhase] = useState(0);
+
+  // Animation phases: ✶ (large) → ✷ (medium) → ✸ (small) → ✷ → ✶
+  const stars = ['✶', '✷', '✸', '✷'];
+  const colors = ['magentaBright', 'magenta', 'gray', 'magenta'] as const;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhase(p => (p + 1) % stars.length);
+    }, 300); // 300ms per phase = ~1.2s full cycle
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Text color={colors[phase]} bold>
+      {stars[phase]}{' '}
+    </Text>
+  );
+};
+
+/**
  * Context usage mini bar
  */
 const ContextMiniBar: React.FC<{ current: number; max: number }> = ({ current, max }) => {
@@ -90,6 +117,18 @@ const ContextMiniBar: React.FC<{ current: number; max: number }> = ({ current, m
   );
 };
 
+/**
+ * Format elapsed time (Claude Code style)
+ */
+function formatElapsedTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}m ${secs}s`;
+}
+
 export const StatusBar: React.FC<StatusBarProps> = ({
   model,
   endpoint: _endpoint,
@@ -98,10 +137,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   messageCount = 0,
   sessionTokens = 0,
   contextUsage,
+  contextRemainingPercent,
   todoCount,
   todoCompleted,
-  planningMode,
   healthStatus,
+  currentActivity,
+  sessionElapsedSeconds,
 }) => {
   // endpoint and message reserved for future enhanced display
   void _endpoint;
@@ -138,10 +179,56 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     }
   };
 
+  // Claude Code style: "✶ ~ 하는 중… (esc to interrupt · 2m 7s · ↑ 3.6k tokens)"
+  const isActive = status === 'thinking' || status === 'executing';
+
+  // 실행 중일 때는 Claude Code 스타일 상태바 표시
+  if (isActive && currentActivity) {
+    return (
+      <Box justifyContent="space-between" paddingX={1}>
+        <Box>
+          <AnimatedStar />
+          <Text color="white">{currentActivity}… </Text>
+          <Text color="gray">(esc to interrupt</Text>
+          {sessionElapsedSeconds !== undefined && (
+            <Text color="gray"> · {formatElapsedTime(sessionElapsedSeconds)}</Text>
+          )}
+          {sessionTokens > 0 && (
+            <Text color="gray"> · ↑ {formatTokens(sessionTokens)} tokens</Text>
+          )}
+          <Text color="gray">)</Text>
+        </Box>
+
+        {/* Right: Model */}
+        <Box>
+          {model && <Text color="cyan">{model.slice(0, 15)}</Text>}
+        </Box>
+      </Box>
+    );
+  }
+
+  // Context remaining indicator color
+  const getContextColor = (percent: number): string => {
+    if (percent > 50) return 'green';
+    if (percent > 20) return 'yellow';
+    return 'red';
+  };
+
+  // 기본 상태바 (idle, error 등)
   return (
     <Box justifyContent="space-between" paddingX={1}>
-      {/* Left section: Health, Status, Model */}
+      {/* Left section: Context remaining, Health, Status, Model */}
       <Box>
+        {/* Context remaining indicator (for auto-compact) */}
+        {contextRemainingPercent !== undefined && (
+          <>
+            <Text color={getContextColor(contextRemainingPercent)}>
+              Context {contextRemainingPercent}%
+            </Text>
+            <Text color="gray"> | </Text>
+          </>
+        )}
+
         {getHealthIcon()}
         <Text> </Text>
         {getStatusIndicator()}
@@ -152,11 +239,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             <Text color="gray"> | </Text>
             <Text color="cyan">{model.slice(0, 15)}</Text>
           </>
-        )}
-
-        {/* Planning mode */}
-        {planningMode && (
-          <Text color="gray" dimColor> [{planningMode}]</Text>
         )}
       </Box>
 

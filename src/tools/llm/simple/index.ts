@@ -5,3 +5,5 @@
  */
 
 export * from './file-tools.js';
+export * from './todo-tools.js';
+export * from './ask-user-tool.js';

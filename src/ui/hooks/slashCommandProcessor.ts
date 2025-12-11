@@ -34,6 +34,10 @@ export const SLASH_COMMANDS: CommandMetadata[] = [
     description: 'Clear conversation and TODOs',
   },
   {
+    name: '/compact',
+    description: 'Compact conversation to free up context',
+  },
+  {
     name: '/settings',
     description: 'Open settings menu',
   },
@@ -44,6 +48,14 @@ export const SLASH_COMMANDS: CommandMetadata[] = [
   {
     name: '/load',
     description: 'Load a saved session',
+  },
+  {
+    name: '/docs',
+    description: 'Download framework documentation (agno, adk)',
+  },
+  {
+    name: '/usage',
+    description: 'Show token usage statistics',
   },
   {
     name: '/help',

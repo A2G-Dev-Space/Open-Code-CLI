@@ -27,6 +27,7 @@ import {
   ContextLengthError,
 } from '../../errors/llm.js';
 import { logger } from '../../utils/logger.js';
+import { usageTracker } from '../usage-tracker.js';
 
 /**
  * LLM 응답 인터페이스 (OpenAI Compatible)
@@ -203,6 +204,18 @@ export class LLMClient {
         { name: 'tokensUsed', value: response.data.usage?.total_tokens || 0 },
         { name: 'responseTime', value: elapsed }
       );
+
+      // Track token usage (Phase 3) + context tracking for auto-compact
+      if (response.data.usage) {
+        const promptTokens = response.data.usage.prompt_tokens || 0;
+        usageTracker.recordUsage(
+          this.model,
+          promptTokens,
+          response.data.usage.completion_tokens || 0,
+          undefined,  // sessionId
+          promptTokens  // lastPromptTokens for context tracking
+        );
+      }
 
       logger.exit('chatCompletion', {
         success: true,
@@ -499,7 +512,7 @@ export class LLMClient {
 
           // Tool 실행 (외부에서 주입받아야 함 - 여기서는 import)
           logger.flow('Tool 모듈 로드');
-          const { executeFileTool } = await import('../../tools/file-tools.js');
+          const { executeFileTool } = await import('../../tools/llm/simple/file-tools.js');
 
           logger.debug(`Executing tool: ${toolName}`, toolArgs);
 
@@ -643,7 +656,7 @@ export class LLMClient {
           }
 
           // Tool 실행
-          const { executeFileTool } = await import('../../tools/file-tools.js');
+          const { executeFileTool } = await import('../../tools/llm/simple/file-tools.js');
 
           logger.debug(`Executing tool: ${toolName}`, toolArgs);
 

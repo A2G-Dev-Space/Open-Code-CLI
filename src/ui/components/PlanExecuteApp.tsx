@@ -9,17 +9,18 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import Spinner from 'ink-spinner';
 import { CustomTextInput } from './CustomTextInput.js';
-import { LLMClient, createLLMClient } from '../../core/llm-client.js';
+import { LLMClient, createLLMClient } from '../../core/llm/llm-client.js';
 import { Message } from '../../types/index.js';
 import { TodoPanel, TodoStatusBar } from '../TodoPanel.js';
-import { sessionManager } from '../../core/session-manager.js';
-import { initializeDocsDirectory } from '../../core/docs-search-agent.js';
+import { sessionManager } from '../../core/session/session-manager.js';
+import { initializeDocsDirectory } from '../../core/knowledge/docs-search-agent.js';
 import { FileBrowser } from './FileBrowser.js';
 import { SessionBrowser } from './panels/SessionPanel.js';
 import { SettingsBrowser } from './dialogs/SettingsDialog.js';
 import { LLMSetupWizard } from './LLMSetupWizard.js';
 import { ModelSelector } from './ModelSelector.js';
-import { PlanApprovalPrompt, TaskApprovalPrompt } from './dialogs/ApprovalDialog.js';
+import { AskUserDialog } from './dialogs/AskUserDialog.js';
+import { DocsBrowser } from './dialogs/DocsBrowser.js';
 import { CommandBrowser } from './CommandBrowser.js';
 import { ChatView } from './views/ChatView.js';
 import { Logo } from './Logo.js';
@@ -35,11 +36,34 @@ import {
   type PlanningMode,
 } from '../../core/slash-command-handler.js';
 import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
-import { configManager } from '../../core/config-manager.js';
+import { configManager } from '../../core/config/config-manager.js';
 import { logger } from '../../utils/logger.js';
+import { usageTracker } from '../../core/usage-tracker.js';
+import { createRequire } from 'module';
+
+// Get version from package.json
+const require = createRequire(import.meta.url);
+const pkg = require('../../../package.json') as { version: string };
+const VERSION = pkg.version;
 
 // Initialization steps for detailed progress display
 type InitStep = 'docs' | 'config' | 'health' | 'done';
+
+// Helper functions for status bar
+function formatElapsedTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}m ${secs}s`;
+}
+
+function formatTokensCompact(count: number): string {
+  if (count < 1000) return count.toString();
+  if (count < 1000000) return `${(count / 1000).toFixed(1)}k`;
+  return `${(count / 1000000).toFixed(2)}M`;
+}
 
 interface PlanExecuteAppProps {
   llmClient: LLMClient | null;
@@ -70,6 +94,10 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const [activityDetail, setActivityDetail] = useState<string>('');
   const [subActivities, setSubActivities] = useState<SubActivity[]>([]);
 
+  // Session usage tracking for Claude Code style status bar
+  const [sessionTokens, setSessionTokens] = useState(0);
+  const [sessionElapsed, setSessionElapsed] = useState(0);
+
   // Session browser state
   const [showSessionBrowser, setShowSessionBrowser] = useState(false);
 
@@ -86,6 +114,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [currentModelInfo, setCurrentModelInfo] = useState(modelInfo);
 
+  // Docs Browser state
+  const [showDocsBrowser, setShowDocsBrowser] = useState(false);
+
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
   const commandBrowserState = useCommandBrowserState(input, isProcessing);
@@ -98,6 +129,21 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       logger.exit('PlanExecuteApp', { messageCount: messages.length });
     };
   }, []);
+
+  // Update session usage and elapsed time in real-time
+  useEffect(() => {
+    if (!isProcessing) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const sessionUsage = usageTracker.getSessionUsage();
+      setSessionTokens(sessionUsage.totalTokens);
+      setSessionElapsed(usageTracker.getSessionElapsedSeconds());
+    }, 500); // Update every 500ms
+
+    return () => clearInterval(interval);
+  }, [isProcessing]);
 
   // Initialize on startup: check LLM configuration and run health check
   useEffect(() => {
@@ -117,7 +163,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         setInitStep('config');
         logger.flow('Checking configuration');
         if (!configManager.hasEndpoints()) {
-          logger.info('No endpoints configured, showing setup wizard');
+          logger.debug('No endpoints configured, showing setup wizard');
           setShowSetupWizard(true);
           setIsInitializing(false);
           setHealthStatus('unknown');
@@ -171,8 +217,14 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // Keyboard shortcuts
   useInput((inputChar: string, key: { ctrl: boolean; shift: boolean; meta: boolean; escape: boolean; tab?: boolean }) => {
+    // Ctrl+C: Exit application
     if (key.ctrl && inputChar === 'c') {
       handleExit().catch(console.error);
+    }
+    // ESC: Interrupt current execution
+    if (key.escape && isProcessing) {
+      logger.flow('ESC pressed - interrupting execution');
+      planExecutionState.handleInterrupt();
     }
     // Tab key mode cycling has been removed - always use auto mode
   }, { isActive: !fileBrowserState.showFileBrowser && !commandBrowserState.showCommandBrowser });
@@ -211,7 +263,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         return;
       }
 
-      logger.info('Session loaded', { sessionId, messageCount: sessionData.messages.length });
+      logger.debug('Session loaded', { sessionId, messageCount: sessionData.messages.length });
       setMessages(sessionData.messages);
     } catch (error) {
       const errorMessage = `세션 로드 실패: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -239,7 +291,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // Handle setup wizard completion
   const handleSetupComplete = useCallback(() => {
-    logger.info('Setup wizard completed');
+    logger.debug('Setup wizard completed');
     setShowSetupWizard(false);
     // Exit and let user restart
     exit();
@@ -247,7 +299,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // Handle setup wizard skip
   const handleSetupSkip = useCallback(() => {
-    logger.info('Setup wizard skipped');
+    logger.debug('Setup wizard skipped');
     setShowSetupWizard(false);
   }, []);
 
@@ -269,7 +321,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         try {
           const newClient = createLLMClient();
           setLlmClient(newClient);
-          logger.info('LLMClient recreated with new model', { modelId, modelName: model.name });
+          logger.debug('LLMClient recreated with new model', { modelId, modelName: model.name });
         } catch (error) {
           logger.error('Failed to create new LLMClient', error as Error);
         }
@@ -297,7 +349,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   }, []);
 
   const handleSubmit = useCallback(async (value: string) => {
-    if (!value.trim() || isProcessing || fileBrowserState.showFileBrowser || showSessionBrowser || showSettings || showSetupWizard) {
+    if (!value.trim() || isProcessing || fileBrowserState.showFileBrowser || showSessionBrowser || showSettings || showSetupWizard || showDocsBrowser) {
       return;
     }
 
@@ -338,6 +390,10 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         onShowSessionBrowser: () => setShowSessionBrowser(true),
         onShowSettings: () => setShowSettings(true),
         onShowModelSelector: () => setShowModelSelector(true),
+        onShowDocsBrowser: () => setShowDocsBrowser(true),
+        onCompact: llmClient
+          ? () => planExecutionState.performCompact(llmClient, messages, setMessages)
+          : undefined,
       };
 
       const result = await executeSlashCommand(userMessage, commandContext);
@@ -356,34 +412,42 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     setActivityStartTime(Date.now());
     setSubActivities([]);
 
+    // Reset session usage for new task
+    usageTracker.resetSession();
+    setSessionTokens(0);
+    setSessionElapsed(0);
+
     logger.startTimer('message-processing');
 
     try {
-      // Auto mode: determine whether to use planning based on task complexity
-      const complexKeywords = [
-        'create', 'build', 'implement', 'develop', 'make',
-        'setup', 'configure', 'install', 'deploy', 'design',
-        'refactor', 'optimize', 'debug', 'test', 'analyze',
-        'multiple', 'several', 'tasks', 'steps'
-      ];
+      // Check for auto-compact before processing (80% threshold)
+      if (planExecutionState.shouldAutoCompact()) {
+        logger.flow('Auto-compact triggered');
+        setActivityType('thinking');
+        setActivityDetail('Compacting conversation...');
 
-      const lowerMessage = userMessage.toLowerCase();
-      const usePlanning = complexKeywords.some(keyword => lowerMessage.includes(keyword));
+        const compactResult = await planExecutionState.performCompact(llmClient, messages, setMessages);
+        if (compactResult.success) {
+          logger.debug('Auto-compact completed', {
+            originalCount: compactResult.originalMessageCount,
+            newCount: compactResult.newMessageCount,
+          });
+        } else {
+          logger.warn('Auto-compact failed, continuing without compact', { error: compactResult.error });
+        }
+      }
+
+      // Phase 1: Use auto mode with LLM-based request classification
+      setActivityType('thinking');
+      setActivityDetail('Analyzing request...');
 
       logger.vars(
-        { name: 'usePlanning', value: usePlanning },
-        { name: 'planningMode', value: planningMode }
+        { name: 'planningMode', value: planningMode },
+        { name: 'messageLength', value: userMessage.length }
       );
 
-      if (usePlanning) {
-        setActivityType('planning');
-        setActivityDetail('Analyzing request and creating plan...');
-        await planExecutionState.executePlanMode(userMessage, llmClient, messages, setMessages);
-      } else {
-        setActivityType('thinking');
-        setActivityDetail('Processing your request...');
-        await planExecutionState.executeDirectMode(userMessage, llmClient, messages, setMessages);
-      }
+      // Use executeAutoMode which handles classification internally
+      await planExecutionState.executeAutoMode(userMessage, llmClient, messages, setMessages);
 
     } catch (error) {
       logger.error('Message processing failed', error as Error);
@@ -400,6 +464,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     showSessionBrowser,
     showSettings,
     showSetupWizard,
+    showDocsBrowser,
     commandBrowserState,
     planningMode,
     messages,
@@ -482,16 +547,36 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   return (
     <Box flexDirection="column" height="100%">
-      {/* Header */}
-      <Box borderStyle="round" borderColor="cyan" paddingX={1}>
-        <Box justifyContent="space-between" width="100%">
-          <Box>
-            <Text bold color="cyan">OPEN-CLI </Text>
-            {getHealthIndicator()}
-          </Box>
-          <Text color="gray">
-            {currentModelInfo.model}
-          </Text>
+      {/* Empty lines to prevent top clipping */}
+      <Text>{' '}</Text>
+      <Text>{' '}</Text>
+
+      {/* Header with ASCII Logo */}
+      <Box flexDirection="column" alignItems="center" marginBottom={1}>
+        <Text color="cyan" bold>
+          {`   ____  _____  ______ _   _        _____ _      _____ `}
+        </Text>
+        <Text color="cyan" bold>
+          {`  / __ \\|  __ \\|  ____| \\ | |      / ____| |    |_   _|`}
+        </Text>
+        <Text color="cyanBright" bold>
+          {` | |  | | |__) | |__  |  \\| |_____| |    | |      | |  `}
+        </Text>
+        <Text color="cyanBright" bold>
+          {` | |  | |  ___/|  __| | . \` |_____| |    | |      | |  `}
+        </Text>
+        <Text color="blue" bold>
+          {` | |__| | |    | |____| |\\  |     | |____| |____ _| |_ `}
+        </Text>
+        <Text color="blue" bold>
+          {`  \\____/|_|    |______|_| \\_|      \\_____|______|_____|`}
+        </Text>
+        <Box marginTop={0}>
+          <Text color="gray">v{VERSION}</Text>
+          <Text color="gray"> │ </Text>
+          {getHealthIndicator()}
+          <Text color="gray"> </Text>
+          <Text color="magenta">{currentModelInfo.model}</Text>
         </Box>
       </Box>
 
@@ -540,7 +625,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             <CustomTextInput
               value={input}
               onChange={(value) => {
-                if (showSessionBrowser || showSettings) {
+                if (showSessionBrowser || showSettings || showDocsBrowser) {
                   return;
                 }
                 setInput(value);
@@ -553,9 +638,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
                   ? "Select a session or press ESC..."
                   : showSettings
                   ? "Press ESC to close settings..."
+                  : showDocsBrowser
+                  ? "Select a doc source or press ESC..."
                   : "Type your message... (@ for files, / for commands)"
               }
-              focus={!showSessionBrowser && !showSettings && !planExecutionState.planApprovalRequest && !planExecutionState.taskApprovalRequest}
+              focus={!showSessionBrowser && !showSettings && !showDocsBrowser}
             />
           </Box>
           {/* Character counter */}
@@ -629,47 +716,85 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         </Box>
       )}
 
-      {/* HITL Plan Approval Prompt */}
-      {planExecutionState.planApprovalRequest && (
-        <Box marginTop={1}>
-          <PlanApprovalPrompt
-            userRequest={planExecutionState.planApprovalRequest.userRequest}
-            todos={planExecutionState.planApprovalRequest.todos}
-            onResponse={planExecutionState.handleApprovalResponse}
+      {/* Docs Browser (shown when /docs command is submitted) */}
+      {showDocsBrowser && !isProcessing && (
+        <Box marginTop={0}>
+          <DocsBrowser
+            onClose={() => setShowDocsBrowser(false)}
           />
         </Box>
       )}
 
-      {/* HITL Task Approval Prompt */}
-      {planExecutionState.taskApprovalRequest && (
+      {/* Ask User Dialog */}
+      {planExecutionState.askUserRequest && (
         <Box marginTop={1}>
-          <TaskApprovalPrompt
-            taskDescription={planExecutionState.taskApprovalRequest.taskDescription}
-            risk={planExecutionState.taskApprovalRequest.risk}
-            context={planExecutionState.taskApprovalRequest.context}
-            onResponse={planExecutionState.handleApprovalResponse}
+          <AskUserDialog
+            request={planExecutionState.askUserRequest}
+            onResponse={planExecutionState.handleAskUserResponse}
           />
         </Box>
       )}
 
-      {/* Status Bar - Always visible with model info */}
+      {/* Status Bar - Claude Code style when processing */}
       <Box justifyContent="space-between" paddingX={1}>
-        <Box>
-          {/* Model info - always visible */}
-          <Text color="gray">{getHealthIndicator()} </Text>
-          <Text color="cyan">{currentModelInfo.model}</Text>
-          <Text color="gray"> │ </Text>
-          <Text color="magenta">🤖 auto</Text>
-          {planExecutionState.todos.length > 0 && (
-            <>
-              <Text color="gray"> │ </Text>
-              <TodoStatusBar todos={planExecutionState.todos} />
-            </>
-          )}
-        </Box>
-        <Text color="gray" dimColor>
-          /help
-        </Text>
+        {isProcessing ? (
+          // Claude Code style: "✶ ~ 하는 중… (esc to interrupt · 2m 7s · ↑ 3.6k tokens)"
+          <>
+            <Box>
+              <Text color="magenta" bold>✶ </Text>
+              <Text color="white">
+                {planExecutionState.currentActivity || '처리 중'}…
+              </Text>
+              <Text color="gray">
+                {' '}(esc to interrupt · {formatElapsedTime(sessionElapsed)}
+                {sessionTokens > 0 && ` · ↑ ${formatTokensCompact(sessionTokens)} tokens`})
+              </Text>
+            </Box>
+            <Box>
+              {/* Context remaining indicator (also shown during processing) */}
+              {(() => {
+                const ctxPercent = planExecutionState.getContextRemainingPercent();
+                const ctxColor = ctxPercent > 50 ? 'green' : ctxPercent > 20 ? 'yellow' : 'red';
+                return (
+                  <>
+                    <Text color={ctxColor}>Context {ctxPercent}%</Text>
+                    <Text color="gray"> │ </Text>
+                  </>
+                );
+              })()}
+              <Text color="cyan">{currentModelInfo.model}</Text>
+            </Box>
+          </>
+        ) : (
+          // Default status bar
+          <>
+            <Box>
+              {/* Context remaining indicator */}
+              {(() => {
+                const ctxPercent = planExecutionState.getContextRemainingPercent();
+                const ctxColor = ctxPercent > 50 ? 'green' : ctxPercent > 20 ? 'yellow' : 'red';
+                return (
+                  <>
+                    <Text color={ctxColor}>Context {ctxPercent}%</Text>
+                    <Text color="gray"> │ </Text>
+                  </>
+                );
+              })()}
+              {/* Model info - always visible */}
+              <Text color="gray">{getHealthIndicator()} </Text>
+              <Text color="cyan">{currentModelInfo.model}</Text>
+              {planExecutionState.todos.length > 0 && (
+                <>
+                  <Text color="gray"> │ </Text>
+                  <TodoStatusBar todos={planExecutionState.todos} />
+                </>
+              )}
+            </Box>
+            <Text color="gray" dimColor>
+              /help
+            </Text>
+          </>
+        )}
       </Box>
     </Box>
   );
