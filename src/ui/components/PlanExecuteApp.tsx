@@ -133,12 +133,20 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     };
   }, []);
 
+  // Helper: truncate text with ellipsis
+  const truncate = (text: string, maxLen: number): string => {
+    if (!text) return '';
+    const singleLine = text.replace(/\n/g, ' ').trim();
+    if (singleLine.length <= maxLen) return singleLine;
+    return singleLine.substring(0, maxLen - 1) + '…';
+  };
+
   // Setup tool execution callback - prints to console for scrollable history
   useEffect(() => {
     setToolExecutionCallback((toolName, reason, filePath) => {
-      const fileInfo = filePath ? ` \x1b[90m(${filePath})\x1b[0m` : '';
-      console.log(`\x1b[36m🔧 ${toolName}\x1b[0m${fileInfo}`);
-      console.log(`   \x1b[37m${reason}\x1b[0m`);
+      const fileInfo = filePath ? `\x1b[90m(${truncate(filePath, 50)})\x1b[0m` : '';
+      console.log(`\n\x1b[36m● ${toolName}\x1b[0m${fileInfo ? ' ' + fileInfo : ''}`);
+      console.log(`  \x1b[90m⎿\x1b[0m  ${truncate(reason, 80)}`);
       logger.debug('Tool execution started', { toolName, reason, filePath });
     });
 
@@ -150,11 +158,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // Setup tool response callback - prints to console for scrollable history
   useEffect(() => {
     setToolResponseCallback((toolName, success, result) => {
-      if (success) {
-        console.log(`   \x1b[32m✓ ${result}\x1b[0m`);
-      } else {
-        console.log(`   \x1b[31m✗ ${result}\x1b[0m`);
-      }
+      const icon = success ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
+      const color = success ? '\x1b[90m' : '\x1b[31m';
+      console.log(`  \x1b[90m⎿\x1b[0m  ${icon} ${color}${truncate(result, 70)}\x1b[0m`);
       logger.debug('Tool execution completed', { toolName, success, result });
     });
 
@@ -166,7 +172,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // Setup tell_to_user callback - prints to console for scrollable history
   useEffect(() => {
     setTellToUserCallback((message) => {
-      console.log(`\x1b[33m💬 ${message}\x1b[0m`);
+      console.log(`\n\x1b[33m● ${truncate(message, 100)}\x1b[0m`);
       logger.debug('Message to user', { message });
     });
 
@@ -473,6 +479,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         return;
       }
     }
+
+    // Print user input to console for scrollable history
+    console.log(`\n\x1b[32m❯ ${truncate(userMessage, 100)}\x1b[0m`);
 
     // Add user message to messages immediately
     const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: userMessage }];

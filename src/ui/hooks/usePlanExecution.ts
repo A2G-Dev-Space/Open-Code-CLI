@@ -402,6 +402,14 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       orchestrator.on('planCreated', (newTodos: TodoItem[]) => {
         logger.flow('Plan created', { todoCount: newTodos.length });
         setTodos(newTodos);
+
+        // Print plan to console
+        console.log(`\n\x1b[35m● 📋 ${newTodos.length}개의 작업을 생성했습니다\x1b[0m`);
+        newTodos.forEach((todo, idx) => {
+          console.log(`  \x1b[90m⎿\x1b[0m  ${idx + 1}. ${todo.title}`);
+        });
+        console.log('');
+
         const planningMessage = `📋 ${newTodos.length}개의 작업을 생성했습니다. 자동으로 실행합니다...`;
         setMessages(prev => [
           ...prev,
@@ -418,16 +426,25 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         handleTodoUpdate({ ...todo, status: 'in_progress' as const });
         setExecutionPhase('executing');
         setCurrentActivity(todo.title);
+
+        // Print TODO start to console
+        console.log(`\n\x1b[34m● ▶ ${todo.title}\x1b[0m`);
       });
 
       orchestrator.on('todoCompleted', (todo: TodoItem) => {
         logger.flow('TODO completed', { todoId: todo.id });
         handleTodoUpdate({ ...todo, status: 'completed' as const });
+
+        // Print TODO completion to console
+        console.log(`  \x1b[90m⎿\x1b[0m  \x1b[32m✓ 완료\x1b[0m`);
       });
 
       orchestrator.on('todoFailed', (todo: TodoItem) => {
         logger.flow('TODO failed', { todoId: todo.id });
         handleTodoUpdate({ ...todo, status: 'failed' as const });
+
+        // Print TODO failure to console
+        console.log(`  \x1b[90m⎿\x1b[0m  \x1b[31m✗ 실패\x1b[0m`);
       });
 
       const summary = await orchestrator.execute(userMessage);
@@ -574,6 +591,20 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
   }, [executionPhase, isInterrupted]);
 
   /**
+   * Print logo to console (for compact)
+   */
+  const printLogo = () => {
+    console.log('\n');
+    console.log('\x1b[36m   ____  _____  ______ _   _        _____ _      _____ \x1b[0m');
+    console.log('\x1b[36m  / __ \\|  __ \\|  ____| \\ | |      / ____| |    |_   _|\x1b[0m');
+    console.log('\x1b[36m | |  | | |__) | |__  |  \\| |_____| |    | |      | |  \x1b[0m');
+    console.log('\x1b[36m | |  | |  ___/|  __| | . ` |_____| |    | |      | |  \x1b[0m');
+    console.log('\x1b[34m | |__| | |    | |____| |\\  |     | |____| |____ _| |_ \x1b[0m');
+    console.log('\x1b[34m  \\____/|_|    |______|_| \\_|      \\_____|______|_____|\x1b[0m');
+    console.log('');
+  };
+
+  /**
    * Perform conversation compaction
    */
   const performCompact = useCallback(async (
@@ -602,6 +633,11 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         setMessages(compactedMessages);
         contextTracker.reset();
         sessionManager.autoSaveCurrentSession(compactedMessages);
+
+        // Print logo and compact info to console
+        printLogo();
+        console.log(`\x1b[90m── Conversation compacted: ${result.originalMessageCount} → ${result.newMessageCount} messages ──\x1b[0m\n`);
+
         logger.flow('Compact completed successfully');
       }
 
