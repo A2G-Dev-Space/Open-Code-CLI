@@ -21,7 +21,11 @@ const program = new Command();
 /**
  * CLI 프로그램 설정
  */
-program.name('open').description('OPEN-CLI - 오프라인 기업용 AI 코딩 어시스턴트').version('0.1.0');
+program
+  .name('open')
+  .description('OPEN-CLI - 오프라인 기업용 AI 코딩 어시스턴트')
+  .version('0.1.0')
+  .helpOption(false);  // -h, --help 비활성화 (/help 사용)
 
 /**
  * 기본 명령어: 대화형 모드 시작
@@ -89,12 +93,23 @@ program
 
 
 /**
- * 에러 핸들링
+ * 에러 핸들링: 알 수 없는 옵션 처리
  */
+program.showHelpAfterError(false);
+program.configureOutput({
+  outputError: (str, write) => {
+    if (str.includes('--help') || str.includes('-h')) {
+      write(chalk.yellow('💡 도움말은 앱 실행 후 /help 명령어를 사용하세요.\n'));
+    } else {
+      write(chalk.red(str));
+    }
+  }
+});
+
 program.on('command:*', () => {
   console.error(chalk.red('⚠️  알 수 없는 명령어입니다.'));
   console.log(chalk.white('사용법: open [--verbose] [--debug]\n'));
-  console.log(chalk.white('대화형 모드에서 /settings를 사용하여 LLM을 설정하세요.\n'));
+  console.log(chalk.white('대화형 모드에서 /help를 사용하여 도움말을 확인하세요.\n'));
   process.exit(1);
 });
 
@@ -102,8 +117,3 @@ program.on('command:*', () => {
  * CLI 프로그램 실행
  */
 program.parse(process.argv);
-
-// 명령어가 없으면 기본 동작 실행
-if (!process.argv.slice(2).length) {
-  program.outputHelp();
-}
