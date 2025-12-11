@@ -223,7 +223,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         {contextRemainingPercent !== undefined && (
           <>
             <Text color={getContextColor(contextRemainingPercent)}>
-              CTX {contextRemainingPercent}%
+              Context {contextRemainingPercent}%
             </Text>
             <Text color="gray"> | </Text>
           </>
