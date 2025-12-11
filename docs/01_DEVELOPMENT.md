@@ -1,6 +1,6 @@
 # 개발자 종합 가이드 (Development Guide)
 
-> **문서 버전**: 5.0.0 (v1.0.0)
+> **문서 버전**: 5.1.0 (v1.1.0)
 > **최종 수정일**: 2025-12-11
 
 이 문서는 **OPEN-CLI** 프로젝트의 전체 구조, 아키텍처, 핵심 기능, 개발 규칙을 설명합니다.
@@ -166,6 +166,7 @@ src/
 │   │   ├── dialogs/                # 다이얼로그 컴포넌트
 │   │   │   ├── AskUserDialog.tsx   # ask-to-user 다이얼로그
 │   │   │   ├── SettingsDialog.tsx  # 설정 다이얼로그
+│   │   │   ├── DocsBrowser.tsx     # /docs 문서 브라우저
 │   │   │   └── index.ts
 │   │   │
 │   │   ├── panels/                 # 패널 컴포넌트
@@ -343,10 +344,15 @@ AVAILABLE_SOURCES = [
 ];
 
 // 슬래시 명령어
-/docs                    # 정보 표시
+/docs                    # 문서 브라우저 UI 표시 (↑↓ 이동, Enter 다운로드)
 /docs download agno      # Agno 문서 다운로드
 /docs download adk       # ADK 문서 다운로드
 ```
+
+**UI**: `src/ui/components/dialogs/DocsBrowser.tsx`
+- 방향키와 Enter로 선택
+- 숫자 키(1-9)로 빠른 다운로드
+- 설치 상태 표시 (✅ 설치됨 / ⬜ 미설치)
 
 ### 4.7 File-Tools
 

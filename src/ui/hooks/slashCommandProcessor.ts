@@ -50,6 +50,14 @@ export const SLASH_COMMANDS: CommandMetadata[] = [
     description: 'Load a saved session',
   },
   {
+    name: '/docs',
+    description: 'Download framework documentation (agno, adk)',
+  },
+  {
+    name: '/usage',
+    description: 'Show token usage statistics',
+  },
+  {
     name: '/help',
     description: 'Show help message',
   },

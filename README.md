@@ -1,4 +1,4 @@
-# OPEN-CLI v1.0.0
+# OPEN-CLI v1.1.0
 
 **오프라인 기업 환경을 위한 로컬 LLM CLI 플랫폼**
 
@@ -48,11 +48,12 @@ You: 프로젝트에 로깅 시스템을 추가해줘
 |--------|------|
 | `/help` | 도움말 표시 |
 | `/clear` | 대화 초기화 |
+| `/compact` | 대화 압축 (Context 절약) |
 | `/load` | 저장된 세션 불러오기 |
 | `/model` | LLM 모델 전환 |
 | `/settings` | 설정 메뉴 |
 | `/usage` | 토큰 사용량 통계 |
-| `/docs` | 문서 관리 |
+| `/docs` | 문서 브라우저 (↑↓ 선택, Enter 다운로드) |
 | `/docs download <source>` | 문서 다운로드 (agno, adk) |
 
 ### 키보드 단축키

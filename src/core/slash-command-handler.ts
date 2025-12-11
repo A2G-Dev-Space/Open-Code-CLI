@@ -36,6 +36,7 @@ export interface CommandHandlerContext {
   onShowSessionBrowser?: () => void;
   onShowSettings?: () => void;
   onShowModelSelector?: () => void;
+  onShowDocsBrowser?: () => void;
   onCompact?: () => Promise<CompactResult>;
 }
 
@@ -185,8 +186,18 @@ export async function executeSlashCommand(
     const subCommand = parts[1];
     const sourceId = parts[2];
 
-    // /docs - show info and available sources
+    // /docs - show DocsBrowser UI if available
     if (!subCommand) {
+      // If UI callback is available (React UI), trigger DocsBrowser
+      if (context.onShowDocsBrowser) {
+        context.onShowDocsBrowser();
+        return {
+          handled: true,
+          shouldContinue: false,
+        };
+      }
+
+      // Fallback to text display (non-interactive mode)
       const info = await getDocsInfo();
       const sources = getAvailableSources();
 

@@ -20,6 +20,7 @@ import { SettingsBrowser } from './dialogs/SettingsDialog.js';
 import { LLMSetupWizard } from './LLMSetupWizard.js';
 import { ModelSelector } from './ModelSelector.js';
 import { AskUserDialog } from './dialogs/AskUserDialog.js';
+import { DocsBrowser } from './dialogs/DocsBrowser.js';
 import { CommandBrowser } from './CommandBrowser.js';
 import { ChatView } from './views/ChatView.js';
 import { Logo } from './Logo.js';
@@ -112,6 +113,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // Model Selector state
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [currentModelInfo, setCurrentModelInfo] = useState(modelInfo);
+
+  // Docs Browser state
+  const [showDocsBrowser, setShowDocsBrowser] = useState(false);
 
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
@@ -345,7 +349,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   }, []);
 
   const handleSubmit = useCallback(async (value: string) => {
-    if (!value.trim() || isProcessing || fileBrowserState.showFileBrowser || showSessionBrowser || showSettings || showSetupWizard) {
+    if (!value.trim() || isProcessing || fileBrowserState.showFileBrowser || showSessionBrowser || showSettings || showSetupWizard || showDocsBrowser) {
       return;
     }
 
@@ -386,6 +390,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         onShowSessionBrowser: () => setShowSessionBrowser(true),
         onShowSettings: () => setShowSettings(true),
         onShowModelSelector: () => setShowModelSelector(true),
+        onShowDocsBrowser: () => setShowDocsBrowser(true),
         onCompact: llmClient
           ? () => planExecutionState.performCompact(llmClient, messages, setMessages)
           : undefined,
@@ -459,6 +464,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     showSessionBrowser,
     showSettings,
     showSetupWizard,
+    showDocsBrowser,
     commandBrowserState,
     planningMode,
     messages,
@@ -619,7 +625,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             <CustomTextInput
               value={input}
               onChange={(value) => {
-                if (showSessionBrowser || showSettings) {
+                if (showSessionBrowser || showSettings || showDocsBrowser) {
                   return;
                 }
                 setInput(value);
@@ -632,9 +638,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
                   ? "Select a session or press ESC..."
                   : showSettings
                   ? "Press ESC to close settings..."
+                  : showDocsBrowser
+                  ? "Select a doc source or press ESC..."
                   : "Type your message... (@ for files, / for commands)"
               }
-              focus={!showSessionBrowser && !showSettings}
+              focus={!showSessionBrowser && !showSettings && !showDocsBrowser}
             />
           </Box>
           {/* Character counter */}
@@ -704,6 +712,15 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           <ModelSelector
             onSelect={handleModelSelect}
             onCancel={handleModelSelectorCancel}
+          />
+        </Box>
+      )}
+
+      {/* Docs Browser (shown when /docs command is submitted) */}
+      {showDocsBrowser && !isProcessing && (
+        <Box marginTop={0}>
+          <DocsBrowser
+            onClose={() => setShowDocsBrowser(false)}
           />
         </Box>
       )}
