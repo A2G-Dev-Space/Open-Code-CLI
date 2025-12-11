@@ -280,8 +280,11 @@ export class GitAutoUpdater {
 
         console.log();
         console.log(chalk.green.bold('✨ Update Complete!'));
-        console.log(chalk.white('   You are now running the latest version'));
+        console.log(chalk.white('   Please run "open" again to use the new version.'));
         console.log();
+
+        // Exit so user restarts with new version
+        process.exit(0);
       } catch (buildError: any) {
         spinner.fail(chalk.red('Update failed'));
         logger.error('Build/link failed after pull', buildError);
