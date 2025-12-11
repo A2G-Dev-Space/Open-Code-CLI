@@ -15,6 +15,7 @@ import { configManager } from './core/config/config-manager.js';
 import { createLLMClient } from './core/llm/llm-client.js';
 import { PlanExecuteApp } from './ui/components/PlanExecuteApp.js';
 import { setupLogging } from './utils/logger.js';
+import { GitAutoUpdater } from './core/git-auto-updater.js';
 
 const program = new Command();
 
@@ -31,12 +32,16 @@ program
  * 기본 명령어: 대화형 모드 시작
  */
 program
-  .option('--verbose', 'Enable verbose logging (shows detailed error messages, HTTP requests, tool execution)')
-  .option('--debug', 'Enable debug logging (shows all debug information)')
-  .option('--llm-log', 'Enable LLM logging (shows only LLM requests and responses)')
+  .option('--verbose', 'Enable verbose logging')
+  .option('--debug', 'Enable debug logging')
+  .option('--llm-log', 'Enable LLM logging')
   .action(async (options: { verbose?: boolean; debug?: boolean; llmLog?: boolean }) => {
     let cleanup: (() => Promise<void>) | null = null;
     try {
+      // Auto-update check (runs on every 'open' command)
+      const updater = new GitAutoUpdater();
+      await updater.run();
+
       // Clear terminal on start
       process.stdout.write('\x1B[2J\x1B[0f');
 
