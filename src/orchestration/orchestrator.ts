@@ -13,7 +13,6 @@ import { logger } from '../utils/logger.js';
 import {
   PlanExecuteLLMInput,
   PlanExecuteLLMOutput,
-  parseLLMResponse,
   PLAN_EXECUTE_SYSTEM_PROMPT,
 } from './llm-schemas.js';
 import {
@@ -357,80 +356,115 @@ export class PlanExecuteOrchestrator extends EventEmitter {
   }
 
   /**
-   * Call LLM for task execution with retry logic
+   * Call LLM for task execution with tools support
+   * Now uses chatCompletionWithTools for actual file operations
    */
   private async callLLMForTask(
     input: PlanExecuteLLMInput,
-    retryCount: number = 0
+    _retryCount: number = 0
   ): Promise<PlanExecuteLLMOutput> {
-    const MAX_RETRIES = 2;
-
     logger.enter('PlanExecuteOrchestrator.callLLMForTask', {
       taskId: input.current_task.id,
-      retryCount,
     });
 
     try {
-      const userMessage = JSON.stringify(input, null, 2);
-      const response = await this.llmClient.sendMessage(
-        userMessage,
-        PLAN_EXECUTE_SYSTEM_PROMPT
+      // Import FILE_TOOLS for actual file operations
+      const { FILE_TOOLS } = await import('../tools/llm/simple/file-tools.js');
+
+      // Build user message with task context
+      const taskContext = `
+## Current Task
+**ID**: ${input.current_task.id}
+**Title**: ${input.current_task.title}
+**Description**: ${input.current_task.description || 'No description provided'}
+
+## Previous Context
+${input.previous_context.completed_tasks.length > 0
+  ? input.previous_context.completed_tasks.map(t => `- ✅ ${t.title}: ${t.result}`).join('\n')
+  : 'No previous tasks completed yet.'}
+
+${input.previous_context.last_step_result
+  ? `**Last Step Result**: ${input.previous_context.last_step_result}`
+  : ''}
+
+${input.error_log.is_debug
+  ? `## Debug Mode
+**Error to Fix**: ${input.error_log.error_message || 'Unknown error'}
+**Details**: ${input.error_log.error_details || 'No details'}
+`
+  : ''}
+
+Please execute this task now using the available tools.
+`;
+
+      // Build messages array with system prompt
+      const messages = [
+        { role: 'system' as const, content: PLAN_EXECUTE_SYSTEM_PROMPT },
+        { role: 'user' as const, content: taskContext },
+      ];
+
+      // Execute with tools
+      const result = await this.llmClient.chatCompletionWithTools(
+        messages,
+        FILE_TOOLS,
+        5  // max iterations for tool calls
       );
 
-      const parseResult = parseLLMResponse(response);
+      // Extract final response content
+      const responseContent = result.message.content || '';
 
-      if (!parseResult.success || !parseResult.data) {
-        // Retry with stronger JSON enforcement prompt
-        if (retryCount < MAX_RETRIES) {
-          logger.debug('LLM response not in JSON format, retrying with enforcement', {
-            retryCount: retryCount + 1,
-            responsePreview: response.substring(0, 100)
-          });
+      // Build tool call summary
+      const toolCallSummary = result.toolCalls.length > 0
+        ? result.toolCalls.map(tc => `- ${tc.tool}: ${tc.result.substring(0, 200)}${tc.result.length > 200 ? '...' : ''}`).join('\n')
+        : '';
 
-          // Add retry prompt to enforce JSON format
-          const retryInput = {
-            ...input,
-            error_log: {
-              ...input.error_log,
-              is_debug: true,
-              error_message: 'Previous response was not valid JSON. You MUST respond with a valid JSON object only.',
-              error_details: `Your response must be a JSON object with this exact structure:
-{
-  "status": "success" | "failed" | "needs_debug",
-  "result": "your result here",
-  "log_entries": []
-}
-Do NOT include any text, code, or explanations outside the JSON object.`,
-            },
-          };
+      // Build log entries from tool calls
+      const logEntries: Array<{
+        level: 'debug' | 'info' | 'warning' | 'error';
+        message: string;
+        timestamp: string;
+        context?: Record<string, any>;
+      }> = result.toolCalls.map(tc => ({
+        level: 'info' as const,
+        message: `Tool executed: ${tc.tool}`,
+        timestamp: new Date().toISOString(),
+        context: { args: tc.args, resultPreview: tc.result.substring(0, 100) },
+      }));
 
-          return this.callLLMForTask(retryInput, retryCount + 1);
-        }
-
-        // After max retries, use the raw response as result (fallback)
-        logger.debug('Max retries reached, using raw response as fallback');
-        return {
-          status: 'success',
-          result: response,
-          log_entries: [{
-            level: 'info',
-            message: 'LLM returned non-JSON response, using raw output',
-            timestamp: new Date().toISOString(),
-          }],
-        };
-      }
+      // Determine status based on response
+      const hasError = result.toolCalls.some(tc => tc.result.startsWith('Error:'));
+      const status = hasError ? 'needs_debug' : 'success';
 
       logger.exit('PlanExecuteOrchestrator.callLLMForTask', {
-        status: parseResult.data.status,
+        status,
+        toolCallCount: result.toolCalls.length,
       });
 
-      return parseResult.data;
+      return {
+        status,
+        result: `${responseContent}\n\n### Tool Execution Summary\n${toolCallSummary || 'No tools were called.'}`,
+        log_entries: logEntries,
+        files_changed: result.toolCalls
+          .filter(tc => ['create_file', 'edit_file'].includes(tc.tool))
+          .map(tc => ({
+            path: (tc.args as any).path || (tc.args as any).file_path || 'unknown',
+            action: tc.tool === 'create_file' ? 'created' as const : 'modified' as const,
+          })),
+        error: hasError ? {
+          message: 'Some tool executions failed',
+          details: result.toolCalls.filter(tc => tc.result.startsWith('Error:')).map(tc => tc.result).join('\n'),
+        } : undefined,
+      };
     } catch (error) {
-      logger.error('LLM call failed', error);
+      logger.error('LLM call with tools failed', error);
       return {
         status: 'failed',
         result: '',
-        log_entries: [],
+        log_entries: [{
+          level: 'error',
+          message: `Execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date().toISOString(),
+        }],
         error: {
           message: error instanceof Error ? error.message : 'LLM call failed',
         },
