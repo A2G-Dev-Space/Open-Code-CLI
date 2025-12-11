@@ -355,7 +355,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
     logger.enter('handleSubmit', { valueLength: value.length });
 
-    if (!llmClient) {
+    const userMessage = value.trim();
+
+    // Allow /settings command even without LLM configured
+    const isSettingsCommand = userMessage === '/settings';
+
+    if (!llmClient && !isSettingsCommand) {
       logger.warn('LLM client not configured');
       setMessages((prev) => [
         ...prev,
@@ -364,11 +369,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       return;
     }
 
-    if (commandBrowserState.showCommandBrowser && !isValidCommand(value.trim())) {
+    if (commandBrowserState.showCommandBrowser && !isValidCommand(userMessage)) {
       return;
     }
-
-    const userMessage = value.trim();
 
     if (commandBrowserState.showCommandBrowser) {
       commandBrowserState.resetCommandBrowser();
@@ -426,7 +429,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         setActivityType('thinking');
         setActivityDetail('Compacting conversation...');
 
-        const compactResult = await planExecutionState.performCompact(llmClient, messages, setMessages);
+        const compactResult = await planExecutionState.performCompact(llmClient!, messages, setMessages);
         if (compactResult.success) {
           logger.debug('Auto-compact completed', {
             originalCount: compactResult.originalMessageCount,
@@ -447,7 +450,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       );
 
       // Use executeAutoMode which handles classification internally
-      await planExecutionState.executeAutoMode(userMessage, llmClient, messages, setMessages);
+      await planExecutionState.executeAutoMode(userMessage, llmClient!, messages, setMessages);
 
     } catch (error) {
       logger.error('Message processing failed', error as Error);
