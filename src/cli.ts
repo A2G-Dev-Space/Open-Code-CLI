@@ -33,7 +33,8 @@ program
 program
   .option('--verbose', 'Enable verbose logging (shows detailed error messages, HTTP requests, tool execution)')
   .option('--debug', 'Enable debug logging (shows all debug information)')
-  .action(async (options: { verbose?: boolean; debug?: boolean }) => {
+  .option('--llm-log', 'Enable LLM logging (shows only LLM requests and responses)')
+  .action(async (options: { verbose?: boolean; debug?: boolean; llmLog?: boolean }) => {
     let cleanup: (() => Promise<void>) | null = null;
     try {
       // Clear terminal on start
@@ -43,6 +44,7 @@ program
       const loggingSetup = await setupLogging({
         verbose: options.verbose,
         debug: options.debug,
+        llmLog: options.llmLog,
       });
       cleanup = loggingSetup.cleanup;
 
@@ -62,7 +64,7 @@ program
         }
       }
 
-      // Ink UI 시작 (verbose/debug 모드에서만 시작 메시지 표시)
+      // Ink UI 시작 (verbose/debug/llm-log 모드에서만 시작 메시지 표시)
       if (options.verbose || options.debug) {
         console.log(chalk.cyan('🚀 Starting OPEN-CLI...\n'));
       }

@@ -26,7 +26,7 @@ import {
   RateLimitError,
   ContextLengthError,
 } from '../../errors/llm.js';
-import { logger } from '../../utils/logger.js';
+import { logger, isLLMLogEnabled } from '../../utils/logger.js';
 import { usageTracker } from '../usage-tracker.js';
 
 /**
@@ -179,6 +179,11 @@ export class LLMClient {
 
       logger.verbose('Full Request Body', requestBody);
 
+      // LLM Log mode: 요청 로깅
+      if (isLLMLogEnabled()) {
+        logger.llmRequest(processedMessages, modelId, options.tools);
+      }
+
       logger.startTimer('llm-api-call');
       const response = await this.axiosInstance.post<LLMResponse>(url, requestBody);
       const elapsed = logger.endTimer('llm-api-call');
@@ -204,6 +209,13 @@ export class LLMClient {
         { name: 'tokensUsed', value: response.data.usage?.total_tokens || 0 },
         { name: 'responseTime', value: elapsed }
       );
+
+      // LLM Log mode: 응답 로깅
+      if (isLLMLogEnabled()) {
+        const responseContent = response.data.choices[0]?.message?.content || '';
+        const toolCalls = response.data.choices[0]?.message?.tool_calls;
+        logger.llmResponse(responseContent, toolCalls);
+      }
 
       // Track token usage (Phase 3) + context tracking for auto-compact
       if (response.data.usage) {
@@ -527,6 +539,11 @@ export class LLMClient {
 
             logger.toolExecution(toolName, toolArgs, result);
 
+            // LLM Log mode: Tool 결과 로깅
+            if (isLLMLogEnabled()) {
+              logger.llmToolResult(toolName, result.result || '', result.success);
+            }
+
             logger.vars(
               { name: 'toolSuccess', value: result.success },
               { name: 'toolExecTime', value: toolExecTime }
@@ -535,6 +552,12 @@ export class LLMClient {
             logger.endTimer(`tool-exec-${toolName}`);
             logger.flow(`Tool 실행 실패: ${toolName}`);
             logger.toolExecution(toolName, toolArgs, undefined, toolError as Error);
+
+            // LLM Log mode: Tool 에러 로깅
+            if (isLLMLogEnabled()) {
+              const errorMsg = toolError instanceof Error ? toolError.message : String(toolError);
+              logger.llmToolResult(toolName, `Error: ${errorMsg}`, false);
+            }
 
             result = {
               success: false,
@@ -665,8 +688,19 @@ export class LLMClient {
           try {
             result = await executeFileTool(toolName, toolArgs);
             logger.toolExecution(toolName, toolArgs, result);
+
+            // LLM Log mode: Tool 결과 로깅
+            if (isLLMLogEnabled()) {
+              logger.llmToolResult(toolName, result.result || '', result.success);
+            }
           } catch (toolError) {
             logger.toolExecution(toolName, toolArgs, undefined, toolError as Error);
+
+            // LLM Log mode: Tool 에러 로깅
+            if (isLLMLogEnabled()) {
+              const errorMsg = toolError instanceof Error ? toolError.message : String(toolError);
+              logger.llmToolResult(toolName, `Error: ${errorMsg}`, false);
+            }
 
             result = {
               success: false,
