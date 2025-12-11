@@ -172,7 +172,7 @@ export class ProjectConfigManager {
   private parseCommands(content: string): CustomCommand[] {
     const commands: CustomCommand[] = [];
     const blocks = content.split(/### /);
-
+    const blocks = content.split(/^\s*###\s+/m);
     for (const block of blocks) {
       if (!block.trim()) continue;
 
