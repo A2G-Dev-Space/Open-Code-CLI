@@ -20,6 +20,12 @@ import {
   setTodoListCallback,
   clearTodoCallbacks,
 } from '../../tools/llm/simple/todo-tools.js';
+import {
+  setAskUserCallback,
+  clearAskUserCallback,
+  type AskUserRequest,
+  type AskUserResponse,
+} from '../../tools/llm/simple/ask-user-tool.js';
 
 export type ExecutionPhase = 'idle' | 'classifying' | 'planning' | 'executing';
 
@@ -40,12 +46,14 @@ export interface ApprovalState {
     risk: any;
     context?: string;
   } | null;
+  askUserRequest: AskUserRequest | null;
 }
 
 export interface PlanExecutionActions {
   setTodos: React.Dispatch<React.SetStateAction<TodoItem[]>>;
   handleTodoUpdate: (todo: TodoItem) => void;
   handleApprovalResponse: (action: ApprovalAction) => void;
+  handleAskUserResponse: (response: AskUserResponse) => void;
   handleInterrupt: () => void;
   executeAutoMode: (
     userMessage: string,
@@ -133,6 +141,12 @@ export function usePlanExecution(): PlanExecutionState & ApprovalState & PlanExe
     resolve: (action: string) => void;
   } | null>(null);
 
+  // Ask-user state (Phase 2)
+  const [askUserRequest, setAskUserRequest] = useState<AskUserRequest | null>(null);
+  const [askUserResolver, setAskUserResolver] = useState<{
+    resolve: (response: AskUserResponse) => void;
+  } | null>(null);
+
   // Setup TODO tool callbacks
   useEffect(() => {
     logger.flow('Setting up TODO tool callbacks');
@@ -198,6 +212,27 @@ export function usePlanExecution(): PlanExecutionState & ApprovalState & PlanExe
     };
   }, [todos]);
 
+  // Setup ask-user callback (Phase 2)
+  useEffect(() => {
+    logger.flow('Setting up ask-user callback');
+
+    const askCallback = async (request: AskUserRequest): Promise<AskUserResponse> => {
+      logger.enter('askUserCallback', { question: request.question });
+
+      return new Promise((resolve) => {
+        setAskUserRequest(request);
+        setAskUserResolver({ resolve });
+      });
+    };
+
+    setAskUserCallback(askCallback);
+
+    return () => {
+      logger.flow('Cleaning up ask-user callback');
+      clearAskUserCallback();
+    };
+  }, []);
+
   const handleTodoUpdate = useCallback((todo: TodoItem) => {
     logger.enter('handleTodoUpdate', { todoId: todo.id, status: todo.status });
 
@@ -255,6 +290,21 @@ export function usePlanExecution(): PlanExecutionState & ApprovalState & PlanExe
 
     logger.exit('handleApprovalResponse');
   }, [approvalResolver]);
+
+  /**
+   * Handle ask-user response (Phase 2)
+   */
+  const handleAskUserResponse = useCallback((response: AskUserResponse) => {
+    logger.enter('handleAskUserResponse', { selectedOption: response.selectedOption, isOther: response.isOther });
+
+    if (askUserResolver) {
+      askUserResolver.resolve(response);
+      setAskUserResolver(null);
+    }
+    setAskUserRequest(null);
+
+    logger.exit('handleAskUserResponse');
+  }, [askUserResolver]);
 
   /**
    * Handle execution interrupt (ESC key)
@@ -482,9 +532,11 @@ export function usePlanExecution(): PlanExecutionState & ApprovalState & PlanExe
     isInterrupted,
     planApprovalRequest,
     taskApprovalRequest,
+    askUserRequest,
     setTodos,
     handleTodoUpdate,
     handleApprovalResponse,
+    handleAskUserResponse,
     handleInterrupt,
     executeAutoMode,
     executePlanMode,

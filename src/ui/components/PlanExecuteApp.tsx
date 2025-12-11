@@ -20,6 +20,7 @@ import { SettingsBrowser } from './dialogs/SettingsDialog.js';
 import { LLMSetupWizard } from './LLMSetupWizard.js';
 import { ModelSelector } from './ModelSelector.js';
 import { PlanApprovalPrompt, TaskApprovalPrompt } from './dialogs/ApprovalDialog.js';
+import { AskUserDialog } from './dialogs/AskUserDialog.js';
 import { CommandBrowser } from './CommandBrowser.js';
 import { ChatView } from './views/ChatView.js';
 import { Logo } from './Logo.js';
@@ -640,6 +641,16 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             risk={planExecutionState.taskApprovalRequest.risk}
             context={planExecutionState.taskApprovalRequest.context}
             onResponse={planExecutionState.handleApprovalResponse}
+          />
+        </Box>
+      )}
+
+      {/* Ask User Dialog (Phase 2) */}
+      {planExecutionState.askUserRequest && (
+        <Box marginTop={1}>
+          <AskUserDialog
+            request={planExecutionState.askUserRequest}
+            onResponse={planExecutionState.handleAskUserResponse}
           />
         </Box>
       )}
