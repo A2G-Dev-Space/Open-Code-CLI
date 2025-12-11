@@ -337,7 +337,7 @@ async function _executeEditFile(args: Record<string, unknown>): Promise<ToolResu
       if (lineIdx < 0 || lineIdx >= lines.length) {
         return {
           success: false,
-          error: `줄 번호가 범위를 벗어났습니다: ${edit.line_number} (파일은 ${lines.length}줄)`,
+          error: `줄 번호가 범위를 벗어났습니다: ${edit.line_number} (파일은 ${lines.length}줄)\n\n💡 read_file로 파일 내용을 확인한 후 다시 시도하세요.`,
         };
       }
 
@@ -345,7 +345,7 @@ async function _executeEditFile(args: Record<string, unknown>): Promise<ToolResu
       if (currentLine !== edit.original_text) {
         return {
           success: false,
-          error: `줄 ${edit.line_number}의 내용이 일치하지 않습니다.\n예상: "${edit.original_text}"\n실제: "${currentLine}"`,
+          error: `줄 ${edit.line_number}의 내용이 일치하지 않습니다.\n예상: "${edit.original_text}"\n실제: "${currentLine}"\n\n💡 read_file로 파일 내용을 확인한 후 다시 시도하세요.`,
         };
       }
 
