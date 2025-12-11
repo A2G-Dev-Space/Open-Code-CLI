@@ -38,6 +38,12 @@ import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
 import { configManager } from '../../core/config/config-manager.js';
 import { logger } from '../../utils/logger.js';
 import { usageTracker } from '../../core/usage-tracker.js';
+import { createRequire } from 'module';
+
+// Get version from package.json
+const require = createRequire(import.meta.url);
+const pkg = require('../../../package.json') as { version: string };
+const VERSION = pkg.version;
 
 // Initialization steps for detailed progress display
 type InitStep = 'docs' | 'config' | 'health' | 'done';
@@ -535,16 +541,36 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   return (
     <Box flexDirection="column" height="100%">
-      {/* Header */}
-      <Box borderStyle="round" borderColor="cyan" paddingX={1}>
-        <Box justifyContent="space-between" width="100%">
-          <Box>
-            <Text bold color="cyan">OPEN-CLI </Text>
-            {getHealthIndicator()}
-          </Box>
-          <Text color="gray">
-            {currentModelInfo.model}
-          </Text>
+      {/* Empty lines to prevent top clipping */}
+      <Text>{' '}</Text>
+      <Text>{' '}</Text>
+
+      {/* Header with ASCII Logo */}
+      <Box flexDirection="column" alignItems="center" marginBottom={1}>
+        <Text color="cyan" bold>
+          {`   ____  _____  ______ _   _        _____ _      _____ `}
+        </Text>
+        <Text color="cyan" bold>
+          {`  / __ \\|  __ \\|  ____| \\ | |      / ____| |    |_   _|`}
+        </Text>
+        <Text color="cyanBright" bold>
+          {` | |  | | |__) | |__  |  \\| |_____| |    | |      | |  `}
+        </Text>
+        <Text color="cyanBright" bold>
+          {` | |  | |  ___/|  __| | . \` |_____| |    | |      | |  `}
+        </Text>
+        <Text color="blue" bold>
+          {` | |__| | |    | |____| |\\  |     | |____| |____ _| |_ `}
+        </Text>
+        <Text color="blue" bold>
+          {`  \\____/|_|    |______|_| \\_|      \\_____|______|_____|`}
+        </Text>
+        <Box marginTop={0}>
+          <Text color="gray">v{VERSION}</Text>
+          <Text color="gray"> │ </Text>
+          {getHealthIndicator()}
+          <Text color="gray"> </Text>
+          <Text color="magenta">{currentModelInfo.model}</Text>
         </Box>
       </Box>
 
