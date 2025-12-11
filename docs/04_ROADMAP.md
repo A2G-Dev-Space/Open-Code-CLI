@@ -1,18 +1,19 @@
 # OPEN-CLI Roadmap & TODO List
 
-> **문서 버전**: 1.0.2
+> **문서 버전**: 2.0.0
 > **최종 수정일**: 2025-12-11
 > **작성자**: Development Team
 
 ## 목차
 
 1. [개요](#1-개요)
-2. [현재 구조 평가](#2-현재-구조-평가)
-3. [Phase 0: 구조 리팩토링](#3-phase-0-구조-리팩토링-선행-작업)
+2. [핵심 아키텍처: 6가지 도구 분류](#2-핵심-아키텍처-6가지-도구-분류)
+3. [Phase 0: 아키텍처 리팩토링 (최우선)](#3-phase-0-아키텍처-리팩토링-최우선)
 4. [Phase 1: 핵심 기능 강화](#4-phase-1-핵심-기능-강화)
 5. [Phase 2: 확장 기능 구현](#5-phase-2-확장-기능-구현)
 6. [Phase 3: 고급 기능 구현](#6-phase-3-고급-기능-구현)
-7. [우선순위 매트릭스](#7-우선순위-매트릭스)
+7. [테스트 전략](#7-테스트-전략)
+8. [우선순위 매트릭스](#8-우선순위-매트릭스)
 
 ---
 
@@ -21,942 +22,628 @@
 ### 1.1 프로젝트 비전
 
 OPEN-CLI는 오프라인 기업 환경을 위한 완전한 로컬 LLM CLI 플랫폼입니다.
-향후 12개 주요 기능 영역의 개발을 계획하고 있습니다.
 
-### 1.2 향후 기능 목록
+### 1.2 핵심 변경 사항 (v2.0)
 
-| # | 기능 | 우선순위 | 예상 복잡도 |
-|---|------|---------|-----------|
-| 1 | Plan-Execute 로직 강화 | P0 | High |
-| 2 | Docs 다운로드 기능 내재화 | P1 | Medium |
-| 3 | UI/UX 개선 | P1 | High |
-| 4 | LLM 다중 등록 | P1 | Medium |
-| 5 | Native Tool 증가 | P0 | High |
-| 6 | Tool RAG 제공 | P2 | High |
-| 7 | 승인모드/자율모드 분기 | P1 | Medium |
-| 8 | 사용량 추적 | P2 | Medium |
-| 9 | MCP 등록 기능 | P2 | High |
-| 10 | Agent Tool 추가 | P1 | High |
-| 11 | 코드 문서화 기능 | P3 | High |
-| 12 | Local RAG 강화 | P2 | High |
+| 항목 | 이전 | 이후 |
+|------|------|------|
+| 실행 모드 | planning / auto / no-planning | **auto only** (단일 모드) |
+| 도구 분류 | 미정의 | **6가지 명확한 분류** |
+| 테스트 전략 | Unit + E2E | **시나리오 테스트 only** |
+| 도구 등록 | 하드코딩 | **중앙 등록 시스템** (중복 등록 가능) |
 
 ---
 
-## 2. 현재 구조 평가
+## 2. 핵심 아키텍처: 6가지 도구 분류
 
-### 2.1 현재 점수: 70/100
-
-#### 강점
-- ✅ 명확한 계층 분리 (core → plan-and-execute → execution → ui)
-- ✅ 타입 안정성 (중앙 집중식 타입 정의)
-- ✅ 구조화된 에러 처리 시스템
-- ✅ 레이어 기반 실행 엔진
-
-#### 개선 필요 영역
-- ❌ PlanExecuteApp.tsx 과도한 크기 (775줄 → 분할 필요)
-- ❌ core/ 폴더 역할 분산 (19개 파일)
-- ❌ tools/ 시스템 미흡 (파일 도구만 존재)
-- ❌ MCP, RAG 모듈 부재
-
-### 2.2 제안 폴더 구조
+### 2.1 분류 개요
 
 ```
-src/
-├── core/
-│   ├── llm/                 # LLM 관련 모듈
-│   │   ├── llm-client.ts
-│   │   ├── planning-llm.ts
-│   │   └── token-manager.ts
-│   ├── config/              # 설정 관련 모듈
-│   │   ├── config-manager.ts
-│   │   ├── endpoint-manager.ts
-│   │   └── model-manager.ts
-│   ├── session/             # 세션 관련 모듈
-│   │   ├── session-manager.ts
-│   │   └── session-persistence.ts
-│   └── knowledge/           # 지식 관련 모듈
-│       ├── document-manager.ts
-│       ├── docs-search-agent.ts
-│       └── docs-downloader.ts
-├── tools/                   # 확장된 도구 시스템
-│   ├── base/
-│   │   ├── base-tool.ts
-│   │   └── tool-registry.ts
-│   ├── native/
-│   │   ├── file-tool.ts
-│   │   ├── bash-tool.ts
-│   │   ├── git-tool.ts
-│   │   └── npm-tool.ts
-│   └── rag/
-│       └── tool-rag.ts
-├── mcp/                     # MCP 서버 통합
-│   ├── mcp-client.ts
-│   ├── mcp-tool-wrapper.ts
-│   └── mcp-resource-manager.ts
-├── rag/                     # RAG 시스템
-│   ├── embedder.ts
-│   ├── vector-store.ts
-│   ├── retriever.ts
-│   └── rag-pipeline.ts
-├── analytics/               # 사용량 추적
-│   ├── usage-tracker.ts
-│   ├── metrics-aggregator.ts
-│   └── cost-calculator.ts
-├── documentation/           # 코드 문서화
-│   ├── code-analyzer.ts
-│   ├── doc-generator.ts
-│   └── doc-indexer.ts
-└── agents/                  # Agent Tools
-    ├── search-agent.ts
-    ├── explore-agent.ts
-    └── agent-registry.ts
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         OPEN-CLI Tool Architecture                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  LLM이 사용하는 도구 (LLM Tool Call로 호출)                      │    │
+│  ├─────────────────────────────────────────────────────────────────┤    │
+│  │  1) LLM Simple Tools        │  2) LLM Agent Tools               │    │
+│  │     - file (read/write)     │     - docs-search-agent           │    │
+│  │     - bash                  │     - planning-agent (향후)       │    │
+│  │     - search (grep)         │     - code-review-agent (향후)    │    │
+│  │     Sub-LLM 개입 없음        │     Sub-LLM 개입 있음             │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  시스템이 로직적으로 사용하는 도구 (자동 트리거)                  │    │
+│  ├─────────────────────────────────────────────────────────────────┤    │
+│  │  3) System Simple Tools     │  4) System Agent Tools            │    │
+│  │     - todo-manager          │     - docs-search-orchestrator    │    │
+│  │     - context-builder       │     - plan-orchestrator           │    │
+│  │     - result-formatter      │     - risk-analyzer               │    │
+│  │     Sub-LLM 개입 없음        │     Sub-LLM 개입 있음             │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  외부 연동 도구                                                   │    │
+│  ├─────────────────────────────────────────────────────────────────┤    │
+│  │  5) User Commands           │  6) MCP Tools                     │    │
+│  │     - /model, /settings     │     - 외부 MCP 서버 도구          │    │
+│  │     - /save, /load          │     - enable/disable 관리         │    │
+│  │     - /help, /clear         │     - /mcp add, /mcp list         │    │
+│  │     사용자가 /로 직접 호출   │     사용자가 등록 관리             │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 분류별 상세 정의
+
+#### 1) LLM Simple Tools
+- **호출 주체**: LLM (tool_call)
+- **Sub-LLM**: 없음
+- **특징**: 단순 실행, 즉시 결과 반환
+- **예시**: file read/write, bash, grep/search
+
+```typescript
+interface LLMSimpleTool {
+  definition: ToolDefinition;  // LLM에 전달
+  execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+  categories: string[];        // 복수 카테고리 가능
+}
+```
+
+#### 2) LLM Agent Tools
+- **호출 주체**: LLM (tool_call)
+- **Sub-LLM**: 있음
+- **특징**: 내부적으로 Sub-LLM 호출하여 복잡한 작업 수행
+- **예시**: docs-search (bash+LLM), code-review (향후)
+
+```typescript
+interface LLMAgentTool {
+  definition: ToolDefinition;
+  execute: (args: Record<string, unknown>, llmClient: LLMClient) => Promise<ToolResult>;
+  categories: string[];
+  requiresSubLLM: true;
+}
+```
+
+#### 3) System Simple Tools
+- **호출 주체**: 시스템 로직 (자동 트리거)
+- **Sub-LLM**: 없음
+- **특징**: 특정 조건에서 자동 실행
+- **예시**: TODO 상태 관리, 컨텍스트 빌딩
+
+```typescript
+interface SystemSimpleTool {
+  name: string;
+  execute: (context: SystemContext) => Promise<ToolResult>;
+  triggerCondition: (context: SystemContext) => boolean;
+}
+```
+
+#### 4) System Agent Tools
+- **호출 주체**: 시스템 로직 (자동 트리거)
+- **Sub-LLM**: 있음
+- **특징**: 특정 조건에서 Sub-LLM과 함께 실행
+- **예시**: Planning, DocsSearch Orchestrator, Risk Analysis
+
+```typescript
+interface SystemAgentTool {
+  name: string;
+  execute: (context: SystemContext, llmClient: LLMClient) => Promise<ToolResult>;
+  triggerCondition: (context: SystemContext) => boolean;
+  requiresSubLLM: true;
+}
+```
+
+#### 5) User Commands
+- **호출 주체**: 사용자 (/명령어)
+- **특징**: 슬래시로 직접 호출
+- **예시**: /model, /settings, /save, /load, /help
+
+```typescript
+interface UserCommand {
+  name: string;          // '/model'
+  aliases?: string[];    // ['/m']
+  description: string;
+  execute: (args: string[], context: CommandContext) => Promise<CommandResult>;
+}
+```
+
+#### 6) MCP Tools
+- **호출 주체**: LLM (tool_call) + 사용자 관리
+- **특징**: 외부 MCP 서버 연동, enable/disable 관리
+- **예시**: 외부 DB 도구, 외부 API 도구
+
+```typescript
+interface MCPTool {
+  definition: ToolDefinition;
+  serverId: string;
+  enabled: boolean;
+  execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+}
+```
+
+### 2.3 도구 중복 등록
+
+**핵심 원칙**: 하나의 도구가 여러 분류에 등록 가능
+
+```typescript
+// 예시: bash-tool
+const bashTool = {
+  name: 'bash',
+  // 1) LLM Simple Tool로 등록 → LLM이 직접 호출 가능
+  // 4) System Agent Tool (DocsSearch)에서 내부적으로 사용
+  categories: ['llm-simple', 'system-agent-internal'],
+};
+
+// 예시: docs-search
+const docsSearchTool = {
+  name: 'docs-search',
+  // 2) LLM Agent Tool로 등록 → LLM이 필요시 호출
+  // 4) System Agent Tool로 등록 → requiresDocsSearch=true 시 자동 트리거
+  categories: ['llm-agent', 'system-agent'],
+};
+```
+
+### 2.4 도구 선택 로직 (향후)
+
+```typescript
+// 1) & 2) LLM 도구 선택 - 도구가 많아지면 LLM이 선택
+async function selectLLMTools(task: string, allTools: LLMTool[]): Promise<ToolDefinition[]> {
+  if (allTools.length <= 10) {
+    return allTools.map(t => t.definition);  // 전부 노출
+  }
+  // LLM이 관련 도구 선택
+  return await llmSelectRelevantTools(task, allTools);
+}
+
+// 3) & 4) System 도구 트리거 - triggerCondition으로 결정
+function shouldTriggerSystemTool(tool: SystemTool, context: SystemContext): boolean {
+  return tool.triggerCondition(context);
+}
 ```
 
 ---
 
-## 3. Phase 0: 구조 리팩토링 (선행 작업)
+## 3. Phase 0: 아키텍처 리팩토링 (최우선)
 
-> **목표**: 향후 기능 추가를 위한 기반 구조 정립
+> **목표**: 6가지 도구 분류 기반 구조 확립, Auto 모드 단일화
 
-### 3.1 UI 컴포넌트 분할
+### 3.1 실행 모드 단일화
 
-#### 3.1.1 PlanExecuteApp.tsx 분할
+**현재 상태**: planning / auto / no-planning 3가지 모드
 
-**현재 상태**: 단일 파일 775줄, 모든 로직 집중
+**목표**: Auto 모드만 유지
+
+**삭제 대상**:
+- [ ] Tab 키로 모드 전환 UI/UX 제거
+- [ ] planning mode 관련 코드 제거
+- [ ] no-planning mode 관련 코드 제거
+- [ ] 모드 선택 관련 상태/로직 제거
+
+**유지 대상**:
+- [x] Plan & Execute Orchestrator (내부적으로 자동 판단)
+- [x] Planning LLM (시스템이 필요시 자동 호출)
+
+### 3.2 폴더 구조 리팩토링
 
 **목표 구조**:
 ```
-ui/components/
-├── PlanExecuteApp.tsx          # 상태 관리, 라우팅만 (200줄 이하)
-├── views/
-│   ├── ChatView.tsx            # 채팅 UI
-│   ├── PlanningView.tsx        # 계획 수립 UI
-│   └── ExecutionView.tsx       # 실행 UI
-├── panels/
-│   ├── TodoPanel.tsx           # TODO 패널 (기존)
-│   ├── FilePanel.tsx           # 파일 브라우저
-│   └── SessionPanel.tsx        # 세션 브라우저
-└── dialogs/
-    ├── ApprovalDialog.tsx      # 승인 대화상자
-    ├── SettingsDialog.tsx      # 설정 대화상자
-    └── CommandDialog.tsx       # 명령어 브라우저
+src/
+├── tools/
+│   ├── index.ts                    # 전체 barrel export + 중앙 등록
+│   │
+│   ├── llm/                        # 1) & 2) LLM 도구
+│   │   ├── index.ts                # LLM 도구 등록 + 선택 로직
+│   │   │
+│   │   ├── simple/                 # 1) LLM Simple Tools
+│   │   │   ├── index.ts
+│   │   │   ├── file-tools.ts       # read, write, list, find
+│   │   │   ├── bash-tools.ts       # bash 명령 실행
+│   │   │   └── search-tools.ts     # grep, ripgrep
+│   │   │
+│   │   └── agents/                 # 2) LLM Agent Tools
+│   │       ├── index.ts
+│   │       └── docs-search.ts      # 문서 검색 (Sub-LLM)
+│   │
+│   ├── system/                     # 3) & 4) System 도구
+│   │   ├── index.ts
+│   │   │
+│   │   ├── simple/                 # 3) System Simple Tools
+│   │   │   ├── index.ts
+│   │   │   ├── todo-manager.ts     # TODO 상태 관리
+│   │   │   └── context-builder.ts  # 컨텍스트 구축
+│   │   │
+│   │   └── agents/                 # 4) System Agent Tools
+│   │       ├── index.ts
+│   │       ├── plan-orchestrator.ts    # Planning 오케스트레이터
+│   │       ├── docs-orchestrator.ts    # Docs 검색 오케스트레이터
+│   │       └── risk-analyzer.ts        # 위험도 분석
+│   │
+│   ├── user/                       # 5) User Commands
+│   │   ├── index.ts                # 명령어 등록 + 라우터
+│   │   ├── session-commands.ts     # /save, /load, /history
+│   │   ├── config-commands.ts      # /model, /settings
+│   │   └── system-commands.ts      # /help, /clear, /exit
+│   │
+│   └── mcp/                        # 6) MCP Tools
+│       ├── index.ts
+│       ├── mcp-client.ts           # MCP 프로토콜
+│       └── mcp-registry.ts         # enable/disable 관리
+│
+├── core/
+│   ├── llm/                        # LLM 클라이언트
+│   ├── config/                     # 설정 관리
+│   ├── session/                    # 세션 관리
+│   └── knowledge/                  # Local RAG (문서 저장)
+│
+├── ui/                             # UI 컴포넌트
+│
+└── types/                          # 타입 정의
 ```
 
-**TODO**:
-- [x] `PlanExecuteApp.tsx`에서 채팅 렌더링 로직 분리 → `ChatView.tsx`
-- [x] 파일 브라우저 관련 상태/로직 분리 → `useFileBrowserState.ts` 훅으로 구현
-- [ ] 세션 브라우저 관련 상태/로직 분리 → `SessionPanel.tsx`
-- [ ] 승인 프롬프트 로직 분리 → `ApprovalDialog.tsx`
-- [ ] 설정 브라우저 로직 분리 → `SettingsDialog.tsx`
-- [x] 명령어 브라우저 로직 분리 → `useCommandBrowserState.ts` 훅으로 구현
-- [x] 커스텀 훅 추출: `usePlanExecution`, `useFileBrowserState`, `useCommandBrowserState`
+### 3.3 중앙 도구 등록 시스템
 
-### 3.2 Core 모듈 재구성
-
-#### 3.2.1 LLM 모듈 분리
-
-**현재**: `core/llm-client.ts` (1,115줄)
-
-**목표**:
-```
-core/llm/
-├── llm-client.ts              # HTTP 통신만 (500줄)
-├── planning-llm.ts            # 계획 수립 (기존)
-├── token-manager.ts           # 토큰 관리 (신규)
-├── prompt-builder.ts          # 프롬프트 생성 (신규)
-└── response-parser.ts         # 응답 파싱 (신규)
-```
-
-**TODO**:
-- [x] `core/llm/` 폴더 구조 생성 완료
-- [x] `llm-client.ts` → `core/llm/llm-client.ts` 이동 (re-export 유지)
-- [x] `planning-llm.ts` → `core/llm/planning-llm.ts` 이동 (re-export 유지)
-- [ ] `llm-client.ts`에서 토큰 카운팅 로직 분리 → `token-manager.ts`
-- [ ] 프롬프트 빌더 로직 분리 → `prompt-builder.ts`
-- [ ] 응답 파싱 로직 분리 → `response-parser.ts`
-- [ ] 스트리밍 핸들러 개선
-
-#### 3.2.2 Config 모듈 분리
-
-**현재**: `core/config-manager.ts`
-
-**목표**:
-```
-core/config/
-├── config-manager.ts          # 전체 설정 관리
-├── endpoint-manager.ts        # 엔드포인트 관리 (다중 LLM)
-├── model-manager.ts           # 모델 관리
-└── preference-manager.ts      # 사용자 설정
-```
-
-**TODO**:
-- [x] `core/config/` 폴더 구조 생성 완료
-- [x] `config-manager.ts` → `core/config/config-manager.ts` 이동 (re-export 유지)
-- [x] `project-config.ts` → `core/config/project-config.ts` 이동 (re-export 유지)
-- [ ] 엔드포인트 관련 로직 분리 → `endpoint-manager.ts`
-- [ ] 모델 관련 로직 분리 → `model-manager.ts`
-- [ ] 사용자 설정 로직 분리 → `preference-manager.ts`
-
-### 3.3 Tools 시스템 재설계
-
-#### 3.3.1 베이스 도구 클래스 구현
-
-**신규 파일**: `tools/base/base-tool.ts`
+**파일**: `tools/index.ts`
 
 ```typescript
-// 요구사항
-export interface ToolDefinition {
-  name: string;
-  description: string;
-  category: ToolCategory;
-  parameters: ToolParameter[];
-  riskLevel: 'low' | 'medium' | 'high';
-  requiresApproval: boolean;
-}
+// 모든 도구 중앙 등록
+export const TOOL_REGISTRY = {
+  llm: {
+    simple: LLM_SIMPLE_TOOLS,
+    agents: LLM_AGENT_TOOLS,
+  },
+  system: {
+    simple: SYSTEM_SIMPLE_TOOLS,
+    agents: SYSTEM_AGENT_TOOLS,
+  },
+  user: USER_COMMANDS,
+  mcp: MCP_TOOLS,
+};
 
-export abstract class BaseTool {
-  abstract definition: ToolDefinition;
-  abstract execute(params: Record<string, any>): Promise<ToolResult>;
-  abstract validate(params: Record<string, any>): ValidationResult;
-}
+// LLM에 전달할 도구 정의 가져오기
+export function getLLMToolDefinitions(filter?: string[]): ToolDefinition[];
+
+// LLM 도구 실행
+export async function executeLLMTool(name: string, args: any, llmClient?: LLMClient): Promise<ToolResult>;
+
+// System 도구 트리거 체크
+export function checkSystemToolTriggers(context: SystemContext): SystemTool[];
+
+// User 명령어 실행
+export async function executeUserCommand(command: string, args: string[], context: CommandContext): Promise<CommandResult>;
 ```
 
-**TODO**:
-- [x] `BaseTool` 추상 클래스 구현 ✅
-- [x] `ToolDefinition` 인터페이스 정의 ✅
-- [x] `ToolResult` 타입 정의 ✅
-- [x] `ToolCategory`, `RiskLevel`, `ToolMetadata` 타입 정의 ✅
+### 3.4 TODO 목록
 
-#### 3.3.2 도구 레지스트리 구현 ✅
+#### 3.4.1 모드 단일화
+- [ ] `PlanExecuteApp.tsx`에서 모드 전환 UI 제거
+- [ ] Tab 키 핸들링 제거
+- [ ] `executionMode` 상태 제거
+- [ ] 관련 훅/컴포넌트 정리
 
-**파일**: `tools/base/tool-registry.ts`
+#### 3.4.2 폴더 구조 변경
+- [ ] `tools/llm/simple/` 폴더 생성
+- [ ] `tools/llm/agents/` 폴더 생성
+- [ ] `tools/system/simple/` 폴더 생성
+- [ ] `tools/system/agents/` 폴더 생성
+- [ ] `tools/user/` 폴더 생성
+- [ ] `tools/mcp/` 폴더 생성
 
-```typescript
-// 구현된 기능
-export class ToolRegistry {
-  register(tool: BaseTool): void;
-  unregister(toolName: string): boolean;
-  get(name: string): BaseTool | undefined;
-  has(name: string): boolean;
-  getAll(): BaseTool[];
-  getByCategory(category: ToolCategory): BaseTool[];
-  getByRiskLevel(riskLevel: RiskLevel): BaseTool[];
-  getRequiringApproval(): BaseTool[];
-  getDefinitions(): ToolDefinition[];
-  getDefinitionsByCategory(category: ToolCategory): ToolDefinition[];
-  execute(name: string, args: Record<string, unknown>): Promise<ToolResult>;
-  count(): number;
-  getNames(): string[];
-  clear(): void;
-  getStats(): { total, byCategory, byRiskLevel, requiresApproval };
-}
-```
+#### 3.4.3 기존 코드 마이그레이션
+- [ ] `tools/native/file-tools.ts` → `tools/llm/simple/file-tools.ts`
+- [ ] `core/bash-command-tool.ts` → `tools/llm/simple/bash-tools.ts`
+- [ ] `core/knowledge/docs-search-agent.ts` → `tools/llm/agents/docs-search.ts` + `tools/system/agents/docs-orchestrator.ts`
+- [ ] `plan-and-execute/` → `tools/system/agents/`
+- [ ] `core/slash-command-handler.ts` → `tools/user/`
 
-**완료된 TODO**:
-- [x] `ToolRegistry` 클래스 구현 ✅
-- [x] 도구 등록/해제 메서드 ✅
-- [x] 카테고리별 도구 필터링 ✅
-- [x] 위험도별 도구 필터링 ✅
-- [x] 도구 실행 래퍼 (에러 핸들링 포함) ✅
-- [x] 레지스트리 통계 기능 ✅
+#### 3.4.4 중앙 등록 시스템
+- [ ] `tools/index.ts` 구현
+- [ ] 각 분류별 `index.ts` 구현
+- [ ] 도구 중복 등록 지원
 
-#### 3.3.3 기존 file-tools.ts 마이그레이션
-
-**TODO**:
-- [x] `file-tools.ts` → `tools/native/file-tools.ts` 이동 ✅
-- [ ] `BaseTool` 상속 구조로 리팩토링 (현재: 함수 기반)
-- [ ] 개별 파일 도구 분리 (read, write, list, find)
+#### 3.4.5 미사용 코드 정리
+- [ ] `tools/base/` 폴더 삭제 (이미 삭제됨)
+- [ ] `execution/` 폴더 검토 및 정리
 
 ---
 
 ## 4. Phase 1: 핵심 기능 강화
 
-> **목표**: 주요 기능 안정화 및 확장
+> **목표**: 주요 기능 안정화 및 도구 확장
 
-### 4.1 Plan-Execute 로직 강화
+### 4.1 LLM Simple Tools 확장
 
-#### 4.1.1 Planning Prompt 다변화
-
-**현재**: `core/planning-llm.ts` - 단일 프롬프트
-
-**목표**:
-```
-core/llm/prompts/
-├── planning-simple.ts         # 단순 작업용
-├── planning-complex.ts        # 복잡 작업용
-├── planning-debugging.ts      # 디버깅용
-├── planning-refactoring.ts    # 리팩토링용
-└── prompt-selector.ts         # 자동 선택 로직
-```
-
-**TODO**:
-- [ ] 작업 유형별 프롬프트 템플릿 작성
-  - [ ] 단순 질문/대화 프롬프트
-  - [ ] 파일 생성/수정 프롬프트
-  - [ ] 버그 수정 프롬프트
-  - [ ] 리팩토링 프롬프트
-  - [ ] 테스트 작성 프롬프트
-- [ ] 프롬프트 자동 선택 로직 구현
-- [ ] 작업 복잡도 분석기 구현
-- [ ] A/B 테스트 프레임워크 구현
-
-#### 4.1.2 Auto Mode LLM 개입
-
-**현재**: 키워드 기반 단순 분류
-
-**목표**:
-```typescript
-// 요구사항
-interface AutoModeClassifier {
-  analyzeRequest(request: string): Promise<{
-    complexity: 'simple' | 'moderate' | 'complex';
-    suggestedMode: 'no-planning' | 'planning';
-    confidence: number;
-    reasoning: string;
-  }>;
-}
-```
-
-**TODO**:
-- [ ] LLM 기반 요청 분류기 구현
-- [ ] 복잡도 점수 계산 로직
-- [ ] 신뢰도 기반 모드 선택
-- [ ] 사용자 피드백 학습 (선택적)
-
-#### 4.1.3 에러 복구 로직 강화
-
-**TODO**:
-- [ ] 실패한 단계 재시도 로직 개선
-- [ ] 부분 성공 상태 저장/복원
-- [ ] 롤백 메커니즘 구현
-- [ ] 에러 분석 및 자동 수정 제안
-
-### 4.2 Native Tool 증가
-
-#### 4.2.1 Bash Tool 구현
-
-**신규 파일**: `tools/native/bash-tool.ts`
-
-**기능 요구사항**:
+#### 4.1.1 Bash Tool 강화
 - [ ] 안전한 명령어 실행 (샌드박싱)
-- [ ] 작업 디렉토리 관리
+- [ ] 위험 명령어 필터링 강화
 - [ ] 타임아웃 처리
 - [ ] 출력 스트리밍
-- [ ] 위험 명령어 필터링
 
-**세부 TODO**:
-- [ ] `BashTool` 클래스 구현
-- [ ] 명령어 화이트리스트/블랙리스트
-- [ ] 환경 변수 관리
-- [ ] 파이프/리다이렉션 지원
-- [ ] 인터랙티브 명령어 처리
-
-#### 4.2.2 Git Tool 구현
-
-**신규 파일**: `tools/native/git-tool.ts`
-
-**기능 요구사항**:
-- [ ] git status, diff, log
-- [ ] git add, commit, push
-- [ ] git branch, checkout, merge
-- [ ] 충돌 감지 및 해결 지원
-
-**세부 TODO**:
-- [ ] `GitTool` 클래스 구현
-- [ ] 각 Git 명령어 래퍼
-- [ ] 커밋 메시지 자동 생성
-- [ ] PR 생성 지원
-- [ ] 충돌 해결 UI 연동
-
-#### 4.2.3 NPM Tool 구현
-
-**신규 파일**: `tools/native/npm-tool.ts`
-
-**기능 요구사항**:
-- [ ] npm install, uninstall
-- [ ] npm run scripts
-- [ ] package.json 분석
-- [ ] 의존성 업데이트
-
-**세부 TODO**:
-- [ ] `NpmTool` 클래스 구현
-- [ ] package.json 파서
-- [ ] 스크립트 실행기
-- [ ] 의존성 버전 관리
-
-#### 4.2.4 Search Tool 구현
-
-**신규 파일**: `tools/native/search-tool.ts`
-
-**기능 요구사항**:
-- [ ] 코드 검색 (grep 스타일)
-- [ ] 파일 검색 (glob 패턴)
-- [ ] 심볼 검색
-- [ ] 정규식 지원
-
-**세부 TODO**:
-- [ ] `SearchTool` 클래스 구현
+#### 4.1.2 Search Tool 구현
 - [ ] ripgrep 통합
-- [ ] 결과 하이라이팅
+- [ ] glob 패턴 지원
 - [ ] 컨텍스트 라인 표시
+- [ ] 결과 하이라이팅
 
-### 4.3 승인모드/자율모드 분기
+#### 4.1.3 Git Tool 구현 (LLM Simple)
+- [ ] status, diff, log
+- [ ] add, commit (메시지 자동 생성)
+- [ ] 기업 내부 repo 지원
 
-#### 4.3.1 실행 모드 정의
+### 4.2 System Agent Tools 강화
 
-**신규 타입**:
-```typescript
-type ExecutionMode =
-  | 'supervised'      // 모든 작업 승인 필요
-  | 'semi-autonomous' // 위험 작업만 승인
-  | 'autonomous';     // 완전 자율 실행
-```
+#### 4.2.1 Plan Orchestrator 개선
+- [ ] 작업 복잡도 자동 분석
+- [ ] 적응형 계획 수립
+- [ ] 에러 복구 로직 강화
 
-**TODO**:
-- [ ] `ExecutionMode` 타입 정의
-- [ ] 모드별 승인 정책 구현
-- [ ] `/settings`에 모드 선택 추가
-- [ ] 모드 전환 시 경고 메시지
+#### 4.2.2 Risk Analyzer 개선
+- [ ] 위험도 점수 세분화
+- [ ] 작업 유형별 기본 위험도
+- [ ] 사용자 정의 규칙
 
-#### 4.3.2 위험도 기반 승인 로직
+### 4.3 User Commands 확장
 
-**현재**: `plan-and-execute/risk-analyzer.ts`
-
-**확장 TODO**:
-- [ ] 위험도 점수 세분화 (1-10 스케일)
-- [ ] 작업 유형별 기본 위험도 설정
-- [ ] 사용자 정의 위험도 규칙
-- [ ] 위험 작업 미리보기 기능
-
-### 4.4 UI/UX 개선
-
-#### 4.4.1 진행 상태 표시 개선
-
-**TODO**:
-- [ ] 실시간 스트리밍 응답 표시
-- [ ] 작업 진행률 표시 (프로그레스 바)
-- [ ] 예상 완료 시간 표시
-- [ ] 작업 취소 기능 개선
-
-#### 4.4.2 입력 경험 개선
-
-**TODO**:
-- [ ] 멀티라인 입력 지원
-- [ ] 입력 히스토리 네비게이션
-- [ ] 자동 완성 개선
-- [ ] 문법 하이라이팅
-
-#### 4.4.3 결과 표시 개선
-
-**TODO**:
-- [ ] 코드 블록 문법 하이라이팅
-- [ ] diff 표시 개선
-- [ ] 테이블 렌더링
-- [ ] 이미지 미리보기 (터미널 지원 시)
-
-### 4.5 LLM 다중 등록 ✅ 완료
-
-#### 4.5.1 Endpoint Manager 구현 ✅
-
-**파일**: `core/config/config-manager.ts` (ConfigManager에 통합)
-
-**구현된 기능**:
-```typescript
-// ConfigManager 메서드
-getAllEndpoints(): EndpointConfig[]
-updateEndpoint(id: string, updates: Partial<EndpointConfig>): Promise<void>
-deleteEndpoint(id: string): Promise<void>
-setCurrentEndpoint(id: string): Promise<void>
-setCurrentModel(id: string): Promise<void>
-updateModelHealth(endpointId: string, modelId: string, status: HealthStatus): Promise<void>
-updateAllHealthStatus(healthResults: Map<...>): Promise<void>
-getHealthyModels(): { endpoint: EndpointConfig; model: ModelInfo }[]
-getAllModels(): { endpoint: EndpointConfig; model: ModelInfo; isCurrent: boolean }[]
-```
-
-**완료된 TODO**:
-- [x] 엔드포인트 CRUD 기능 (ConfigManager에 통합)
-- [x] 헬스 체크 로직 (LLMClient.healthCheckAll())
-- [x] Health 상태 저장 및 관리
-
-#### 4.5.2 모델 라우팅
-
-**TODO** (미래 작업):
-- [ ] 작업 유형별 모델 매핑
-- [ ] 비용 기반 라우팅
-- [ ] 속도 기반 라우팅
-- [ ] 로드 밸런싱
-- [ ] 자동 장애 복구 (failover)
-
-#### 4.5.3 Settings UI 확장 ✅
-
-**완료된 TODO**:
-- [x] `/settings > 2. LLMs` 메뉴 추가
-- [x] 엔드포인트 추가/수정/삭제 UI (방향키 + Enter 네비게이션)
-- [x] 연결 테스트 기능
-- [x] Health Check 표시 (✓ healthy, ⚠ degraded, ✗ unhealthy)
-- [x] 기본 엔드포인트/모델 설정
-
-#### 4.5.4 추가 구현 사항 ✅
-
-**LLMSetupWizard** (`src/ui/components/LLMSetupWizard.tsx`):
-- [x] 첫 실행 시 LLM 미등록 감지 → 자동 설정 마법사
-- [x] 엔드포인트 정보 입력 폼
-- [x] 연결 테스트 후 저장
-
-**ModelSelector** (`src/ui/components/ModelSelector.tsx`):
-- [x] `/model` 슬래시 명령어
-- [x] Healthy 모델만 선택 가능
-- [x] 현재 모델 표시
-
-**CLI 정리**:
-- [x] `config` CLI 명령어 제거 (UI로 이전)
-
-### 4.6 Agent Tool 추가
-
-#### 4.6.1 Search Agent
-
-**신규 파일**: `agents/search-agent.ts`
-
-**기능 요구사항**:
-- [ ] 코드베이스 전체 검색
-- [ ] 시맨틱 검색 (의미 기반)
-- [ ] 파일 패턴 검색
-- [ ] 심볼 정의 검색
-
-**TODO**:
-- [ ] `SearchAgent` 클래스 구현
-- [ ] 검색 전략 인터페이스
-- [ ] 결과 랭킹 알고리즘
-- [ ] 캐싱 메커니즘
-
-#### 4.6.2 Explore Agent
-
-**신규 파일**: `agents/explore-agent.ts`
-
-**기능 요구사항**:
-- [ ] 프로젝트 구조 분석
-- [ ] 의존성 그래프 생성
-- [ ] 코드 복잡도 분석
-- [ ] 핫스팟 식별
-
-**TODO**:
-- [ ] `ExploreAgent` 클래스 구현
-- [ ] AST 기반 코드 분석
-- [ ] 의존성 트래킹
-- [ ] 시각화 출력
-
-#### 4.6.3 Agent Registry
-
-**신규 파일**: `agents/agent-registry.ts`
-
-**TODO**:
-- [ ] `AgentRegistry` 클래스 구현
-- [ ] 에이전트 등록/조회
-- [ ] 에이전트 체이닝 지원
-- [ ] 결과 집계
+- [ ] `/git` - Git 작업 명령어
+- [ ] `/docs` - 문서 다운로드/검색
+- [ ] `/usage` - 사용량 조회
 
 ---
 
 ## 5. Phase 2: 확장 기능 구현
 
-> **목표**: 고급 기능 추가
+### 5.1 MCP 통합
 
-### 5.1 Scripts 내재화 및 확장
-
-#### 5.1.1 Docs Downloader 내재화
-
-**현재**: `scripts/download-*-docs.ts` (외부 스크립트)
-
-**목표**: `/docs download <framework>` 명령어로 통합
-
-**신규 파일**: `core/knowledge/docs-downloader.ts`
-
-**TODO**:
-- [ ] `DocsDownloader` 클래스 구현
-- [ ] 지원 프레임워크 레지스트리
-  - [ ] ADK (Agent Development Kit)
-  - [ ] AGNO
-  - [ ] React, Vue, Angular
-  - [ ] Node.js, Express
-  - [ ] Python, FastAPI
-- [ ] 문서 버전 관리
-- [ ] 증분 업데이트
-- [ ] 오프라인 캐싱
-
-#### 5.1.2 Slash Command 추가
-
-**TODO**:
-- [ ] `/docs download <framework>` - 문서 다운로드
-- [ ] `/docs list` - 다운로드된 문서 목록
-- [ ] `/docs search <query>` - 문서 검색
-- [ ] `/docs update` - 문서 업데이트
-
-### 5.2 Tool RAG 제공
-
-#### 5.2.1 Tool Embedder
-
-**신규 파일**: `tools/rag/tool-embedder.ts`
-
-**TODO**:
-- [ ] 도구 설명 임베딩 생성
-- [ ] 사용 예시 임베딩
-- [ ] 파라미터 설명 임베딩
-
-#### 5.2.2 Tool Retriever
-
-**신규 파일**: `tools/rag/tool-retriever.ts`
-
-**TODO**:
-- [ ] 사용자 요청 기반 도구 검색
-- [ ] 유사도 기반 랭킹
-- [ ] 컨텍스트 기반 필터링
-
-#### 5.2.3 Tool Selector
-
-**신규 파일**: `tools/rag/tool-selector.ts`
-
-```typescript
-// 요구사항
-interface ToolSelector {
-  selectTools(
-    userRequest: string,
-    context: ExecutionContext,
-    maxTools?: number
-  ): Promise<ToolDefinition[]>;
-}
-```
-
-**TODO**:
-- [ ] `ToolSelector` 구현
-- [ ] 요청-도구 매핑 로직
-- [ ] 도구 조합 최적화
-- [ ] 불필요한 도구 제외
-
-### 5.3 사용량 추적
-
-#### 5.3.1 Usage Tracker
-
-**신규 폴더**: `src/analytics/`
-
-**신규 파일**: `analytics/usage-tracker.ts`
-
-```typescript
-// 요구사항
-interface UsageTracker {
-  trackTokens(model: string, input: number, output: number): void;
-  trackToolUsage(toolName: string, duration: number): void;
-  trackSession(sessionId: string, duration: number): void;
-  getUsageReport(period: 'day' | 'week' | 'month'): UsageReport;
-}
-```
-
-**TODO**:
-- [ ] `UsageTracker` 클래스 구현
-- [ ] 토큰 사용량 추적
-- [ ] 도구 사용 통계
-- [ ] 세션별 사용량
-
-#### 5.3.2 Cost Calculator
-
-**신규 파일**: `analytics/cost-calculator.ts`
-
-**TODO**:
-- [ ] 모델별 가격 정보 관리
-- [ ] 비용 계산 로직
-- [ ] 예산 경고 시스템
-- [ ] 비용 최적화 제안
-
-#### 5.3.3 Usage Reporter
-
-**신규 파일**: `analytics/usage-reporter.ts`
-
-**TODO**:
-- [ ] 일별/주별/월별 리포트
-- [ ] 차트 생성 (터미널)
-- [ ] CSV/JSON 내보내기
-- [ ] `/usage` 명령어 구현
-
-### 5.4 MCP 등록 기능
-
-#### 5.4.1 MCP Client
-
-**신규 폴더**: `src/mcp/`
-
-**신규 파일**: `mcp/mcp-client.ts`
-
-```typescript
-// 요구사항
-interface MCPClient {
-  connect(serverUrl: string): Promise<void>;
-  disconnect(): Promise<void>;
-  listTools(): Promise<MCPTool[]>;
-  listResources(): Promise<MCPResource[]>;
-  executeTool(name: string, params: any): Promise<any>;
-  readResource(uri: string): Promise<any>;
-}
-```
-
-**TODO**:
+#### 5.1.1 MCP Client
 - [ ] MCP 프로토콜 구현
 - [ ] 서버 연결 관리
 - [ ] 도구/리소스 조회
-- [ ] 요청/응답 처리
 
-#### 5.4.2 MCP Tool Wrapper
+#### 5.1.2 MCP Registry
+- [ ] `/mcp add <server>` - 서버 추가
+- [ ] `/mcp list` - 서버 목록
+- [ ] `/mcp enable/disable <tool>` - 도구 관리
 
-**신규 파일**: `mcp/mcp-tool-wrapper.ts`
+### 5.2 Tool RAG
 
-**TODO**:
-- [ ] MCP 도구 → 내부 도구 변환
-- [ ] 파라미터 매핑
-- [ ] 결과 변환
+#### 5.2.1 Tool Selector (향후)
+- [ ] 도구 설명 임베딩
+- [ ] 요청 기반 도구 검색
+- [ ] LLM 기반 도구 선택
 
-#### 5.4.3 MCP Resource Manager
+### 5.3 Local RAG 강화
 
-**신규 파일**: `mcp/mcp-resource-manager.ts`
+- [ ] Vector Store 구현
+- [ ] 하이브리드 검색
+- [ ] 결과 리랭킹
 
-**TODO**:
-- [ ] 리소스 캐싱
-- [ ] 리소스 구독
-- [ ] 변경 알림
+### 5.4 사용량 추적
 
-#### 5.4.4 Settings UI 확장
-
-**TODO**:
-- [ ] `/settings > 3. MCP Servers` 메뉴 추가
-- [ ] 서버 추가/수정/삭제 UI
-- [ ] 연결 상태 표시
-- [ ] 도구/리소스 목록 표시
-
-### 5.5 Local RAG 강화
-
-#### 5.5.1 Vector Store 구현
-
-**신규 폴더**: `src/rag/`
-
-**신규 파일**: `rag/vector-store.ts`
-
-**TODO**:
-- [ ] 로컬 벡터 저장소 구현
-- [ ] HNSW 인덱스 지원
-- [ ] 증분 업데이트
-- [ ] 메모리 최적화
-
-#### 5.5.2 Embedder 개선
-
-**신규 파일**: `rag/embedder.ts`
-
-**TODO**:
-- [ ] 로컬 임베딩 모델 지원
-- [ ] 청크 전략 개선
-- [ ] 메타데이터 임베딩
-- [ ] 배치 처리
-
-#### 5.5.3 Retriever 개선
-
-**신규 파일**: `rag/retriever.ts`
-
-**TODO**:
-- [ ] 하이브리드 검색 (BM25 + 벡터)
-- [ ] 리랭킹 지원
-- [ ] 필터링 옵션
-- [ ] 결과 다양성 보장
-
-#### 5.5.4 RAG Pipeline
-
-**신규 파일**: `rag/rag-pipeline.ts`
-
-**TODO**:
-- [ ] 전체 RAG 파이프라인 구현
-- [ ] 쿼리 확장
-- [ ] 결과 합성
-- [ ] 출처 표시
+- [ ] 토큰 사용량 추적
+- [ ] 도구 사용 통계
+- [ ] 비용 계산
 
 ---
 
 ## 6. Phase 3: 고급 기능 구현
 
-> **목표**: 엔터프라이즈 기능 추가
+### 6.1 코드 문서화
 
-### 6.1 코드 문서화 기능
-
-#### 6.1.1 Code Analyzer
-
-**신규 폴더**: `src/documentation/`
-
-**신규 파일**: `documentation/code-analyzer.ts`
-
-**TODO**:
 - [ ] AST 기반 코드 분석
-- [ ] 함수/클래스 추출
-- [ ] 의존성 분석
-- [ ] 복잡도 계산
+- [ ] 자동 문서 생성
+- [ ] `/document` 명령어
 
-#### 6.1.2 Doc Generator
+### 6.2 고급 Plan-Execute
 
-**신규 파일**: `documentation/doc-generator.ts`
-
-**TODO**:
-- [ ] JSDoc/TSDoc 생성
-- [ ] README 자동 생성
-- [ ] API 문서 생성
-- [ ] 다이어그램 생성 (Mermaid)
-
-#### 6.1.3 Doc Indexer
-
-**신규 파일**: `documentation/doc-indexer.ts`
-
-**TODO**:
-- [ ] 폴더/파일/내용 인덱싱
-- [ ] 심볼 인덱스
-- [ ] 검색 가능 문서 생성
-- [ ] RAG 연동
-
-#### 6.1.4 Slash Command 추가
-
-**TODO**:
-- [ ] `/document <path>` - 문서화 실행
-- [ ] `/document --watch` - 변경 감지 모드
-- [ ] `/document --format=md|html` - 출력 포맷
-
-### 6.2 고급 Plan-Execute 기능
-
-#### 6.2.1 병렬 실행 지원
-
-**TODO**:
-- [ ] 독립적 작업 병렬 실행
-- [ ] 의존성 그래프 기반 스케줄링
-- [ ] 리소스 제한 관리
-- [ ] 결과 동기화
-
-#### 6.2.2 체크포인트 시스템
-
-**TODO**:
-- [ ] 중간 상태 저장
-- [ ] 실패 시 복구
-- [ ] 재시작 지원
-- [ ] 히스토리 관리
-
-#### 6.2.3 학습 기반 최적화
-
-**TODO**:
-- [ ] 실행 패턴 분석
-- [ ] 성공/실패 학습
-- [ ] 자동 최적화 제안
-- [ ] 사용자 피드백 반영
+- [ ] 병렬 실행 지원
+- [ ] 체크포인트 시스템
+- [ ] 학습 기반 최적화
 
 ---
 
-## 7. 우선순위 매트릭스
+## 7. 테스트 전략
 
-### 7.1 Impact vs Effort 매트릭스
+### 7.1 테스트 원칙 변경
 
+| 항목 | 이전 | 이후 |
+|------|------|------|
+| Unit Test | 유지 | **삭제** |
+| E2E Test | 유지 | **시나리오 테스트로 통합** |
+| 목표 | 코드 커버리지 | **시나리오 안정성** |
+
+### 7.2 시나리오 테스트 정의
+
+**특징**:
+- 내부 구현이 바뀌어도 테스트 변경 불필요
+- 사용자 관점의 입출력만 검증
+- 실제 사용 시나리오 기반
+
+**구조**:
 ```
-                    High Impact
-                        │
-     ┌──────────────────┼──────────────────┐
-     │                  │                  │
-     │   Quick Wins     │   Major Projects │
-     │                  │                  │
-     │ • UI 컴포넌트 분할│ • MCP 통합       │
-     │ • Native Tool    │ • RAG 강화       │
-     │ • 승인모드 분기   │ • 코드 문서화    │
-     │                  │                  │
-Low ─┼──────────────────┼──────────────────┼─ High
-Effort│                 │                  │  Effort
-     │   Fill-Ins       │   Money Pits     │
-     │                  │                  │
-     │ • 사용량 추적    │ • 완전 자율 모드  │
-     │ • Docs 내재화    │ • 학습 기반 최적화│
-     │                  │                  │
-     └──────────────────┼──────────────────┘
-                        │
-                    Low Impact
+tests/
+├── scenarios/
+│   ├── file-operations.test.ts      # 파일 CRUD 시나리오
+│   ├── code-generation.test.ts      # 코드 생성 시나리오
+│   ├── planning-execution.test.ts   # Plan & Execute 시나리오
+│   ├── docs-search.test.ts          # 문서 검색 시나리오
+│   ├── session-management.test.ts   # 세션 관리 시나리오
+│   └── error-recovery.test.ts       # 에러 복구 시나리오
+├── fixtures/                        # 테스트 데이터
+└── helpers/                         # 테스트 유틸리티
 ```
 
-### 7.2 구현 순서 권장
+**시나리오 예시**:
+```typescript
+// file-operations.test.ts
+describe('File Operations Scenario', () => {
+  it('should create a new file when requested', async () => {
+    // Given: 사용자가 파일 생성 요청
+    const request = 'Create a file named test.txt with content "hello"';
 
-1. **즉시 시작** (Phase 0)
-   - UI 컴포넌트 분할
-   - Core 모듈 재구성
-   - Tools 베이스 시스템
+    // When: CLI 실행
+    const result = await runCLI(request);
 
-2. **1개월 내** (Phase 1 전반)
-   - Native Tool 추가 (Bash, Git, Search)
-   - 승인모드/자율모드 분기
-   - Plan-Execute 로직 강화
+    // Then: 파일이 생성됨
+    expect(fs.existsSync('test.txt')).toBe(true);
+    expect(fs.readFileSync('test.txt', 'utf-8')).toBe('hello');
+  });
 
-3. **2개월 내** (Phase 1 후반)
-   - LLM 다중 등록
-   - Agent Tool 추가
-   - UI/UX 개선
+  it('should read and summarize a file', async () => {
+    // Given: 기존 파일 존재
+    fs.writeFileSync('existing.txt', 'Some content here');
 
-4. **3개월 내** (Phase 2)
-   - MCP 등록 기능
-   - Tool RAG 제공
-   - Local RAG 강화
+    // When: 파일 읽기 요청
+    const result = await runCLI('Read existing.txt and tell me what it contains');
 
-5. **4개월 내** (Phase 3)
-   - 코드 문서화 기능
-   - 사용량 추적
-   - 고급 Plan-Execute 기능
+    // Then: 내용이 응답에 포함
+    expect(result.output).toContain('Some content');
+  });
+});
+```
+
+### 7.3 테스트 마이그레이션 계획
+
+#### Phase 1: 정리
+- [ ] 기존 Unit Test 파일 삭제
+- [ ] 기존 E2E Test 구조 분석
+- [ ] 유지할 시나리오 식별
+
+#### Phase 2: 시나리오 정의
+- [ ] 핵심 사용자 시나리오 목록 작성
+- [ ] 시나리오별 입출력 정의
+- [ ] 테스트 우선순위 결정
+
+#### Phase 3: 구현
+- [ ] 테스트 헬퍼 함수 구현
+- [ ] 시나리오 테스트 작성
+- [ ] CI/CD 연동
+
+### 7.4 시나리오 목록 (예정)
+
+| 시나리오 | 설명 | 우선순위 |
+|----------|------|----------|
+| 파일 생성/수정/삭제 | 기본 파일 CRUD | P0 |
+| 코드 생성 | 새 함수/클래스 생성 | P0 |
+| 버그 수정 | 에러 기반 코드 수정 | P0 |
+| 문서 검색 | Local RAG 검색 | P1 |
+| 세션 저장/로드 | 대화 지속성 | P1 |
+| 에러 복구 | 실패 시 재시도 | P1 |
+| 모델 전환 | /model 명령어 | P2 |
+| 설정 변경 | /settings 명령어 | P2 |
+
+---
+
+## 8. 우선순위 매트릭스
+
+### 8.1 구현 순서
+
+**즉시 시작 (Phase 0)** - 1-2주
+1. 모드 단일화 (auto only)
+2. 6가지 분류 폴더 구조
+3. 중앙 등록 시스템
+4. Unit Test 삭제 + 시나리오 테스트 구조
+
+**단기 (Phase 1)** - 3-4주
+1. LLM Simple Tools 확장 (bash, search, git)
+2. System Agent Tools 강화
+3. 핵심 시나리오 테스트
+
+**중기 (Phase 2)** - 5-8주
+1. MCP 통합
+2. Tool RAG
+3. 사용량 추적
+
+**장기 (Phase 3)** - 9-12주
+1. 코드 문서화
+2. 고급 Plan-Execute
+3. 학습 기반 최적화
 
 ---
 
 ## 부록
 
-### A. 파일 생성 체크리스트
+### A. 파일 생성/삭제 체크리스트
 
 #### 신규 폴더
-- [x] `src/core/llm/` ✅
-- [x] `src/core/config/` ✅
-- [x] `src/core/session/` ✅
-- [x] `src/core/knowledge/` ✅
-- [x] `src/tools/base/` ✅
-- [x] `src/tools/native/` ✅
-- [ ] `src/tools/rag/`
-- [ ] `src/agents/`
-- [ ] `src/mcp/`
-- [ ] `src/rag/`
-- [ ] `src/analytics/`
-- [ ] `src/documentation/`
-- [x] `src/ui/components/views/` ✅
-- [x] `src/ui/components/panels/` ✅ (폴더 생성됨, 컴포넌트 미이동)
-- [x] `src/ui/components/dialogs/` ✅ (폴더 생성됨, 컴포넌트 미이동)
-- [x] `src/ui/hooks/` ✅
-- [x] `src/ui/contexts/` ✅
+- [ ] `src/tools/llm/simple/`
+- [ ] `src/tools/llm/agents/`
+- [ ] `src/tools/system/simple/`
+- [ ] `src/tools/system/agents/`
+- [ ] `src/tools/user/`
+- [ ] `src/tools/mcp/`
+- [ ] `tests/scenarios/`
 
-#### 신규 파일 (주요)
-- [x] `tools/base/base-tool.ts` ✅
-- [x] `tools/base/tool-registry.ts` ✅
-- [x] `tools/native/file-tools.ts` ✅
-- [ ] `tools/native/bash-tool.ts`
-- [ ] `tools/native/git-tool.ts`
-- [ ] `tools/native/npm-tool.ts`
-- [ ] `tools/native/search-tool.ts`
-- [ ] `agents/search-agent.ts`
-- [ ] `agents/explore-agent.ts`
-- [ ] `mcp/mcp-client.ts`
-- [ ] `rag/vector-store.ts`
-- [ ] `analytics/usage-tracker.ts`
-- [ ] `documentation/code-analyzer.ts`
+#### 삭제 대상
+- [x] `src/tools/base/` (이미 삭제)
+- [ ] `tests/unit/` (Unit Test 삭제)
+- [ ] 모드 전환 관련 UI 코드
 
-### B. 테스트 요구사항
+#### 마이그레이션
+- [ ] `tools/native/` → `tools/llm/simple/`
+- [ ] `core/bash-command-tool.ts` → `tools/llm/simple/`
+- [ ] `core/knowledge/docs-search-agent.ts` → `tools/llm/agents/` + `tools/system/agents/`
+- [ ] `plan-and-execute/` → `tools/system/agents/`
+- [ ] `core/slash-command-handler.ts` → `tools/user/`
 
-각 신규 모듈에 대해:
-- [ ] 유닛 테스트 작성
-- [ ] E2E 테스트 시나리오 추가
-- [ ] 에러 케이스 테스트
-- [ ] 성능 벤치마크
+### B. 인터페이스 정의
 
-### C. 문서화 요구사항
+```typescript
+// 공통 결과 타입
+interface ToolResult {
+  success: boolean;
+  result?: string;
+  error?: string;
+  metadata?: Record<string, unknown>;
+}
 
-각 Phase 완료 시:
-- [ ] API 문서 업데이트
-- [ ] 사용자 가이드 업데이트
-- [ ] CHANGELOG 업데이트
-- [ ] README 업데이트
+// 1) LLM Simple Tool
+interface LLMSimpleTool {
+  definition: ToolDefinition;
+  execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+  categories: string[];
+}
+
+// 2) LLM Agent Tool
+interface LLMAgentTool {
+  definition: ToolDefinition;
+  execute: (args: Record<string, unknown>, llmClient: LLMClient) => Promise<ToolResult>;
+  categories: string[];
+  requiresSubLLM: true;
+}
+
+// 3) System Simple Tool
+interface SystemSimpleTool {
+  name: string;
+  execute: (context: SystemContext) => Promise<ToolResult>;
+  triggerCondition: (context: SystemContext) => boolean;
+}
+
+// 4) System Agent Tool
+interface SystemAgentTool {
+  name: string;
+  execute: (context: SystemContext, llmClient: LLMClient) => Promise<ToolResult>;
+  triggerCondition: (context: SystemContext) => boolean;
+  requiresSubLLM: true;
+}
+
+// 5) User Command
+interface UserCommand {
+  name: string;
+  aliases?: string[];
+  description: string;
+  execute: (args: string[], context: CommandContext) => Promise<CommandResult>;
+}
+
+// 6) MCP Tool
+interface MCPTool {
+  definition: ToolDefinition;
+  serverId: string;
+  enabled: boolean;
+  execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+}
+```
 
 ---
 
