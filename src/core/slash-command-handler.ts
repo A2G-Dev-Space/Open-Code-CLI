@@ -324,6 +324,7 @@ Available commands:
 
 Keyboard shortcuts:
   Ctrl+C          - Exit
+  Ctrl+T          - Toggle TODO details
   ESC             - Interrupt current execution
 
 Note: All conversations are automatically saved.

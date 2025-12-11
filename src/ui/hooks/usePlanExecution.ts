@@ -405,7 +405,6 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         const planningMessage = `📋 ${newTodos.length}개의 작업을 생성했습니다. 자동으로 실행합니다...`;
         setMessages(prev => [
           ...prev,
-          { role: 'user', content: userMessage },
           { role: 'assistant', content: planningMessage }
         ]);
       });

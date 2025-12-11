@@ -95,23 +95,27 @@ export const readFileTool: LLMSimpleTool = {
 };
 
 /**
- * write_file Tool Definition
+ * create_file Tool Definition
+ * Used for creating NEW files only. Use edit_file for existing files.
  */
-const WRITE_FILE_DEFINITION: ToolDefinition = {
+const CREATE_FILE_DEFINITION: ToolDefinition = {
   type: 'function',
   function: {
-    name: 'write_file',
-    description: 'Write content to a file. Overwrites if file exists.',
+    name: 'create_file',
+    description: `Create a NEW file with the given content.
+IMPORTANT: Only use this for files that do NOT exist yet.
+For modifying existing files, use edit_file instead.
+If the file already exists, this tool will fail.`,
     parameters: {
       type: 'object',
       properties: {
         file_path: {
           type: 'string',
-          description: 'Absolute or relative path of the file to write',
+          description: 'Absolute or relative path of the new file to create',
         },
         content: {
           type: 'string',
-          description: 'Content to write to the file',
+          description: 'Content to write to the new file',
         },
       },
       required: ['file_path', 'content'],
@@ -120,16 +124,27 @@ const WRITE_FILE_DEFINITION: ToolDefinition = {
 };
 
 /**
- * Internal: Execute write_file
+ * Internal: Execute create_file
  */
-async function _executeWriteFile(args: Record<string, unknown>): Promise<ToolResult> {
+async function _executeCreateFile(args: Record<string, unknown>): Promise<ToolResult> {
   const filePath = args['file_path'] as string;
   const content = args['content'] as string;
 
   try {
-    // Remove @ prefix if present
     const cleanPath = filePath.startsWith('@') ? filePath.slice(1) : filePath;
     const resolvedPath = path.resolve(cleanPath);
+    const displayPath = filePath.startsWith('@') ? filePath.slice(1) : filePath;
+
+    // Check if file already exists
+    try {
+      await fs.access(resolvedPath);
+      return {
+        success: false,
+        error: `파일이 이미 존재합니다: ${displayPath}. 기존 파일을 수정하려면 edit_file을 사용하세요.`,
+      };
+    } catch {
+      // File doesn't exist, which is what we want
+    }
 
     // Create directory if it doesn't exist
     const dir = path.dirname(resolvedPath);
@@ -137,29 +152,243 @@ async function _executeWriteFile(args: Record<string, unknown>): Promise<ToolRes
 
     await fs.writeFile(resolvedPath, content, 'utf-8');
 
-    const displayPath = filePath.startsWith('@') ? filePath.slice(1) : filePath;
+    const lines = content.split('\n').length;
     return {
       success: true,
-      result: `파일이 성공적으로 작성되었습니다: ${displayPath}`,
+      result: JSON.stringify({
+        action: 'created',
+        file: displayPath,
+        lines: lines,
+        message: `Created ${displayPath} (${lines} lines)`,
+      }),
     };
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     const displayPath = filePath.startsWith('@') ? filePath.slice(1) : filePath;
     return {
       success: false,
-      error: `파일 쓰기 실패 (${displayPath}): ${err.message}`,
+      error: `파일 생성 실패 (${displayPath}): ${err.message}`,
     };
   }
 }
 
 /**
- * write_file LLM Simple Tool
+ * create_file LLM Simple Tool
  */
-export const writeFileTool: LLMSimpleTool = {
-  definition: WRITE_FILE_DEFINITION,
-  execute: _executeWriteFile,
+export const createFileTool: LLMSimpleTool = {
+  definition: CREATE_FILE_DEFINITION,
+  execute: _executeCreateFile,
   categories: ['llm-simple'] as ToolCategory[],
-  description: 'Write content to file',
+  description: 'Create a new file',
+};
+
+/**
+ * Edit operation interface
+ */
+interface EditOperation {
+  line_number: number;
+  original_text: string;
+  new_text: string;
+}
+
+/**
+ * edit_file Tool Definition
+ * Used for modifying EXISTING files only. Use create_file for new files.
+ */
+const EDIT_FILE_DEFINITION: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'edit_file',
+    description: `Edit an EXISTING file by replacing specific lines.
+IMPORTANT: Only use this for files that already exist. For new files, use create_file.
+
+HOW TO USE:
+1. First use read_file to see the current content and line numbers
+2. Identify the exact lines you want to change
+3. Provide edits as a list of operations
+
+Each edit operation requires:
+- line_number: The line number to edit (1-based)
+- original_text: The EXACT current text on that line (must match exactly)
+- new_text: The new text to replace it with (use empty string "" to delete the line)
+
+EXAMPLES:
+1. Change line 5 from "const x = 1;" to "const x = 2;":
+   {"line_number": 5, "original_text": "const x = 1;", "new_text": "const x = 2;"}
+
+2. Delete line 10:
+   {"line_number": 10, "original_text": "// delete this", "new_text": ""}
+
+3. Multiple edits (change lines 3 and 7):
+   [
+     {"line_number": 3, "original_text": "old text", "new_text": "new text"},
+     {"line_number": 7, "original_text": "another old", "new_text": "another new"}
+   ]
+
+IMPORTANT:
+- original_text must match EXACTLY (including whitespace)
+- Line numbers are 1-based
+- Process edits from highest line number to lowest to avoid line number shifts`,
+    parameters: {
+      type: 'object',
+      properties: {
+        file_path: {
+          type: 'string',
+          description: 'Absolute or relative path of the existing file to edit',
+        },
+        edits: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              line_number: {
+                type: 'number',
+                description: 'Line number to edit (1-based)',
+              },
+              original_text: {
+                type: 'string',
+                description: 'Exact current text on that line (must match exactly)',
+              },
+              new_text: {
+                type: 'string',
+                description: 'New text to replace with (use empty string to delete)',
+              },
+            },
+            required: ['line_number', 'original_text', 'new_text'],
+          },
+          description: 'List of edit operations to apply',
+        },
+      },
+      required: ['file_path', 'edits'],
+    },
+  },
+};
+
+/**
+ * Internal: Execute edit_file
+ */
+async function _executeEditFile(args: Record<string, unknown>): Promise<ToolResult> {
+  const filePath = args['file_path'] as string;
+  const edits = args['edits'] as EditOperation[];
+
+  try {
+    const cleanPath = filePath.startsWith('@') ? filePath.slice(1) : filePath;
+    const resolvedPath = path.resolve(cleanPath);
+    const displayPath = filePath.startsWith('@') ? filePath.slice(1) : filePath;
+
+    // Check if file exists
+    try {
+      await fs.access(resolvedPath);
+    } catch {
+      return {
+        success: false,
+        error: `파일이 존재하지 않습니다: ${displayPath}. 새 파일을 만들려면 create_file을 사용하세요.`,
+      };
+    }
+
+    // Read current content
+    const originalContent = await fs.readFile(resolvedPath, 'utf-8');
+    const lines = originalContent.split('\n');
+
+    // Validate and sort edits (process from highest line number to lowest)
+    const sortedEdits = [...edits].sort((a, b) => b.line_number - a.line_number);
+
+    // Track changes for diff output
+    const changes: Array<{
+      lineNumber: number;
+      original: string;
+      updated: string;
+    }> = [];
+
+    // Apply edits
+    for (const edit of sortedEdits) {
+      const lineIdx = edit.line_number - 1; // Convert to 0-based
+
+      if (lineIdx < 0 || lineIdx >= lines.length) {
+        return {
+          success: false,
+          error: `줄 번호가 범위를 벗어났습니다: ${edit.line_number} (파일은 ${lines.length}줄)`,
+        };
+      }
+
+      const currentLine = lines[lineIdx];
+      if (currentLine !== edit.original_text) {
+        return {
+          success: false,
+          error: `줄 ${edit.line_number}의 내용이 일치하지 않습니다.\n예상: "${edit.original_text}"\n실제: "${currentLine}"`,
+        };
+      }
+
+      // Record the change
+      changes.push({
+        lineNumber: edit.line_number,
+        original: edit.original_text,
+        updated: edit.new_text,
+      });
+
+      // Apply the edit
+      if (edit.new_text === '') {
+        // Delete the line
+        lines.splice(lineIdx, 1);
+      } else {
+        // Replace the line
+        lines[lineIdx] = edit.new_text;
+      }
+    }
+
+    // Write the modified content
+    const newContent = lines.join('\n');
+    await fs.writeFile(resolvedPath, newContent, 'utf-8');
+
+    // Generate diff output
+    const additions = changes.filter(c => c.updated !== '').length;
+    const deletions = changes.filter(c => c.updated === '' || c.original !== '').length;
+
+    // Sort changes by line number for display
+    changes.sort((a, b) => a.lineNumber - b.lineNumber);
+
+    // Build diff lines for display
+    const diffLines: string[] = [];
+    for (const change of changes) {
+      // Show removed line
+      if (change.original) {
+        diffLines.push(`${change.lineNumber} - ${change.original}`);
+      }
+      // Show added line
+      if (change.updated) {
+        diffLines.push(`${change.lineNumber} + ${change.updated}`);
+      }
+    }
+
+    return {
+      success: true,
+      result: JSON.stringify({
+        action: 'edited',
+        file: displayPath,
+        additions: additions,
+        deletions: deletions,
+        message: `Updated ${displayPath} with ${additions} additions and ${deletions} removals`,
+        diff: diffLines,
+      }),
+    };
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    const displayPath = filePath.startsWith('@') ? filePath.slice(1) : filePath;
+    return {
+      success: false,
+      error: `파일 편집 실패 (${displayPath}): ${err.message}`,
+    };
+  }
+}
+
+/**
+ * edit_file LLM Simple Tool
+ */
+export const editFileTool: LLMSimpleTool = {
+  definition: EDIT_FILE_DEFINITION,
+  execute: _executeEditFile,
+  categories: ['llm-simple'] as ToolCategory[],
+  description: 'Edit an existing file',
 };
 
 /**
@@ -443,7 +672,8 @@ export const findFilesTool: LLMSimpleTool = {
  */
 export const FILE_SIMPLE_TOOLS: LLMSimpleTool[] = [
   readFileTool,
-  writeFileTool,
+  createFileTool,
+  editFileTool,
   listFilesTool,
   findFilesTool,
 ];
@@ -472,48 +702,3 @@ export async function executeFileTool(
   return tool.execute(args);
 }
 
-// ============================================================
-// Backward Compatible Function Exports
-// These functions maintain compatibility with existing code
-// ============================================================
-
-/**
- * Execute read_file (backward compatible)
- * @deprecated Use readFileTool.execute() instead
- */
-export async function executeReadFile(filePath: string): Promise<ToolResult> {
-  return readFileTool.execute({ file_path: filePath });
-}
-
-/**
- * Execute write_file (backward compatible)
- * @deprecated Use writeFileTool.execute() instead
- */
-export async function executeWriteFile(filePath: string, content: string): Promise<ToolResult> {
-  return writeFileTool.execute({ file_path: filePath, content });
-}
-
-/**
- * Execute list_files (backward compatible)
- * @deprecated Use listFilesTool.execute() instead
- */
-export async function executeListFiles(
-  directoryPath: string = '.',
-  recursive: boolean = false
-): Promise<ToolResult> {
-  return listFilesTool.execute({ directory_path: directoryPath, recursive });
-}
-
-/**
- * Execute find_files (backward compatible)
- * @deprecated Use findFilesTool.execute() instead
- */
-export async function executeFindFiles(
-  pattern: string,
-  directoryPath: string = '.'
-): Promise<ToolResult> {
-  return findFilesTool.execute({ pattern, directory_path: directoryPath });
-}
-
-// Re-export ToolExecutionResult type for backward compatibility
-export type ToolExecutionResult = ToolResult;

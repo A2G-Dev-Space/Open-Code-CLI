@@ -41,7 +41,8 @@ export type TestAction =
   | { type: 'llm_chat'; prompt: string; useTools?: boolean }
   | { type: 'llm_stream'; prompt: string }
   | { type: 'file_read'; path: string }
-  | { type: 'file_write'; path: string; content: string }
+  | { type: 'file_create'; path: string; content: string }
+  | { type: 'file_edit'; path: string; edits: Array<{ line_number: number; original_text: string; new_text: string }> }
   | { type: 'file_list'; directory: string }
   | { type: 'file_find'; pattern: string; directory?: string }
   | { type: 'plan_generate'; userRequest: string }

@@ -246,8 +246,11 @@ export class E2ETestRunner {
       case 'file_read':
         return this.actionFileRead(action.path);
 
-      case 'file_write':
-        return this.actionFileWrite(action.path, action.content);
+      case 'file_create':
+        return this.actionFileCreate(action.path, action.content);
+
+      case 'file_edit':
+        return this.actionFileEdit(action.path, action.edits);
 
       case 'file_list':
         return this.actionFileList(action.directory);
@@ -405,26 +408,38 @@ export class E2ETestRunner {
   }
 
   private async actionFileRead(filePath: string): Promise<string> {
-    const { executeReadFile } = await import('../../src/tools/llm/simple/file-tools.js');
-    const result = await executeReadFile(filePath);
+    const { readFileTool } = await import('../../src/tools/llm/simple/file-tools.js');
+    const result = await readFileTool.execute({ file_path: filePath });
     if (!result.success) {
       throw new Error(result.error || 'File read failed');
     }
     return result.result || '';
   }
 
-  private async actionFileWrite(filePath: string, content: string): Promise<string> {
-    const { executeWriteFile } = await import('../../src/tools/llm/simple/file-tools.js');
-    const result = await executeWriteFile(filePath, content);
+  private async actionFileCreate(filePath: string, content: string): Promise<string> {
+    const { createFileTool } = await import('../../src/tools/llm/simple/file-tools.js');
+    const result = await createFileTool.execute({ file_path: filePath, content });
     if (!result.success) {
-      throw new Error(result.error || 'File write failed');
+      throw new Error(result.error || 'File create failed');
+    }
+    return result.result || '';
+  }
+
+  private async actionFileEdit(
+    filePath: string,
+    edits: Array<{ line_number: number; original_text: string; new_text: string }>
+  ): Promise<string> {
+    const { editFileTool } = await import('../../src/tools/llm/simple/file-tools.js');
+    const result = await editFileTool.execute({ file_path: filePath, edits });
+    if (!result.success) {
+      throw new Error(result.error || 'File edit failed');
     }
     return result.result || '';
   }
 
   private async actionFileList(directory: string): Promise<any[]> {
-    const { executeListFiles } = await import('../../src/tools/llm/simple/file-tools.js');
-    const result = await executeListFiles(directory || '.', false);
+    const { listFilesTool } = await import('../../src/tools/llm/simple/file-tools.js');
+    const result = await listFilesTool.execute({ directory_path: directory || '.', recursive: false });
     if (!result.success) {
       throw new Error(result.error || 'File list failed');
     }
@@ -437,8 +452,8 @@ export class E2ETestRunner {
   }
 
   private async actionFileFind(pattern: string, directory?: string): Promise<any[]> {
-    const { executeFindFiles } = await import('../../src/tools/llm/simple/file-tools.js');
-    const result = await executeFindFiles(pattern, directory || '.');
+    const { findFilesTool } = await import('../../src/tools/llm/simple/file-tools.js');
+    const result = await findFilesTool.execute({ pattern, directory_path: directory || '.' });
     if (!result.success) {
       throw new Error(result.error || 'File find failed');
     }

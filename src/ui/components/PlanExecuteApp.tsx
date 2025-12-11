@@ -85,9 +85,6 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // LLM Client state - 모델 변경 시 새로운 클라이언트로 교체
   const [llmClient, setLlmClient] = useState<LLMClient | null>(initialLlmClient);
 
-  // Pending user message (shown immediately after Enter)
-  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
-
   // Activity tracking for detailed status display
   const [activityType, setActivityType] = useState<ActivityType>('thinking');
   const [activityStartTime, setActivityStartTime] = useState<number>(Date.now());
@@ -116,6 +113,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // Docs Browser state
   const [showDocsBrowser, setShowDocsBrowser] = useState(false);
+
+  // TODO Panel details toggle state
+  const [showTodoDetails, setShowTodoDetails] = useState(true);
 
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
@@ -221,6 +221,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     if (key.ctrl && inputChar === 'c') {
       handleExit().catch(console.error);
     }
+    // Ctrl+T: Toggle TODO details
+    if (key.ctrl && inputChar === 't') {
+      setShowTodoDetails(prev => !prev);
+      logger.debug('TODO details toggled', { showTodoDetails: !showTodoDetails });
+    }
     // ESC: Interrupt current execution
     if (key.escape && isProcessing) {
       logger.flow('ESC pressed - interrupting execution');
@@ -293,9 +298,26 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const handleSetupComplete = useCallback(() => {
     logger.debug('Setup wizard completed');
     setShowSetupWizard(false);
-    // Exit and let user restart
-    exit();
-  }, [exit]);
+
+    // Reload config and create LLMClient
+    try {
+      const endpoint = configManager.getCurrentEndpoint();
+      const model = configManager.getCurrentModel();
+
+      if (endpoint && model) {
+        setCurrentModelInfo({
+          model: model.name,
+          endpoint: endpoint.baseUrl,
+        });
+
+        const newClient = createLLMClient();
+        setLlmClient(newClient);
+        logger.debug('LLMClient created after setup', { modelId: model.id, modelName: model.name });
+      }
+    } catch (error) {
+      logger.error('Failed to create LLMClient after setup', error as Error);
+    }
+  }, []);
 
   // Handle setup wizard skip
   const handleSetupSkip = useCallback(() => {
@@ -407,8 +429,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       }
     }
 
-    // Show pending user message immediately
-    setPendingUserMessage(userMessage);
+    // Add user message to messages immediately
+    const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: userMessage }];
+    setMessages(updatedMessages);
 
     setIsProcessing(true);
     setCurrentResponse('');
@@ -429,7 +452,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         setActivityType('thinking');
         setActivityDetail('Compacting conversation...');
 
-        const compactResult = await planExecutionState.performCompact(llmClient!, messages, setMessages);
+        const compactResult = await planExecutionState.performCompact(llmClient!, updatedMessages, setMessages);
         if (compactResult.success) {
           logger.debug('Auto-compact completed', {
             originalCount: compactResult.originalMessageCount,
@@ -450,14 +473,13 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       );
 
       // Use executeAutoMode which handles classification internally
-      await planExecutionState.executeAutoMode(userMessage, llmClient!, messages, setMessages);
+      await planExecutionState.executeAutoMode(userMessage, llmClient!, updatedMessages, setMessages);
 
     } catch (error) {
       logger.error('Message processing failed', error as Error);
     } finally {
       setIsProcessing(false);
       setCurrentResponse('');
-      setPendingUserMessage(null);
       logger.endTimer('message-processing');
       logger.exit('handleSubmit', { success: true });
     }
@@ -587,7 +609,6 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       <ChatView
         messages={messages}
         currentResponse={currentResponse}
-        pendingUserMessage={pendingUserMessage || undefined}
       />
 
       {/* Activity Indicator (shown when processing) */}
@@ -615,7 +636,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           <TodoPanel
             todos={planExecutionState.todos}
             currentTodoId={planExecutionState.currentTodoId}
-            showDetails={true}
+            showDetails={showTodoDetails}
           />
         </Box>
       )}

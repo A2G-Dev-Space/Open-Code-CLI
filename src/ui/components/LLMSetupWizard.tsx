@@ -22,9 +22,10 @@ interface FormData {
   apiKey: string;
   modelId: string;
   modelName: string;
+  maxContextLength: string;
 }
 
-type FormField = 'name' | 'baseUrl' | 'apiKey' | 'modelId' | 'modelName' | 'buttons';
+type FormField = 'name' | 'baseUrl' | 'apiKey' | 'modelId' | 'modelName' | 'maxContextLength' | 'buttons';
 
 export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSkip }) => {
   const [formData, setFormData] = useState<FormData>({
@@ -33,6 +34,7 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
     apiKey: '',
     modelId: '',
     modelName: '',
+    maxContextLength: '128000',
   });
   const [formField, setFormField] = useState<FormField>('name');
   const [formButtonIndex, setFormButtonIndex] = useState(0);
@@ -42,7 +44,7 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
   // Handle form field navigation with Tab and Arrow keys
   const handleFormNavigation = useCallback(
     (key: { tab?: boolean; shift?: boolean; upArrow?: boolean; downArrow?: boolean }) => {
-      const fields: FormField[] = ['name', 'baseUrl', 'apiKey', 'modelId', 'modelName', 'buttons'];
+      const fields: FormField[] = ['name', 'baseUrl', 'apiKey', 'modelId', 'modelName', 'maxContextLength', 'buttons'];
       const currentIndex = fields.indexOf(formField);
 
       if (key.tab) {
@@ -123,6 +125,7 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
       }
 
       // Save endpoint
+      const maxTokens = parseInt(formData.maxContextLength, 10) || 128000;
       const newEndpoint: EndpointConfig = {
         id: `ep-${Date.now()}`,
         name: formData.name,
@@ -132,7 +135,7 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
           {
             id: formData.modelId,
             name: formData.modelName || formData.modelId,
-            maxTokens: 128000,
+            maxTokens: maxTokens,
             enabled: true,
             healthStatus: 'healthy',
             lastHealthCheck: new Date(),
@@ -256,6 +259,22 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
             />
           ) : (
             <Text> {formData.modelName || '(optional)'}</Text>
+          )}
+        </Box>
+
+        {/* Max Context Length Field */}
+        <Box>
+          <Text color={formField === 'maxContextLength' ? 'cyan' : 'yellow'}>
+            {formField === 'maxContextLength' ? '> ' : '  '}Max Context:
+          </Text>
+          {formField === 'maxContextLength' ? (
+            <TextInput
+              value={formData.maxContextLength}
+              onChange={(value) => setFormData({ ...formData, maxContextLength: value.replace(/[^0-9]/g, '') })}
+              placeholder="128000"
+            />
+          ) : (
+            <Text> {formData.maxContextLength || '128000'}</Text>
           )}
         </Box>
       </Box>
