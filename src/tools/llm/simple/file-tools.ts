@@ -35,12 +35,22 @@ const READ_FILE_DEFINITION: ToolDefinition = {
     parameters: {
       type: 'object',
       properties: {
+        reason: {
+          type: 'string',
+          description: `A natural, conversational explanation for the user about what you're doing (in user's language).
+Write as if you're talking to the user directly.
+Examples:
+- "현재 인증 로직이 어떻게 구현되어 있는지 확인해볼게요"
+- "에러가 발생한 파일을 열어서 문제를 찾아볼게요"
+- "프로젝트 설정을 파악하기 위해 package.json을 확인해볼게요"
+- "수정하기 전에 기존 코드가 어떻게 되어있는지 먼저 볼게요"`,
+        },
         file_path: {
           type: 'string',
           description: 'Absolute or relative path of the file to read',
         },
       },
-      required: ['file_path'],
+      required: ['reason', 'file_path'],
     },
   },
 };
@@ -109,6 +119,16 @@ If the file already exists, this tool will fail.`,
     parameters: {
       type: 'object',
       properties: {
+        reason: {
+          type: 'string',
+          description: `A natural, conversational explanation for the user about what you're doing (in user's language).
+Write as if you're talking to the user directly.
+Examples:
+- "인증 서비스를 담당할 새 파일을 만들게요"
+- "테스트 설정 파일이 없어서 새로 생성할게요"
+- "API 라우터를 분리하기 위해 새 파일을 만들게요"
+- "컴포넌트를 새로 작성해서 추가할게요"`,
+        },
         file_path: {
           type: 'string',
           description: 'Absolute or relative path of the new file to create',
@@ -118,7 +138,7 @@ If the file already exists, this tool will fail.`,
           description: 'Content to write to the new file',
         },
       },
-      required: ['file_path', 'content'],
+      required: ['reason', 'file_path', 'content'],
     },
   },
 };
@@ -232,6 +252,16 @@ IMPORTANT:
     parameters: {
       type: 'object',
       properties: {
+        reason: {
+          type: 'string',
+          description: `A natural, conversational explanation for the user about what you're doing (in user's language).
+Write as if you're talking to the user directly.
+Examples:
+- "버그가 있는 부분을 수정할게요"
+- "요청하신 대로 함수 이름을 변경할게요"
+- "import 구문을 추가해서 의존성을 연결할게요"
+- "타입 에러가 나는 부분을 고쳐볼게요"`,
+        },
         file_path: {
           type: 'string',
           description: 'Absolute or relative path of the existing file to edit',
@@ -259,7 +289,7 @@ IMPORTANT:
           description: 'List of edit operations to apply',
         },
       },
-      required: ['file_path', 'edits'],
+      required: ['reason', 'file_path', 'edits'],
     },
   },
 };
@@ -402,6 +432,16 @@ const LIST_FILES_DEFINITION: ToolDefinition = {
     parameters: {
       type: 'object',
       properties: {
+        reason: {
+          type: 'string',
+          description: `A natural, conversational explanation for the user about what you're doing (in user's language).
+Write as if you're talking to the user directly.
+Examples:
+- "프로젝트 구조를 파악하기 위해 폴더를 살펴볼게요"
+- "어떤 파일들이 있는지 확인해볼게요"
+- "src 폴더 안에 뭐가 있는지 볼게요"
+- "관련 파일을 찾기 위해 디렉토리를 확인할게요"`,
+        },
         directory_path: {
           type: 'string',
           description: 'Directory path to list (default: current directory)',
@@ -411,7 +451,7 @@ const LIST_FILES_DEFINITION: ToolDefinition = {
           description: 'Whether to list subdirectories recursively (default: false)',
         },
       },
-      required: [],
+      required: ['reason'],
     },
   },
 };
@@ -547,6 +587,16 @@ const FIND_FILES_DEFINITION: ToolDefinition = {
     parameters: {
       type: 'object',
       properties: {
+        reason: {
+          type: 'string',
+          description: `A natural, conversational explanation for the user about what you're doing (in user's language).
+Write as if you're talking to the user directly.
+Examples:
+- "설정 파일이 어디 있는지 찾아볼게요"
+- "테스트 파일들을 검색해볼게요"
+- "TypeScript 파일들이 어디에 있는지 확인할게요"
+- "관련된 컴포넌트 파일을 찾아볼게요"`,
+        },
         pattern: {
           type: 'string',
           description: 'Filename pattern to search for (e.g., *.ts, package.json)',
@@ -556,7 +606,7 @@ const FIND_FILES_DEFINITION: ToolDefinition = {
           description: 'Directory path to start search from (default: current directory)',
         },
       },
-      required: ['pattern'],
+      required: ['reason', 'pattern'],
     },
   },
 };
@@ -684,6 +734,26 @@ export const FILE_SIMPLE_TOOLS: LLMSimpleTool[] = [
 export const FILE_TOOLS: ToolDefinition[] = FILE_SIMPLE_TOOLS.map((tool) => tool.definition);
 
 /**
+ * Callback for tool execution events (reason display to user)
+ */
+type ToolExecutionCallback = (toolName: string, reason: string, filePath?: string) => void;
+let toolExecutionCallback: ToolExecutionCallback | null = null;
+
+/**
+ * Set callback for tool execution events
+ */
+export function setToolExecutionCallback(callback: ToolExecutionCallback | null): void {
+  toolExecutionCallback = callback;
+}
+
+/**
+ * Get current tool execution callback
+ */
+export function getToolExecutionCallback(): ToolExecutionCallback | null {
+  return toolExecutionCallback;
+}
+
+/**
  * Execute file tool by name (backward compatible)
  */
 export async function executeFileTool(
@@ -697,6 +767,15 @@ export async function executeFileTool(
       success: false,
       error: `알 수 없는 도구: ${toolName}`,
     };
+  }
+
+  // Extract reason and file path from args
+  const reason = args['reason'] as string | undefined;
+  const filePath = (args['file_path'] || args['directory_path']) as string | undefined;
+
+  // Call the callback to notify UI about tool execution
+  if (toolExecutionCallback && reason) {
+    toolExecutionCallback(toolName, reason, filePath);
   }
 
   return tool.execute(args);

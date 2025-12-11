@@ -39,6 +39,7 @@ import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
 import { configManager } from '../../core/config/config-manager.js';
 import { logger } from '../../utils/logger.js';
 import { usageTracker } from '../../core/usage-tracker.js';
+import { setToolExecutionCallback } from '../../tools/llm/simple/file-tools.js';
 import { createRequire } from 'module';
 
 // Get version from package.json
@@ -117,6 +118,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // TODO Panel details toggle state
   const [showTodoDetails, setShowTodoDetails] = useState(true);
 
+  // Tool execution reason display state
+  const [toolReason, setToolReason] = useState<{ tool: string; reason: string; filePath?: string } | null>(null);
+
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
   const commandBrowserState = useCommandBrowserState(input, isProcessing);
@@ -127,6 +131,18 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     logger.enter('PlanExecuteApp', { modelInfo });
     return () => {
       logger.exit('PlanExecuteApp', { messageCount: messages.length });
+    };
+  }, []);
+
+  // Setup tool execution callback for displaying reason to user
+  useEffect(() => {
+    setToolExecutionCallback((toolName, reason, filePath) => {
+      setToolReason({ tool: toolName, reason, filePath });
+      logger.debug('Tool execution started', { toolName, reason, filePath });
+    });
+
+    return () => {
+      setToolExecutionCallback(null);
     };
   }, []);
 
@@ -480,6 +496,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     } finally {
       setIsProcessing(false);
       setCurrentResponse('');
+      setToolReason(null);  // Clear tool reason when processing ends
       logger.endTimer('message-processing');
       logger.exit('handleSubmit', { success: true });
     }
@@ -621,6 +638,19 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             subActivities={subActivities}
             modelName={currentModelInfo.model}
           />
+        </Box>
+      )}
+
+      {/* Tool Execution Reason (shown when a tool is being executed) */}
+      {isProcessing && toolReason && (
+        <Box marginY={0} paddingX={1}>
+          <Text color="cyan">
+            <Spinner type="dots" />
+          </Text>
+          <Text color="white"> {toolReason.reason}</Text>
+          {toolReason.filePath && (
+            <Text color="gray" dimColor> ({toolReason.filePath})</Text>
+          )}
         </Box>
       )}
 
