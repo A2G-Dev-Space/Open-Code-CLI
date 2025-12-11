@@ -810,10 +810,23 @@ type ToolExecutionCallback = (toolName: string, reason: string, filePath?: strin
 let toolExecutionCallback: ToolExecutionCallback | null = null;
 
 /**
+ * Callback for tool response events
+ */
+type ToolResponseCallback = (toolName: string, success: boolean, result: string) => void;
+let toolResponseCallback: ToolResponseCallback | null = null;
+
+/**
  * Set callback for tool execution events
  */
 export function setToolExecutionCallback(callback: ToolExecutionCallback | null): void {
   toolExecutionCallback = callback;
+}
+
+/**
+ * Set callback for tool response events
+ */
+export function setToolResponseCallback(callback: ToolResponseCallback | null): void {
+  toolResponseCallback = callback;
 }
 
 /**
@@ -848,6 +861,17 @@ export async function executeFileTool(
     toolExecutionCallback(toolName, reason, filePath);
   }
 
-  return tool.execute(args);
+  // Execute the tool
+  const result = await tool.execute(args);
+
+  // Call the response callback to notify UI about tool result
+  if (toolResponseCallback) {
+    const resultText = result.success
+      ? (result.result?.substring(0, 200) + (result.result && result.result.length > 200 ? '...' : ''))
+      : (result.error || 'Unknown error');
+    toolResponseCallback(toolName, result.success, resultText || '');
+  }
+
+  return result;
 }
 
