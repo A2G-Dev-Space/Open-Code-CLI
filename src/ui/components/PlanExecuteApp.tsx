@@ -6,8 +6,35 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Box, Text, useInput, useApp } from 'ink';
+import { Box, Text, useInput, useApp, Static } from 'ink';
 import Spinner from 'ink-spinner';
+
+/**
+ * Log entry types for Static scrollable output
+ */
+export type LogEntryType =
+  | 'logo'
+  | 'user_input'
+  | 'assistant_message'
+  | 'tool_start'
+  | 'tool_result'
+  | 'tell_user'
+  | 'plan_created'
+  | 'todo_start'
+  | 'todo_complete'
+  | 'todo_fail'
+  | 'compact';
+
+export interface LogEntry {
+  id: string;
+  type: LogEntryType;
+  content: string;
+  details?: string;
+  filePath?: string;
+  success?: boolean;
+  items?: string[];  // For plan_created (todo list)
+  diff?: string[];   // For tool_result with diff
+}
 import { CustomTextInput } from './CustomTextInput.js';
 import { LLMClient, createLLMClient } from '../../core/llm/llm-client.js';
 import { Message } from '../../types/index.js';
@@ -22,7 +49,7 @@ import { ModelSelector } from './ModelSelector.js';
 import { AskUserDialog } from './dialogs/AskUserDialog.js';
 import { DocsBrowser } from './dialogs/DocsBrowser.js';
 import { CommandBrowser } from './CommandBrowser.js';
-import { ChatView } from './views/ChatView.js';
+// ChatView removed - using Static log instead
 import { Logo } from './Logo.js';
 import { ActivityIndicator, type ActivityType, type SubActivity } from './ActivityIndicator.js';
 import { useFileBrowserState } from '../hooks/useFileBrowserState.js';
@@ -39,7 +66,16 @@ import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
 import { configManager } from '../../core/config/config-manager.js';
 import { logger } from '../../utils/logger.js';
 import { usageTracker } from '../../core/usage-tracker.js';
-import { setToolExecutionCallback, setTellToUserCallback, setToolResponseCallback } from '../../tools/llm/simple/file-tools.js';
+import {
+  setToolExecutionCallback,
+  setTellToUserCallback,
+  setToolResponseCallback,
+  setPlanCreatedCallback,
+  setTodoStartCallback,
+  setTodoCompleteCallback,
+  setTodoFailCallback,
+  setCompactCallback,
+} from '../../tools/llm/simple/file-tools.js';
 import { createRequire } from 'module';
 
 // Get version from package.json
@@ -79,7 +115,6 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentResponse, setCurrentResponse] = useState('');
   // Planning mode is always 'auto' - mode selection has been removed
   const planningMode: PlanningMode = 'auto';
 
@@ -118,12 +153,34 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // TODO Panel details toggle state
   const [showTodoDetails, setShowTodoDetails] = useState(true);
 
-  // Tool execution and user message states removed - now using console.log for history
+  // Static log entries for scrollable history
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const logIdCounter = React.useRef(0);
+
+  // Helper: add log entry
+  const addLog = useCallback((entry: Omit<LogEntry, 'id'>) => {
+    const id = `log-${++logIdCounter.current}`;
+    setLogEntries(prev => [...prev, { ...entry, id }]);
+  }, []);
+
+  // Helper: clear logs (for compact)
+  const clearLogs = useCallback(() => {
+    setLogEntries([]);
+    logIdCounter.current = 0;
+  }, []);
 
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
   const commandBrowserState = useCommandBrowserState(input, isProcessing);
   const planExecutionState = usePlanExecution();
+
+  // Print logo at startup
+  useEffect(() => {
+    addLog({
+      type: 'logo',
+      content: `v${VERSION} │ ${modelInfo.model}`,
+    });
+  }, []);
 
   // Log component mount
   useEffect(() => {
@@ -133,53 +190,115 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     };
   }, []);
 
-  // Helper: truncate text with ellipsis
-  const truncate = (text: string, maxLen: number): string => {
-    if (!text) return '';
-    const singleLine = text.replace(/\n/g, ' ').trim();
-    if (singleLine.length <= maxLen) return singleLine;
-    return singleLine.substring(0, maxLen - 1) + '…';
-  };
-
-  // Setup tool execution callback - prints to console for scrollable history
+  // Setup tool execution callback - adds to Static log
   useEffect(() => {
     setToolExecutionCallback((toolName, reason, filePath) => {
-      const fileInfo = filePath ? `\x1b[90m(${truncate(filePath, 50)})\x1b[0m` : '';
-      console.log(`\n\x1b[36m● ${toolName}\x1b[0m${fileInfo ? ' ' + fileInfo : ''}`);
-      console.log(`  \x1b[90m⎿\x1b[0m  ${truncate(reason, 80)}`);
+      addLog({
+        type: 'tool_start',
+        content: toolName,
+        details: reason,  // reason은 축약하지 않음
+        filePath,
+      });
       logger.debug('Tool execution started', { toolName, reason, filePath });
     });
 
     return () => {
       setToolExecutionCallback(null);
     };
-  }, []);
+  }, [addLog]);
 
-  // Setup tool response callback - prints to console for scrollable history
+  // Setup tool response callback - adds to Static log
   useEffect(() => {
     setToolResponseCallback((toolName, success, result) => {
-      const icon = success ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
-      const color = success ? '\x1b[90m' : '\x1b[31m';
-      console.log(`  \x1b[90m⎿\x1b[0m  ${icon} ${color}${truncate(result, 70)}\x1b[0m`);
+      // diff 내용 파싱 시도
+      let diff: string[] | undefined;
+      try {
+        const parsed = JSON.parse(result);
+        if (parsed.diff && Array.isArray(parsed.diff)) {
+          diff = parsed.diff;
+        }
+      } catch {
+        // not JSON, use as-is
+      }
+
+      addLog({
+        type: 'tool_result',
+        content: toolName,
+        details: result,  // 전체 내용 보존
+        success,
+        diff,
+      });
       logger.debug('Tool execution completed', { toolName, success, result });
     });
 
     return () => {
       setToolResponseCallback(null);
     };
-  }, []);
+  }, [addLog]);
 
-  // Setup tell_to_user callback - prints to console for scrollable history
+  // Setup tell_to_user callback - adds to Static log
   useEffect(() => {
     setTellToUserCallback((message) => {
-      console.log(`\n\x1b[33m● ${truncate(message, 100)}\x1b[0m`);
+      addLog({
+        type: 'tell_user',
+        content: message,  // 축약하지 않음
+      });
       logger.debug('Message to user', { message });
     });
 
     return () => {
       setTellToUserCallback(null);
     };
-  }, []);
+  }, [addLog]);
+
+  // Setup plan/todo callbacks - adds to Static log
+  useEffect(() => {
+    setPlanCreatedCallback((todoTitles) => {
+      addLog({
+        type: 'plan_created',
+        content: `${todoTitles.length}개의 작업을 생성했습니다`,
+        items: todoTitles,
+      });
+    });
+
+    setTodoStartCallback((title) => {
+      addLog({
+        type: 'todo_start',
+        content: title,
+      });
+    });
+
+    setTodoCompleteCallback((title) => {
+      addLog({
+        type: 'todo_complete',
+        content: title,
+      });
+    });
+
+    setTodoFailCallback((title) => {
+      addLog({
+        type: 'todo_fail',
+        content: title,
+      });
+    });
+
+    setCompactCallback((originalCount, newCount) => {
+      // Clear existing logs and add compact entry
+      clearLogs();
+      addLog({
+        type: 'compact',
+        content: `Conversation compacted: ${originalCount} → ${newCount} messages`,
+      });
+    });
+
+    return () => {
+      setPlanCreatedCallback(null);
+      setTodoStartCallback(null);
+      setTodoCompleteCallback(null);
+      setTodoFailCallback(null);
+      setCompactCallback(null);
+    };
+  }, [addLog, clearLogs]);
 
   // Update session usage and elapsed time in real-time
   useEffect(() => {
@@ -480,15 +599,17 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       }
     }
 
-    // Print user input to console for scrollable history
-    console.log(`\n\x1b[32m❯ ${truncate(userMessage, 100)}\x1b[0m`);
+    // Add user input to Static log
+    addLog({
+      type: 'user_input',
+      content: userMessage,
+    });
 
     // Add user message to messages immediately
     const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: userMessage }];
     setMessages(updatedMessages);
 
     setIsProcessing(true);
-    setCurrentResponse('');
     setActivityStartTime(Date.now());
     setSubActivities([]);
 
@@ -533,7 +654,6 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       logger.error('Message processing failed', error as Error);
     } finally {
       setIsProcessing(false);
-      setCurrentResponse('');
       logger.endTimer('message-processing');
       logger.exit('handleSubmit', { success: true });
     }
@@ -624,46 +744,152 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     return activityType;
   };
 
+  // Render a single log entry
+  const renderLogEntry = (entry: LogEntry) => {
+    switch (entry.type) {
+      case 'logo':
+        return (
+          <Box key={entry.id} flexDirection="column" marginBottom={1}>
+            <Text color="cyan" bold>   ____  _____  ______ _   _        _____ _      _____ </Text>
+            <Text color="cyan" bold>  / __ \|  __ \|  ____| \ | |      / ____| |    |_   _|</Text>
+            <Text color="cyan" bold> | |  | | |__) | |__  |  \| |_____| |    | |      | |  </Text>
+            <Text color="cyan" bold> | |  | |  ___/|  __| | . ` |_____| |    | |      | |  </Text>
+            <Text color="blue" bold> | |__| | |    | |____| |\  |     | |____| |____ _| |_ </Text>
+            <Text color="blue" bold>  \____/|_|    |______|_| \_|      \_____|______|_____|</Text>
+            <Text color="gray">                    {entry.content}</Text>
+          </Box>
+        );
+
+      case 'user_input':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="green" bold>❯ </Text>
+            <Text>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'assistant_message':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="magenta" bold>● </Text>
+            <Text>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'tool_start':
+        return (
+          <Box key={entry.id} flexDirection="column" marginTop={1}>
+            <Box>
+              <Text color="cyan" bold>● {entry.content}</Text>
+              {entry.filePath && <Text color="gray"> ({entry.filePath})</Text>}
+            </Box>
+            {entry.details && (
+              <Box marginLeft={2}>
+                <Text color="gray">⎿  </Text>
+                <Text>{entry.details}</Text>
+              </Box>
+            )}
+          </Box>
+        );
+
+      case 'tool_result':
+        // diff가 있으면 전체 diff 표시
+        if (entry.diff && entry.diff.length > 0) {
+          return (
+            <Box key={entry.id} flexDirection="column" marginLeft={2}>
+              <Box>
+                <Text color="gray">⎿  </Text>
+                <Text color={entry.success ? 'green' : 'red'}>{entry.success ? '✓' : '✗'} </Text>
+                <Text color="gray">{entry.success ? 'Updated' : 'Failed'}</Text>
+              </Box>
+              {entry.diff.map((line, idx) => (
+                <Box key={idx} marginLeft={3}>
+                  <Text color={line.includes(' + ') ? 'green' : line.includes(' - ') ? 'red' : 'gray'}>
+                    {line}
+                  </Text>
+                </Box>
+              ))}
+            </Box>
+          );
+        }
+        // 일반 결과
+        return (
+          <Box key={entry.id} marginLeft={2}>
+            <Text color="gray">⎿  </Text>
+            <Text color={entry.success ? 'green' : 'red'}>{entry.success ? '✓' : '✗'} </Text>
+            <Text color={entry.success ? 'gray' : 'red'}>{entry.details}</Text>
+          </Box>
+        );
+
+      case 'tell_user':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="yellow" bold>● </Text>
+            <Text>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'plan_created':
+        return (
+          <Box key={entry.id} flexDirection="column" marginTop={1}>
+            <Text color="magenta" bold>● 📋 {entry.content}</Text>
+            {entry.items?.map((item, idx) => (
+              <Box key={idx} marginLeft={2}>
+                <Text color="gray">⎿  </Text>
+                <Text>{idx + 1}. {item}</Text>
+              </Box>
+            ))}
+          </Box>
+        );
+
+      case 'todo_start':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="blue" bold>● ▶ </Text>
+            <Text bold>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'todo_complete':
+        return (
+          <Box key={entry.id} marginLeft={2}>
+            <Text color="gray">⎿  </Text>
+            <Text color="green">✓ 완료</Text>
+          </Box>
+        );
+
+      case 'todo_fail':
+        return (
+          <Box key={entry.id} marginLeft={2}>
+            <Text color="gray">⎿  </Text>
+            <Text color="red">✗ 실패</Text>
+          </Box>
+        );
+
+      case 'compact':
+        return (
+          <Box key={entry.id} flexDirection="column" marginTop={1}>
+            <Text color="cyan" bold>   ____  _____  ______ _   _        _____ _      _____ </Text>
+            <Text color="cyan" bold>  / __ \|  __ \|  ____| \ | |      / ____| |    |_   _|</Text>
+            <Text color="cyan" bold> | |  | | |__) | |__  |  \| |_____| |    | |      | |  </Text>
+            <Text color="cyan" bold> | |  | |  ___/|  __| | . ` |_____| |    | |      | |  </Text>
+            <Text color="blue" bold> | |__| | |    | |____| |\  |     | |____| |____ _| |_ </Text>
+            <Text color="blue" bold>  \____/|_|    |______|_| \_|      \_____|______|_____|</Text>
+            <Text color="gray">── {entry.content} ──</Text>
+          </Box>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Box flexDirection="column" height="100%">
-      {/* Empty lines to prevent top clipping */}
-      <Text>{' '}</Text>
-      <Text>{' '}</Text>
-
-      {/* Header with ASCII Logo */}
-      <Box flexDirection="column" alignItems="center" marginBottom={1}>
-        <Text color="cyan" bold>
-          {`   ____  _____  ______ _   _        _____ _      _____ `}
-        </Text>
-        <Text color="cyan" bold>
-          {`  / __ \\|  __ \\|  ____| \\ | |      / ____| |    |_   _|`}
-        </Text>
-        <Text color="cyanBright" bold>
-          {` | |  | | |__) | |__  |  \\| |_____| |    | |      | |  `}
-        </Text>
-        <Text color="cyanBright" bold>
-          {` | |  | |  ___/|  __| | . \` |_____| |    | |      | |  `}
-        </Text>
-        <Text color="blue" bold>
-          {` | |__| | |    | |____| |\\  |     | |____| |____ _| |_ `}
-        </Text>
-        <Text color="blue" bold>
-          {`  \\____/|_|    |______|_| \\_|      \\_____|______|_____|`}
-        </Text>
-        <Box marginTop={0}>
-          <Text color="gray">v{VERSION}</Text>
-          <Text color="gray"> │ </Text>
-          {getHealthIndicator()}
-          <Text color="gray"> </Text>
-          <Text color="magenta">{currentModelInfo.model}</Text>
-        </Box>
-      </Box>
-
-      {/* Messages Area */}
-      <ChatView
-        messages={messages}
-        currentResponse={currentResponse}
-      />
+      {/* Static: Scrollable log history (logo, user input, tool calls, etc.) */}
+      <Static items={logEntries}>
+        {(entry) => renderLogEntry(entry)}
+      </Static>
 
       {/* Activity Indicator (shown when processing, but NOT when TODO panel is visible) */}
       {isProcessing && planExecutionState.todos.length === 0 && (

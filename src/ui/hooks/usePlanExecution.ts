@@ -20,6 +20,13 @@ import {
   clearTodoCallbacks,
 } from '../../tools/llm/simple/todo-tools.js';
 import {
+  emitPlanCreated,
+  emitTodoStart,
+  emitTodoComplete,
+  emitTodoFail,
+  emitCompact,
+} from '../../tools/llm/simple/file-tools.js';
+import {
   setAskUserCallback,
   clearAskUserCallback,
   type AskUserRequest,
@@ -403,12 +410,8 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         logger.flow('Plan created', { todoCount: newTodos.length });
         setTodos(newTodos);
 
-        // Print plan to console
-        console.log(`\n\x1b[35m● 📋 ${newTodos.length}개의 작업을 생성했습니다\x1b[0m`);
-        newTodos.forEach((todo, idx) => {
-          console.log(`  \x1b[90m⎿\x1b[0m  ${idx + 1}. ${todo.title}`);
-        });
-        console.log('');
+        // Emit plan created event for Static log
+        emitPlanCreated(newTodos.map(t => t.title));
 
         const planningMessage = `📋 ${newTodos.length}개의 작업을 생성했습니다. 자동으로 실행합니다...`;
         setMessages(prev => [
@@ -427,24 +430,24 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         setExecutionPhase('executing');
         setCurrentActivity(todo.title);
 
-        // Print TODO start to console
-        console.log(`\n\x1b[34m● ▶ ${todo.title}\x1b[0m`);
+        // Emit todo start event for Static log
+        emitTodoStart(todo.title);
       });
 
       orchestrator.on('todoCompleted', (todo: TodoItem) => {
         logger.flow('TODO completed', { todoId: todo.id });
         handleTodoUpdate({ ...todo, status: 'completed' as const });
 
-        // Print TODO completion to console
-        console.log(`  \x1b[90m⎿\x1b[0m  \x1b[32m✓ 완료\x1b[0m`);
+        // Emit todo complete event for Static log
+        emitTodoComplete(todo.title);
       });
 
       orchestrator.on('todoFailed', (todo: TodoItem) => {
         logger.flow('TODO failed', { todoId: todo.id });
         handleTodoUpdate({ ...todo, status: 'failed' as const });
 
-        // Print TODO failure to console
-        console.log(`  \x1b[90m⎿\x1b[0m  \x1b[31m✗ 실패\x1b[0m`);
+        // Emit todo fail event for Static log
+        emitTodoFail(todo.title);
       });
 
       const summary = await orchestrator.execute(userMessage);
@@ -591,20 +594,6 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
   }, [executionPhase, isInterrupted]);
 
   /**
-   * Print logo to console (for compact)
-   */
-  const printLogo = () => {
-    console.log('\n');
-    console.log('\x1b[36m   ____  _____  ______ _   _        _____ _      _____ \x1b[0m');
-    console.log('\x1b[36m  / __ \\|  __ \\|  ____| \\ | |      / ____| |    |_   _|\x1b[0m');
-    console.log('\x1b[36m | |  | | |__) | |__  |  \\| |_____| |    | |      | |  \x1b[0m');
-    console.log('\x1b[36m | |  | |  ___/|  __| | . ` |_____| |    | |      | |  \x1b[0m');
-    console.log('\x1b[34m | |__| | |    | |____| |\\  |     | |____| |____ _| |_ \x1b[0m');
-    console.log('\x1b[34m  \\____/|_|    |______|_| \\_|      \\_____|______|_____|\x1b[0m');
-    console.log('');
-  };
-
-  /**
    * Perform conversation compaction
    */
   const performCompact = useCallback(async (
@@ -634,9 +623,8 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         contextTracker.reset();
         sessionManager.autoSaveCurrentSession(compactedMessages);
 
-        // Print logo and compact info to console
-        printLogo();
-        console.log(`\x1b[90m── Conversation compacted: ${result.originalMessageCount} → ${result.newMessageCount} messages ──\x1b[0m\n`);
+        // Emit compact event for Static log
+        emitCompact(result.originalMessageCount, result.newMessageCount);
 
         logger.flow('Compact completed successfully');
       }

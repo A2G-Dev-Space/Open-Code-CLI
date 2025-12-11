@@ -816,6 +816,30 @@ type ToolResponseCallback = (toolName: string, success: boolean, result: string)
 let toolResponseCallback: ToolResponseCallback | null = null;
 
 /**
+ * Callback for plan created events
+ */
+type PlanCreatedCallback = (todoTitles: string[]) => void;
+let planCreatedCallback: PlanCreatedCallback | null = null;
+
+/**
+ * Callback for todo start events
+ */
+type TodoStartCallback = (title: string) => void;
+let todoStartCallback: TodoStartCallback | null = null;
+
+/**
+ * Callback for todo complete events
+ */
+type TodoCompleteCallback = (title: string) => void;
+let todoCompleteCallback: TodoCompleteCallback | null = null;
+
+/**
+ * Callback for todo fail events
+ */
+type TodoFailCallback = (title: string) => void;
+let todoFailCallback: TodoFailCallback | null = null;
+
+/**
  * Set callback for tool execution events
  */
 export function setToolExecutionCallback(callback: ToolExecutionCallback | null): void {
@@ -830,10 +854,96 @@ export function setToolResponseCallback(callback: ToolResponseCallback | null): 
 }
 
 /**
+ * Set callback for plan created events
+ */
+export function setPlanCreatedCallback(callback: PlanCreatedCallback | null): void {
+  planCreatedCallback = callback;
+}
+
+/**
+ * Set callback for todo start events
+ */
+export function setTodoStartCallback(callback: TodoStartCallback | null): void {
+  todoStartCallback = callback;
+}
+
+/**
+ * Set callback for todo complete events
+ */
+export function setTodoCompleteCallback(callback: TodoCompleteCallback | null): void {
+  todoCompleteCallback = callback;
+}
+
+/**
+ * Set callback for todo fail events
+ */
+export function setTodoFailCallback(callback: TodoFailCallback | null): void {
+  todoFailCallback = callback;
+}
+
+/**
  * Get current tool execution callback
  */
 export function getToolExecutionCallback(): ToolExecutionCallback | null {
   return toolExecutionCallback;
+}
+
+/**
+ * Emit plan created event
+ */
+export function emitPlanCreated(todoTitles: string[]): void {
+  if (planCreatedCallback) {
+    planCreatedCallback(todoTitles);
+  }
+}
+
+/**
+ * Emit todo start event
+ */
+export function emitTodoStart(title: string): void {
+  if (todoStartCallback) {
+    todoStartCallback(title);
+  }
+}
+
+/**
+ * Emit todo complete event
+ */
+export function emitTodoComplete(title: string): void {
+  if (todoCompleteCallback) {
+    todoCompleteCallback(title);
+  }
+}
+
+/**
+ * Emit todo fail event
+ */
+export function emitTodoFail(title: string): void {
+  if (todoFailCallback) {
+    todoFailCallback(title);
+  }
+}
+
+/**
+ * Callback for compact events
+ */
+type CompactCallback = (originalCount: number, newCount: number) => void;
+let compactCallback: CompactCallback | null = null;
+
+/**
+ * Set callback for compact events
+ */
+export function setCompactCallback(callback: CompactCallback | null): void {
+  compactCallback = callback;
+}
+
+/**
+ * Emit compact event
+ */
+export function emitCompact(originalCount: number, newCount: number): void {
+  if (compactCallback) {
+    compactCallback(originalCount, newCount);
+  }
 }
 
 /**
@@ -864,12 +974,12 @@ export async function executeFileTool(
   // Execute the tool
   const result = await tool.execute(args);
 
-  // Call the response callback to notify UI about tool result
+  // Call the response callback to notify UI about tool result (전체 내용 전달)
   if (toolResponseCallback) {
     const resultText = result.success
-      ? (result.result?.substring(0, 200) + (result.result && result.result.length > 200 ? '...' : ''))
+      ? (result.result || '')
       : (result.error || 'Unknown error');
-    toolResponseCallback(toolName, result.success, resultText || '');
+    toolResponseCallback(toolName, result.success, resultText);
   }
 
   return result;
