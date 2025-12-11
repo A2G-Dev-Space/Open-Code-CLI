@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from 'react';
-import { executeListFiles } from '../../tools/llm/simple/file-tools.js';
+import { listFilesTool } from '../../tools/llm/simple/file-tools.js';
 
 export interface FileItem {
   name: string;
@@ -33,7 +33,7 @@ interface UseFileListResult {
 export async function loadFileList(): Promise<FileItem[]> {
   try {
     // Get recursive file list from current directory
-    const result = await executeListFiles('.', true);
+    const result = await listFilesTool.execute({ directory_path: '.', recursive: true });
 
     if (!result.success) {
       console.error('Failed to load files:', result.error);

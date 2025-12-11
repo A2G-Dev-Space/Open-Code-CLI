@@ -20,6 +20,13 @@ import {
   clearTodoCallbacks,
 } from '../../tools/llm/simple/todo-tools.js';
 import {
+  emitPlanCreated,
+  emitTodoStart,
+  emitTodoComplete,
+  emitTodoFail,
+  emitCompact,
+} from '../../tools/llm/simple/file-tools.js';
+import {
   setAskUserCallback,
   clearAskUserCallback,
   type AskUserRequest,
@@ -135,6 +142,9 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
 
   // Ref for interrupt flag (allows checking in async callbacks)
   const isInterruptedRef = useRef(false);
+
+  // Ref for orchestrator (maintained across executions, reset on compact)
+  const orchestratorRef = useRef<PlanExecuteOrchestrator | null>(null);
 
   // Ask-user state
   const [askUserRequest, setAskUserRequest] = useState<AskUserRequest | null>(null);
@@ -289,6 +299,11 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     setIsInterrupted(false);
     setCurrentActivity('요청 분석 중');
 
+    // Clear todos when executing direct mode (simple response)
+    // This hides the TODO panel after todos are completed
+    setTodos([]);
+    setCurrentTodoId(undefined);
+
     try {
       // Check for interrupt
       if (isInterruptedRef.current) {
@@ -394,18 +409,33 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         setMessages(messagesWithDocs);
       }
 
-      const orchestrator = new PlanExecuteOrchestrator(llmClient, {
-        maxDebugAttempts: 2,
-        verbose: false,
-      });
+      // Reuse existing orchestrator or create new one (maintains conversation history)
+      if (!orchestratorRef.current) {
+        orchestratorRef.current = new PlanExecuteOrchestrator(llmClient, {
+          maxDebugAttempts: 2,
+          verbose: false,
+        });
+      }
+      const orchestrator = orchestratorRef.current;
+
+      // Sync external messages to orchestrator's conversation history
+      // This ensures continuity between direct mode and plan mode
+      const currentMessages = docsSearchPerformed ? messagesWithDocs : messages;
+      orchestrator.setConversationHistory(currentMessages as any);
+
+      // Remove existing listeners to prevent duplicates when reusing orchestrator
+      orchestrator.removeAllListeners();
 
       orchestrator.on('planCreated', (newTodos: TodoItem[]) => {
         logger.flow('Plan created', { todoCount: newTodos.length });
         setTodos(newTodos);
+
+        // Emit plan created event for Static log
+        emitPlanCreated(newTodos.map(t => t.title));
+
         const planningMessage = `📋 ${newTodos.length}개의 작업을 생성했습니다. 자동으로 실행합니다...`;
         setMessages(prev => [
           ...prev,
-          { role: 'user', content: userMessage },
           { role: 'assistant', content: planningMessage }
         ]);
       });
@@ -419,16 +449,25 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         handleTodoUpdate({ ...todo, status: 'in_progress' as const });
         setExecutionPhase('executing');
         setCurrentActivity(todo.title);
+
+        // Emit todo start event for Static log
+        emitTodoStart(todo.title);
       });
 
       orchestrator.on('todoCompleted', (todo: TodoItem) => {
         logger.flow('TODO completed', { todoId: todo.id });
         handleTodoUpdate({ ...todo, status: 'completed' as const });
+
+        // Emit todo complete event for Static log
+        emitTodoComplete(todo.title);
       });
 
       orchestrator.on('todoFailed', (todo: TodoItem) => {
         logger.flow('TODO failed', { todoId: todo.id });
         handleTodoUpdate({ ...todo, status: 'failed' as const });
+
+        // Emit todo fail event for Static log
+        emitTodoFail(todo.title);
       });
 
       const summary = await orchestrator.execute(userMessage);
@@ -438,18 +477,21 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         throw new Error('INTERRUPTED');
       }
 
+      // Sync orchestrator's conversation history back to external messages
+      // This includes all tool calls and responses from task execution
+      const orchestratorHistory = orchestrator.getConversationHistory();
+
       const completionMessage = `✅ 실행 완료\n` +
         `전체: ${summary.totalTasks} | 완료: ${summary.completedTasks} | 실패: ${summary.failedTasks}\n` +
         `소요 시간: ${(summary.duration / 1000).toFixed(2)}초`;
 
-      setMessages(prev => {
-        const updatedMessages: Message[] = [
-          ...prev,
-          { role: 'assistant' as const, content: completionMessage }
-        ];
-        sessionManager.autoSaveCurrentSession(updatedMessages);
-        return updatedMessages;
-      });
+      // Use orchestrator's history as the new messages state
+      const updatedMessages: Message[] = [
+        ...orchestratorHistory as Message[],
+        { role: 'assistant' as const, content: completionMessage }
+      ];
+      setMessages(updatedMessages);
+      sessionManager.autoSaveCurrentSession(updatedMessages);
 
       logger.exit('executePlanMode', { success: true, summary });
     } catch (error) {
@@ -603,6 +645,16 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         setMessages(compactedMessages);
         contextTracker.reset();
         sessionManager.autoSaveCurrentSession(compactedMessages);
+
+        // Reset orchestrator conversation history on compact
+        if (orchestratorRef.current) {
+          orchestratorRef.current.resetConversationHistory();
+          logger.flow('Orchestrator conversation history reset on compact');
+        }
+
+        // Emit compact event for Static log
+        emitCompact(result.originalMessageCount, result.newMessageCount);
+
         logger.flow('Compact completed successfully');
       }
 

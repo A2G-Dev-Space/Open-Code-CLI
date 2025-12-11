@@ -47,6 +47,7 @@ interface LLMFormData {
   apiKey: string;
   modelId: string;
   modelName: string;
+  maxContextLength: string;
 }
 
 type SettingsView =
@@ -59,7 +60,7 @@ type SettingsView =
   | 'llm-edit'
   | 'llm-delete-confirm';
 
-type FormField = 'name' | 'baseUrl' | 'apiKey' | 'modelId' | 'modelName' | 'buttons';
+type FormField = 'name' | 'baseUrl' | 'apiKey' | 'modelId' | 'modelName' | 'maxContextLength' | 'buttons';
 
 export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
   currentPlanningMode: _currentPlanningMode, // Kept for backward compatibility but not used (always auto)
@@ -86,6 +87,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
     apiKey: '',
     modelId: '',
     modelName: '',
+    maxContextLength: '128000',
   });
   const [formField, setFormField] = useState<FormField>('name');
   const [formButtonIndex, setFormButtonIndex] = useState(0);
@@ -218,7 +220,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
   // Handle form field navigation with Tab, Arrow keys, and Enter
   const handleFormNavigation = useCallback(
     (key: { tab?: boolean; shift?: boolean; return?: boolean; upArrow?: boolean; downArrow?: boolean }) => {
-      const fields: FormField[] = ['name', 'baseUrl', 'apiKey', 'modelId', 'modelName', 'buttons'];
+      const fields: FormField[] = ['name', 'baseUrl', 'apiKey', 'modelId', 'modelName', 'maxContextLength', 'buttons'];
       const currentIndex = fields.indexOf(formField);
 
       // Tab or Enter to move to next field (except on buttons where Enter submits)
@@ -319,6 +321,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
 
       // Save endpoint
       const modelDisplayName = formData.modelName.trim() || formData.modelId;
+      const maxTokens = parseInt(formData.maxContextLength, 10) || 128000;
       const newEndpoint: EndpointConfig = {
         id: `ep-${Date.now()}`,
         name: formData.name,
@@ -328,7 +331,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
           {
             id: formData.modelId,
             name: modelDisplayName,
-            maxTokens: 128000,
+            maxTokens: maxTokens,
             enabled: true,
             healthStatus: 'healthy',
             lastHealthCheck: new Date(),
@@ -348,7 +351,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
             {
               id: formData.modelId,
               name: modelDisplayName,
-              maxTokens: 128000,
+              maxTokens: maxTokens,
               enabled: true,
               healthStatus: 'healthy',
               lastHealthCheck: new Date(),
@@ -487,7 +490,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
   // Handle LLMs menu selection
   const handleLLMsSelect = (item: SelectItem) => {
     if (item.value === 'add') {
-      setFormData({ name: '', baseUrl: '', apiKey: '', modelId: '', modelName: '' });
+      setFormData({ name: '', baseUrl: '', apiKey: '', modelId: '', modelName: '', maxContextLength: '128000' });
       setFormField('name');
       setFormButtonIndex(0);
       setFormError(null);
@@ -513,6 +516,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
           apiKey: selectedEndpoint.apiKey || '',
           modelId: selectedEndpoint.models[0]?.id || '',
           modelName: selectedEndpoint.models[0]?.name || '',
+          maxContextLength: String(selectedEndpoint.models[0]?.maxTokens || 128000),
         });
         setFormField('name');
         setFormButtonIndex(0);
@@ -873,6 +877,22 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
               />
             ) : (
               <Text>{formData.modelName || '(uses Model ID)'}</Text>
+            )}
+          </Box>
+
+          {/* Max Context Length Field */}
+          <Box>
+            <Text color={formField === 'maxContextLength' ? 'cyan' : 'yellow'}>
+              {formField === 'maxContextLength' ? '> ' : '  '}Max Context:
+            </Text>
+            {formField === 'maxContextLength' ? (
+              <TextInput
+                value={formData.maxContextLength}
+                onChange={(value) => setFormData({ ...formData, maxContextLength: value.replace(/[^0-9]/g, '') })}
+                placeholder="128000"
+              />
+            ) : (
+              <Text>{formData.maxContextLength || '128000'}</Text>
             )}
           </Box>
         </Box>

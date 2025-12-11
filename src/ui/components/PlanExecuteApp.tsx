@@ -6,8 +6,35 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Box, Text, useInput, useApp } from 'ink';
+import { Box, Text, useInput, useApp, Static } from 'ink';
 import Spinner from 'ink-spinner';
+
+/**
+ * Log entry types for Static scrollable output
+ */
+export type LogEntryType =
+  | 'logo'
+  | 'user_input'
+  | 'assistant_message'
+  | 'tool_start'
+  | 'tool_result'
+  | 'tell_user'
+  | 'plan_created'
+  | 'todo_start'
+  | 'todo_complete'
+  | 'todo_fail'
+  | 'compact';
+
+export interface LogEntry {
+  id: string;
+  type: LogEntryType;
+  content: string;
+  details?: string;
+  toolArgs?: Record<string, unknown>;  // For tool_start (all args)
+  success?: boolean;
+  items?: string[];  // For plan_created (todo list)
+  diff?: string[];   // For tool_result with diff
+}
 import { CustomTextInput } from './CustomTextInput.js';
 import { LLMClient, createLLMClient } from '../../core/llm/llm-client.js';
 import { Message } from '../../types/index.js';
@@ -22,7 +49,7 @@ import { ModelSelector } from './ModelSelector.js';
 import { AskUserDialog } from './dialogs/AskUserDialog.js';
 import { DocsBrowser } from './dialogs/DocsBrowser.js';
 import { CommandBrowser } from './CommandBrowser.js';
-import { ChatView } from './views/ChatView.js';
+// ChatView removed - using Static log instead
 import { Logo } from './Logo.js';
 import { ActivityIndicator, type ActivityType, type SubActivity } from './ActivityIndicator.js';
 import { useFileBrowserState } from '../hooks/useFileBrowserState.js';
@@ -39,6 +66,17 @@ import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
 import { configManager } from '../../core/config/config-manager.js';
 import { logger } from '../../utils/logger.js';
 import { usageTracker } from '../../core/usage-tracker.js';
+import {
+  setToolExecutionCallback,
+  setTellToUserCallback,
+  setToolResponseCallback,
+  setPlanCreatedCallback,
+  setTodoStartCallback,
+  setTodoCompleteCallback,
+  setTodoFailCallback,
+  setCompactCallback,
+  setAssistantResponseCallback,
+} from '../../tools/llm/simple/file-tools.js';
 import { createRequire } from 'module';
 
 // Get version from package.json
@@ -78,15 +116,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentResponse, setCurrentResponse] = useState('');
   // Planning mode is always 'auto' - mode selection has been removed
   const planningMode: PlanningMode = 'auto';
 
   // LLM Client state - 모델 변경 시 새로운 클라이언트로 교체
   const [llmClient, setLlmClient] = useState<LLMClient | null>(initialLlmClient);
-
-  // Pending user message (shown immediately after Enter)
-  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
 
   // Activity tracking for detailed status display
   const [activityType, setActivityType] = useState<ActivityType>('thinking');
@@ -117,10 +151,38 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // Docs Browser state
   const [showDocsBrowser, setShowDocsBrowser] = useState(false);
 
+  // TODO Panel details toggle state
+  const [showTodoDetails, setShowTodoDetails] = useState(true);
+
+  // Static log entries for scrollable history
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const logIdCounter = React.useRef(0);
+  const lastToolArgsRef = React.useRef<Record<string, unknown> | null>(null);
+
+  // Helper: add log entry
+  const addLog = useCallback((entry: Omit<LogEntry, 'id'>) => {
+    const id = `log-${++logIdCounter.current}`;
+    setLogEntries(prev => [...prev, { ...entry, id }]);
+  }, []);
+
+  // Helper: clear logs (for compact)
+  const clearLogs = useCallback(() => {
+    setLogEntries([]);
+    logIdCounter.current = 0;
+  }, []);
+
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
   const commandBrowserState = useCommandBrowserState(input, isProcessing);
   const planExecutionState = usePlanExecution();
+
+  // Print logo at startup
+  useEffect(() => {
+    addLog({
+      type: 'logo',
+      content: `v${VERSION} │ ${modelInfo.model}`,
+    });
+  }, []);
 
   // Log component mount
   useEffect(() => {
@@ -129,6 +191,144 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       logger.exit('PlanExecuteApp', { messageCount: messages.length });
     };
   }, []);
+
+  // Setup tool execution callback - adds to Static log
+  useEffect(() => {
+    setToolExecutionCallback((toolName, reason, args) => {
+      // Save args for tool_result to use (for create_file content display)
+      lastToolArgsRef.current = args;
+      addLog({
+        type: 'tool_start',
+        content: toolName,
+        details: reason,  // reason은 축약하지 않음
+        toolArgs: args,
+      });
+      logger.debug('Tool execution started', { toolName, reason, args });
+    });
+
+    return () => {
+      setToolExecutionCallback(null);
+    };
+  }, [addLog]);
+
+  // Setup tool response callback - adds to Static log
+  useEffect(() => {
+    setToolResponseCallback((toolName, success, result) => {
+      // diff 내용 파싱 시도
+      let diff: string[] | undefined;
+      try {
+        const parsed = JSON.parse(result);
+        if (parsed.diff && Array.isArray(parsed.diff)) {
+          diff = parsed.diff;
+        }
+      } catch {
+        // not JSON, use as-is
+      }
+
+      // Get saved args for create_file content display
+      const savedArgs = lastToolArgsRef.current;
+      lastToolArgsRef.current = null;
+
+      addLog({
+        type: 'tool_result',
+        content: toolName,
+        details: result,  // 전체 내용 보존
+        success,
+        diff,
+        toolArgs: savedArgs || undefined,  // Pass args for create_file
+      });
+      logger.debug('Tool execution completed', { toolName, success, result });
+    });
+
+    return () => {
+      setToolResponseCallback(null);
+    };
+  }, [addLog]);
+
+  // Setup tell_to_user callback - adds to Static log
+  useEffect(() => {
+    setTellToUserCallback((message) => {
+      addLog({
+        type: 'tell_user',
+        content: message,  // 축약하지 않음
+      });
+      logger.debug('Message to user', { message });
+    });
+
+    return () => {
+      setTellToUserCallback(null);
+    };
+  }, [addLog]);
+
+  // Setup assistant response callback - adds to Static log
+  useEffect(() => {
+    setAssistantResponseCallback((content) => {
+      addLog({
+        type: 'assistant_message',
+        content,
+      });
+      logger.debug('Assistant response received', { contentLength: content.length });
+    });
+
+    return () => {
+      setAssistantResponseCallback(null);
+    };
+  }, [addLog]);
+
+  // Setup plan/todo callbacks - adds to Static log
+  useEffect(() => {
+    setPlanCreatedCallback((todoTitles) => {
+      // Reset session time and tokens when new TODO plan is created
+      // Note: /usage still shows cumulative total (stored in usageTracker.data)
+      usageTracker.resetSession();
+      setSessionTokens(0);
+      setSessionElapsed(0);
+
+      addLog({
+        type: 'plan_created',
+        content: `${todoTitles.length}개의 작업을 생성했습니다`,
+        items: todoTitles,
+      });
+    });
+
+    setTodoStartCallback((title) => {
+      addLog({
+        type: 'todo_start',
+        content: title,
+      });
+    });
+
+    setTodoCompleteCallback((title) => {
+      addLog({
+        type: 'todo_complete',
+        content: title,
+      });
+    });
+
+    setTodoFailCallback((title) => {
+      addLog({
+        type: 'todo_fail',
+        content: title,
+      });
+    });
+
+    setCompactCallback((originalCount, newCount) => {
+      // Clear existing logs and add compact entry
+      clearLogs();
+      addLog({
+        type: 'compact',
+        content: `Conversation compacted: ${originalCount} → ${newCount} messages`,
+      });
+    });
+
+    return () => {
+      setPlanCreatedCallback(null);
+      setTodoStartCallback(null);
+      setTodoCompleteCallback(null);
+      setTodoFailCallback(null);
+      setCompactCallback(null);
+    };
+  }, [addLog, clearLogs]);
 
   // Update session usage and elapsed time in real-time
   useEffect(() => {
@@ -221,6 +421,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     if (key.ctrl && inputChar === 'c') {
       handleExit().catch(console.error);
     }
+    // Ctrl+T: Toggle TODO details
+    if (key.ctrl && inputChar === 't') {
+      setShowTodoDetails(prev => !prev);
+      logger.debug('TODO details toggled', { showTodoDetails: !showTodoDetails });
+    }
     // ESC: Interrupt current execution
     if (key.escape && isProcessing) {
       logger.flow('ESC pressed - interrupting execution');
@@ -293,9 +498,26 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const handleSetupComplete = useCallback(() => {
     logger.debug('Setup wizard completed');
     setShowSetupWizard(false);
-    // Exit and let user restart
-    exit();
-  }, [exit]);
+
+    // Reload config and create LLMClient
+    try {
+      const endpoint = configManager.getCurrentEndpoint();
+      const model = configManager.getCurrentModel();
+
+      if (endpoint && model) {
+        setCurrentModelInfo({
+          model: model.name,
+          endpoint: endpoint.baseUrl,
+        });
+
+        const newClient = createLLMClient();
+        setLlmClient(newClient);
+        logger.debug('LLMClient created after setup', { modelId: model.id, modelName: model.name });
+      }
+    } catch (error) {
+      logger.error('Failed to create LLMClient after setup', error as Error);
+    }
+  }, []);
 
   // Handle setup wizard skip
   const handleSetupSkip = useCallback(() => {
@@ -355,7 +577,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
     logger.enter('handleSubmit', { valueLength: value.length });
 
-    if (!llmClient) {
+    const userMessage = value.trim();
+
+    // Allow /settings command even without LLM configured
+    const isSettingsCommand = userMessage === '/settings';
+
+    if (!llmClient && !isSettingsCommand) {
       logger.warn('LLM client not configured');
       setMessages((prev) => [
         ...prev,
@@ -364,11 +591,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       return;
     }
 
-    if (commandBrowserState.showCommandBrowser && !isValidCommand(value.trim())) {
+    if (commandBrowserState.showCommandBrowser && !isValidCommand(userMessage)) {
       return;
     }
-
-    const userMessage = value.trim();
 
     if (commandBrowserState.showCommandBrowser) {
       commandBrowserState.resetCommandBrowser();
@@ -404,11 +629,17 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       }
     }
 
-    // Show pending user message immediately
-    setPendingUserMessage(userMessage);
+    // Add user input to Static log
+    addLog({
+      type: 'user_input',
+      content: userMessage,
+    });
+
+    // Add user message to messages immediately
+    const updatedMessages: Message[] = [...messages, { role: 'user' as const, content: userMessage }];
+    setMessages(updatedMessages);
 
     setIsProcessing(true);
-    setCurrentResponse('');
     setActivityStartTime(Date.now());
     setSubActivities([]);
 
@@ -426,7 +657,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         setActivityType('thinking');
         setActivityDetail('Compacting conversation...');
 
-        const compactResult = await planExecutionState.performCompact(llmClient, messages, setMessages);
+        const compactResult = await planExecutionState.performCompact(llmClient!, updatedMessages, setMessages);
         if (compactResult.success) {
           logger.debug('Auto-compact completed', {
             originalCount: compactResult.originalMessageCount,
@@ -447,14 +678,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       );
 
       // Use executeAutoMode which handles classification internally
-      await planExecutionState.executeAutoMode(userMessage, llmClient, messages, setMessages);
+      await planExecutionState.executeAutoMode(userMessage, llmClient!, updatedMessages, setMessages);
 
     } catch (error) {
       logger.error('Message processing failed', error as Error);
     } finally {
       setIsProcessing(false);
-      setCurrentResponse('');
-      setPendingUserMessage(null);
       logger.endTimer('message-processing');
       logger.exit('handleSubmit', { success: true });
     }
@@ -545,50 +774,276 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     return activityType;
   };
 
+  // Render a single log entry
+  const renderLogEntry = (entry: LogEntry) => {
+    switch (entry.type) {
+      case 'logo':
+        return (
+          <Box key={entry.id} flexDirection="column" marginBottom={1}>
+            <Text>{' '}</Text>
+            <Text>{' '}</Text>
+            <Text>{' '}</Text>
+            <Text bold color="cyanBright">  ██████╗ ██████╗ ███████╗███╗   ██╗        ██████╗██╗     ██╗</Text>
+            <Text bold color="cyan"> ██╔═══██╗██╔══██╗██╔════╝████╗  ██║       ██╔════╝██║     ██║</Text>
+            <Text bold color="cyan"> ██║   ██║██████╔╝█████╗  ██╔██╗ ██║ █████╗██║     ██║     ██║</Text>
+            <Text bold color="blue"> ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║ ╚════╝██║     ██║     ██║</Text>
+            <Text bold color="blue"> ╚██████╔╝██║     ███████╗██║ ╚████║       ╚██████╗███████╗██║</Text>
+            <Text bold color="blueBright">  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝        ╚═════╝╚══════╝╚═╝</Text>
+            <Text color="gray">                      {entry.content}</Text>
+          </Box>
+        );
+
+      case 'user_input':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="green" bold>❯ </Text>
+            <Text>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'assistant_message':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="magenta" bold>● </Text>
+            <Text>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'tool_start': {
+        // Tool별 아이콘 매핑
+        const getToolIcon = (toolName: string): string => {
+          switch (toolName) {
+            case 'read_file':
+              return '📖';  // 읽기
+            case 'create_file':
+              return '📝';  // 새 파일 생성
+            case 'edit_file':
+              return '✏️';   // 편집
+            case 'list_files':
+              return '📂';  // 폴더 목록
+            case 'find_files':
+              return '🔍';  // 검색
+            case 'tell_to_user':
+              return '💬';  // 메시지
+            default:
+              return '🔧';  // 기본 도구
+          }
+        };
+
+        // Tool별 핵심 파라미터 추출
+        const getToolParams = (toolName: string, args: Record<string, unknown> | undefined): string => {
+          if (!args) return '';
+          switch (toolName) {
+            case 'read_file':
+              return args['file_path'] as string || '';
+            case 'create_file':
+              return args['file_path'] as string || '';
+            case 'edit_file': {
+              const filePath = args['file_path'] as string || '';
+              const edits = args['edits'] as Array<unknown> || [];
+              return `${filePath}, ${edits.length} edits`;
+            }
+            case 'list_files': {
+              const dir = args['directory_path'] as string || '.';
+              const recursive = args['recursive'] ? ', recursive' : '';
+              return `${dir}${recursive}`;
+            }
+            case 'find_files': {
+              const pattern = args['pattern'] as string || '';
+              const dir = args['directory_path'] as string;
+              return dir ? `${pattern} in ${dir}` : pattern;
+            }
+            case 'tell_to_user':
+              return '';  // tell_to_user는 파라미터 표시 안함
+            default:
+              return '';
+          }
+        };
+
+        const icon = getToolIcon(entry.content);
+        const params = getToolParams(entry.content, entry.toolArgs);
+
+        return (
+          <Box key={entry.id} flexDirection="column" marginTop={1}>
+            <Box>
+              <Text color="cyan" bold>{icon} {entry.content}</Text>
+              {params && <Text color="gray">({params})</Text>}
+            </Box>
+            {entry.details && (
+              <Box marginLeft={2}>
+                <Text color="gray">⎿  </Text>
+                <Text>{entry.details}</Text>
+              </Box>
+            )}
+          </Box>
+        );
+      }
+
+      case 'tool_result': {
+        // diff가 있으면 전체 diff 표시
+        if (entry.diff && entry.diff.length > 0) {
+          return (
+            <Box key={entry.id} flexDirection="column" marginLeft={2}>
+              <Box>
+                <Text color="gray">⎿  </Text>
+                <Text color={entry.success ? 'cyan' : 'red'}>{entry.success ? '✓' : '✗'} </Text>
+                <Text color="gray">{entry.success ? 'Updated' : 'Failed'}</Text>
+              </Box>
+              {entry.diff.map((line, idx) => (
+                <Box key={idx} marginLeft={3}>
+                  <Text
+                    color={line.includes(' + ') ? 'white' : line.includes(' - ') ? 'white' : 'gray'}
+                    backgroundColor={line.includes(' + ') ? '#1e40af' : line.includes(' - ') ? '#b91c1c' : undefined}
+                  >
+                    {line}
+                  </Text>
+                </Box>
+              ))}
+            </Box>
+          );
+        }
+
+        // tell_to_user 결과는 표시하지 않음 (tell_user 로그에서 이미 표시)
+        if (entry.content === 'tell_to_user') {
+          return null;
+        }
+
+        // Tool별 결과 축약
+        let displayText = entry.details || '';
+
+        // read_file: 5줄 넘으면 축약
+        if (entry.content === 'read_file') {
+          const lines = displayText.split('\n');
+          if (lines.length > 5) {
+            displayText = lines.slice(0, 5).join('\n') + `\n... (${lines.length - 5} more lines)`;
+          }
+        }
+
+        // list_files, find_files: 개수와 미리보기
+        if (entry.content === 'list_files' || entry.content === 'find_files') {
+          try {
+            const parsed = JSON.parse(displayText);
+            if (Array.isArray(parsed)) {
+              const count = parsed.length;
+              const preview = parsed.slice(0, 3).map((f: { name?: string; path?: string }) => f.name || f.path || '').join(', ');
+              displayText = `${count}개 항목${count > 3 ? ` (${preview}, ...)` : count > 0 ? ` (${preview})` : ''}`;
+            }
+          } catch {
+            // JSON 파싱 실패시 원본 텍스트 축약
+            if (displayText.length > 100) {
+              displayText = displayText.substring(0, 100) + '...';
+            }
+          }
+        }
+
+        // create_file: diff 형식으로 전체 내용 표시 (+ 로)
+        if (entry.content === 'create_file' && entry.toolArgs) {
+          const content = entry.toolArgs['content'] as string;
+          const filePath = entry.toolArgs['file_path'] as string;
+          if (content) {
+            const contentLines = content.split('\n');
+            return (
+              <Box key={entry.id} flexDirection="column" marginLeft={2}>
+                <Box>
+                  <Text color="gray">⎿  </Text>
+                  <Text color={entry.success ? 'cyan' : 'red'}>{entry.success ? '✓' : '✗'} </Text>
+                  <Text color="gray">Created {filePath} ({contentLines.length} lines)</Text>
+                </Box>
+                {contentLines.map((line, idx) => (
+                  <Box key={idx} marginLeft={3}>
+                    <Text color="white" backgroundColor="#1e40af">+ {line}</Text>
+                  </Box>
+                ))}
+              </Box>
+            );
+          }
+        }
+
+        // 일반 결과
+        return (
+          <Box key={entry.id} marginLeft={2}>
+            <Text color="gray">⎿  </Text>
+            <Text color={entry.success ? 'cyan' : 'red'}>{entry.success ? '✓' : '✗'} </Text>
+            <Text color={entry.success ? 'gray' : 'red'}>{displayText}</Text>
+          </Box>
+        );
+      }
+
+      case 'tell_user':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="yellow" bold>● </Text>
+            <Text>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'plan_created':
+        return (
+          <Box key={entry.id} flexDirection="column" marginTop={1}>
+            <Text color="magenta" bold>● 📋 {entry.content}</Text>
+            {entry.items?.map((item, idx) => (
+              <Box key={idx} marginLeft={2}>
+                <Text color="gray">⎿  </Text>
+                <Text>{idx + 1}. {item}</Text>
+              </Box>
+            ))}
+          </Box>
+        );
+
+      case 'todo_start':
+        return (
+          <Box key={entry.id} marginTop={1}>
+            <Text color="blue" bold>● ▶ </Text>
+            <Text bold>{entry.content}</Text>
+          </Box>
+        );
+
+      case 'todo_complete':
+        return (
+          <Box key={entry.id} marginLeft={2}>
+            <Text color="gray">⎿  </Text>
+            <Text color="green">✓ 완료</Text>
+          </Box>
+        );
+
+      case 'todo_fail':
+        return (
+          <Box key={entry.id} marginLeft={2}>
+            <Text color="gray">⎿  </Text>
+            <Text color="red">✗ 실패</Text>
+          </Box>
+        );
+
+      case 'compact':
+        return (
+          <Box key={entry.id} flexDirection="column" marginTop={1}>
+            <Text>{' '}</Text>
+            <Text>{' '}</Text>
+            <Text>{' '}</Text>
+            <Text bold color="cyanBright">  ██████╗ ██████╗ ███████╗███╗   ██╗        ██████╗██╗     ██╗</Text>
+            <Text bold color="cyan"> ██╔═══██╗██╔══██╗██╔════╝████╗  ██║       ██╔════╝██║     ██║</Text>
+            <Text bold color="cyan"> ██║   ██║██████╔╝█████╗  ██╔██╗ ██║ █████╗██║     ██║     ██║</Text>
+            <Text bold color="blue"> ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║ ╚════╝██║     ██║     ██║</Text>
+            <Text bold color="blue"> ╚██████╔╝██║     ███████╗██║ ╚████║       ╚██████╗███████╗██║</Text>
+            <Text bold color="blueBright">  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝        ╚═════╝╚══════╝╚═╝</Text>
+            <Text color="gray">── {entry.content} ──</Text>
+          </Box>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Box flexDirection="column" height="100%">
-      {/* Empty lines to prevent top clipping */}
-      <Text>{' '}</Text>
-      <Text>{' '}</Text>
+      {/* Static: Scrollable log history (logo, user input, tool calls, etc.) */}
+      <Static items={logEntries}>
+        {(entry) => renderLogEntry(entry)}
+      </Static>
 
-      {/* Header with ASCII Logo */}
-      <Box flexDirection="column" alignItems="center" marginBottom={1}>
-        <Text color="cyan" bold>
-          {`   ____  _____  ______ _   _        _____ _      _____ `}
-        </Text>
-        <Text color="cyan" bold>
-          {`  / __ \\|  __ \\|  ____| \\ | |      / ____| |    |_   _|`}
-        </Text>
-        <Text color="cyanBright" bold>
-          {` | |  | | |__) | |__  |  \\| |_____| |    | |      | |  `}
-        </Text>
-        <Text color="cyanBright" bold>
-          {` | |  | |  ___/|  __| | . \` |_____| |    | |      | |  `}
-        </Text>
-        <Text color="blue" bold>
-          {` | |__| | |    | |____| |\\  |     | |____| |____ _| |_ `}
-        </Text>
-        <Text color="blue" bold>
-          {`  \\____/|_|    |______|_| \\_|      \\_____|______|_____|`}
-        </Text>
-        <Box marginTop={0}>
-          <Text color="gray">v{VERSION}</Text>
-          <Text color="gray"> │ </Text>
-          {getHealthIndicator()}
-          <Text color="gray"> </Text>
-          <Text color="magenta">{currentModelInfo.model}</Text>
-        </Box>
-      </Box>
-
-      {/* Messages Area */}
-      <ChatView
-        messages={messages}
-        currentResponse={currentResponse}
-        pendingUserMessage={pendingUserMessage || undefined}
-      />
-
-      {/* Activity Indicator (shown when processing) */}
-      {isProcessing && (
+      {/* Activity Indicator (shown when processing, but NOT when TODO panel is visible) */}
+      {isProcessing && planExecutionState.todos.length === 0 && (
         <Box marginY={0}>
           <ActivityIndicator
             activity={getCurrentActivityType()}
@@ -596,12 +1051,6 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             detail={activityDetail}
             subActivities={subActivities}
             modelName={currentModelInfo.model}
-            currentStep={planExecutionState.todos.filter(t => t.status === 'completed').length}
-            totalSteps={planExecutionState.todos.length || undefined}
-            stepName={planExecutionState.currentTodoId ?
-              planExecutionState.todos.find(t => t.id === planExecutionState.currentTodoId)?.title
-              : undefined
-            }
           />
         </Box>
       )}
@@ -612,7 +1061,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           <TodoPanel
             todos={planExecutionState.todos}
             currentTodoId={planExecutionState.currentTodoId}
-            showDetails={true}
+            showDetails={showTodoDetails}
+            modelName={currentModelInfo.model}
+            isProcessing={isProcessing}
           />
         </Box>
       )}

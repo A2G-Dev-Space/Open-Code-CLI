@@ -21,9 +21,11 @@ interface FormData {
   baseUrl: string;
   apiKey: string;
   modelId: string;
+  modelName: string;
+  maxContextLength: string;
 }
 
-type FormField = 'name' | 'baseUrl' | 'apiKey' | 'modelId' | 'buttons';
+type FormField = 'name' | 'baseUrl' | 'apiKey' | 'modelId' | 'modelName' | 'maxContextLength' | 'buttons';
 
 export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSkip }) => {
   const [formData, setFormData] = useState<FormData>({
@@ -31,16 +33,18 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
     baseUrl: '',
     apiKey: '',
     modelId: '',
+    modelName: '',
+    maxContextLength: '128000',
   });
   const [formField, setFormField] = useState<FormField>('name');
   const [formButtonIndex, setFormButtonIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
-  // Handle form field navigation with Tab
+  // Handle form field navigation with Tab and Arrow keys
   const handleFormNavigation = useCallback(
     (key: { tab?: boolean; shift?: boolean; upArrow?: boolean; downArrow?: boolean }) => {
-      const fields: FormField[] = ['name', 'baseUrl', 'apiKey', 'modelId', 'buttons'];
+      const fields: FormField[] = ['name', 'baseUrl', 'apiKey', 'modelId', 'modelName', 'maxContextLength', 'buttons'];
       const currentIndex = fields.indexOf(formField);
 
       if (key.tab) {
@@ -55,10 +59,26 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
         }
       }
 
-      // Arrow keys for button selection when on buttons
-      if (formField === 'buttons') {
-        if (key.upArrow || key.downArrow) {
+      // Arrow keys for navigation
+      if (key.upArrow) {
+        if (formField === 'buttons') {
+          // In buttons, up/down toggles between buttons
           setFormButtonIndex((prev) => (prev === 0 ? 1 : 0));
+        } else {
+          // Move to previous field
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : fields.length - 1;
+          setFormField(fields[prevIndex]!);
+        }
+      }
+
+      if (key.downArrow) {
+        if (formField === 'buttons') {
+          // In buttons, up/down toggles between buttons
+          setFormButtonIndex((prev) => (prev === 0 ? 1 : 0));
+        } else {
+          // Move to next field
+          const nextIndex = currentIndex < fields.length - 1 ? currentIndex + 1 : 0;
+          setFormField(fields[nextIndex]!);
         }
       }
     },
@@ -105,6 +125,7 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
       }
 
       // Save endpoint
+      const maxTokens = parseInt(formData.maxContextLength, 10) || 128000;
       const newEndpoint: EndpointConfig = {
         id: `ep-${Date.now()}`,
         name: formData.name,
@@ -113,8 +134,8 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
         models: [
           {
             id: formData.modelId,
-            name: formData.modelId,
-            maxTokens: 128000,
+            name: formData.modelName || formData.modelId,
+            maxTokens: maxTokens,
             enabled: true,
             healthStatus: 'healthy',
             lastHealthCheck: new Date(),
@@ -137,12 +158,10 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
   useInput((_inputChar, key) => {
     if (key.tab) {
       handleFormNavigation({ tab: true, shift: key.shift });
-    } else if (formField === 'buttons') {
-      if (key.upArrow || key.downArrow) {
-        handleFormNavigation({ upArrow: key.upArrow, downArrow: key.downArrow });
-      } else if (key.return) {
-        handleFormSubmit();
-      }
+    } else if (key.upArrow || key.downArrow) {
+      handleFormNavigation({ upArrow: key.upArrow, downArrow: key.downArrow });
+    } else if (key.return && formField === 'buttons') {
+      handleFormSubmit();
     }
   });
 
@@ -226,6 +245,38 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
             <Text> {formData.modelId || '(empty)'}</Text>
           )}
         </Box>
+
+        {/* Model Name Field */}
+        <Box>
+          <Text color={formField === 'modelName' ? 'cyan' : 'yellow'}>
+            {formField === 'modelName' ? '> ' : '  '}Model Name:
+          </Text>
+          {formField === 'modelName' ? (
+            <TextInput
+              value={formData.modelName}
+              onChange={(value) => setFormData({ ...formData, modelName: value })}
+              placeholder="Qwen 2.5 Coder 32B (optional)"
+            />
+          ) : (
+            <Text> {formData.modelName || '(optional)'}</Text>
+          )}
+        </Box>
+
+        {/* Max Context Length Field */}
+        <Box>
+          <Text color={formField === 'maxContextLength' ? 'cyan' : 'yellow'}>
+            {formField === 'maxContextLength' ? '> ' : '  '}Max Context:
+          </Text>
+          {formField === 'maxContextLength' ? (
+            <TextInput
+              value={formData.maxContextLength}
+              onChange={(value) => setFormData({ ...formData, maxContextLength: value.replace(/[^0-9]/g, '') })}
+              placeholder="128000"
+            />
+          ) : (
+            <Text> {formData.maxContextLength || '128000'}</Text>
+          )}
+        </Box>
       </Box>
 
       {/* Error Message */}
@@ -259,7 +310,7 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
 
       {/* Footer */}
       <Box marginTop={1}>
-        <Text dimColor>Tab: next field | Shift+Tab: prev | ↑↓: buttons | Enter: select</Text>
+        <Text dimColor>↑↓/Tab: navigate fields | Shift+Tab: prev | Enter: select button</Text>
       </Box>
     </Box>
   );

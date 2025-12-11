@@ -16,6 +16,21 @@ export enum LogLevel {
   VERBOSE = 4,
 }
 
+// LLM 로깅 전용 플래그 (--llm-log 모드)
+let llmLogEnabled = false;
+
+export function enableLLMLog(): void {
+  llmLogEnabled = true;
+}
+
+export function disableLLMLog(): void {
+  llmLogEnabled = false;
+}
+
+export function isLLMLogEnabled(): boolean {
+  return llmLogEnabled;
+}
+
 export interface LoggerOptions {
   level?: LogLevel;
   prefix?: string;
@@ -751,19 +766,108 @@ export class Logger {
     // Add blank line after output for better readability
     console.log();
   }
+
+  /**
+   * Log LLM request (--llm-log mode only)
+   */
+  llmRequest(messages: unknown[], model: string, tools?: unknown[]): void {
+    if (!llmLogEnabled) return;
+
+    const timestamp = this.getTimestamp();
+    console.log();
+    console.log(chalk.cyan('─'.repeat(80)));
+    console.log(chalk.cyan.bold(`[${timestamp}] 📤 LLM REQUEST`));
+    console.log(chalk.gray(`Model: ${model}`));
+    if (tools && Array.isArray(tools) && tools.length > 0) {
+      console.log(chalk.gray(`Tools: ${tools.length} available`));
+    }
+    console.log(chalk.cyan('─'.repeat(40)));
+
+    // Show messages
+    if (Array.isArray(messages)) {
+      messages.forEach((msg: any, idx) => {
+        const role = msg.role || 'unknown';
+        const content = msg.content || '';
+        const roleColor = role === 'user' ? chalk.green : role === 'assistant' ? chalk.blue : chalk.yellow;
+
+        console.log(roleColor.bold(`[${role.toUpperCase()}]`));
+        if (content) {
+          // Truncate very long content
+          const displayContent = content.length > 2000
+            ? content.substring(0, 2000) + chalk.gray(`\n... (${content.length - 2000} more chars)`)
+            : content;
+          console.log(displayContent);
+        }
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
+          console.log(chalk.yellow(`  Tool calls: ${msg.tool_calls.map((tc: any) => tc.function?.name).join(', ')}`));
+        }
+        if (idx < messages.length - 1) console.log();
+      });
+    }
+    console.log(chalk.cyan('─'.repeat(80)));
+  }
+
+  /**
+   * Log LLM response (--llm-log mode only)
+   */
+  llmResponse(response: string, toolCalls?: unknown[]): void {
+    if (!llmLogEnabled) return;
+
+    const timestamp = this.getTimestamp();
+    console.log();
+    console.log(chalk.green('─'.repeat(80)));
+    console.log(chalk.green.bold(`[${timestamp}] 📥 LLM RESPONSE`));
+    console.log(chalk.green('─'.repeat(40)));
+
+    // Truncate very long response
+    const displayResponse = response.length > 3000
+      ? response.substring(0, 3000) + chalk.gray(`\n... (${response.length - 3000} more chars)`)
+      : response;
+    console.log(displayResponse);
+
+    if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
+      console.log();
+      console.log(chalk.yellow.bold('Tool Calls:'));
+      toolCalls.forEach((tc: any) => {
+        console.log(chalk.yellow(`  - ${tc.function?.name}: ${tc.function?.arguments?.substring(0, 100)}...`));
+      });
+    }
+    console.log(chalk.green('─'.repeat(80)));
+  }
+
+  /**
+   * Log tool execution result (--llm-log mode only)
+   */
+  llmToolResult(toolName: string, result: string, success: boolean): void {
+    if (!llmLogEnabled) return;
+
+    const timestamp = this.getTimestamp();
+    const color = success ? chalk.cyan : chalk.red;
+    console.log();
+    console.log(color('─'.repeat(80)));
+    console.log(color.bold(`[${timestamp}] 🔧 TOOL: ${toolName} ${success ? '✓' : '✗'}`));
+    console.log(color('─'.repeat(40)));
+
+    // Truncate very long result
+    const displayResult = result.length > 1000
+      ? result.substring(0, 1000) + chalk.gray(`\n... (${result.length - 1000} more chars)`)
+      : result;
+    console.log(displayResult);
+    console.log(color('─'.repeat(80)));
+  }
 }
 
 /**
  * Global logger instance
  *
- * 기본값은 WARN 레벨 (Normal 모드에서 로그 출력 없음)
+ * 기본값은 ERROR 레벨 (Normal 모드에서 로그 출력 없음)
  * CLI argument로 레벨 조정:
- * - Normal mode (open): WARN (로그 출력 없음, UI로만 피드백)
- * - Verbose mode (open --verbose): DEBUG
+ * - Normal mode (open): ERROR (로그 출력 없음, UI로만 피드백)
+ * - Verbose mode (open --verbose): WARN
  * - Debug mode (open --debug): VERBOSE
  */
 export const logger = new Logger({
-  level: LogLevel.WARN, // Normal 모드: 로그 출력 없음
+  level: LogLevel.ERROR, // Normal 모드: 로그 출력 없음 (ERROR만 표시)
   prefix: 'OPEN-CLI',
   timestamp: true,
   showLocation: false, // setLogLevel()에서 동적으로 변경
@@ -837,6 +941,7 @@ export function generateTraceId(): string {
 export async function setupLogging(options: {
   verbose?: boolean;
   debug?: boolean;
+  llmLog?: boolean;
   sessionId?: string;
 }): Promise<{
   cleanup: () => Promise<void>;
@@ -852,16 +957,25 @@ export async function setupLogging(options: {
   const sessionId = options.sessionId || (sessionManager.getCurrentSessionId() as string);
   const jsonLogger = await initializeJsonStreamLogger(sessionId, false, isVerboseMode);
 
+  // Enable LLM logging if --llm-log flag is set
+  if (options.llmLog) {
+    enableLLMLog();
+  }
+
   // Set log level based on CLI options
-  // Normal mode (no flags): INFO
+  // Normal mode (no flags): ERROR
   // --verbose: DEBUG (상세 로깅)
   // --debug: VERBOSE (최대 디버그 로깅 + 위치 정보)
+  // --llm-log: ERROR (LLM 요청/응답만 표시)
   if (options.debug) {
     setLogLevel(LogLevel.VERBOSE);
     logger.debug('🔍 Debug mode enabled - maximum logging with location tracking');
   } else if (options.verbose) {
     setLogLevel(LogLevel.DEBUG);
     logger.debug('📝 Verbose mode enabled - detailed logging');
+  } else if (options.llmLog) {
+    // llm-log mode: keep ERROR level, just enable LLM logging
+    console.log(chalk.cyan('📡 LLM Log mode enabled - showing LLM requests/responses only'));
   }
   // Normal mode: no startup message
 
