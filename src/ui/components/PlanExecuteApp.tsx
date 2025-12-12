@@ -431,7 +431,6 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       logger.flow('ESC pressed - interrupting execution');
       planExecutionState.handleInterrupt();
     }
-    // Tab key mode cycling has been removed - always use auto mode
   }, { isActive: !fileBrowserState.showFileBrowser && !commandBrowserState.showCommandBrowser });
 
   // Handle file selection from browser

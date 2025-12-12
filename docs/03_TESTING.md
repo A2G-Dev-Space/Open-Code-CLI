@@ -834,53 +834,7 @@ const summary = await orchestrator.executePhase(testPlan);
 
 ---
 
-### 8.2 demo-hitl (Human-in-the-Loop 자동 승인)
-
-```
-파일: test/e2e/scenarios/demos.ts
-ID: demo-hitl
-카테고리: demos
-타임아웃: 120000ms (2분)
-```
-
-**목적**: HITL(Human-in-the-Loop) 승인 흐름이 정상 동작하는지 검증합니다. 자동 승인 콜백을 사용하여 E2E 테스트에서 사용자 입력 없이 실행합니다.
-
-**테스트 로직**:
-
-```typescript
-// 1. HITL 설정 활성화
-const orchestrator = new PlanExecuteOrchestrator(llmClient, {
-  hitl: {
-    enabled: true,        // HITL 활성화
-    approvePlan: true,    // 계획 승인 요청
-    riskConfig: {
-      approvalThreshold: 'medium',  // medium 이상 작업에 승인 필요
-    },
-  },
-});
-
-// 2. 자동 승인 콜백 설정 (E2E 테스트용)
-approvalManager.setPlanApprovalCallback(async () => 'approve');
-approvalManager.setTaskApprovalCallback(async () => 'approve');
-
-// 3. 실행
-const summary = await orchestrator.execute(
-  'Create a simple hello.txt file with "Hello World" content'
-);
-```
-
-**자동 승인 콜백 동작**:
-- `setPlanApprovalCallback`: LLM이 계획을 생성한 후 자동으로 'approve' 반환
-- `setTaskApprovalCallback`: 위험 레벨이 높은 태스크 실행 전 자동으로 'approve' 반환
-
-**검증 조건**:
-- ✅ `hitlEnabled === true` (HITL이 활성화된 상태로 실행됨)
-
-**사용 시점**: HITL 기능이 올바르게 동작하는지 확인할 때, 실제 LLM 사용
-
----
-
-### 8.3 demo-logger (로깅 시스템 테스트)
+### 8.2 demo-logger (로깅 시스템 테스트)
 
 ```
 파일: test/e2e/scenarios/demos.ts
@@ -918,7 +872,7 @@ const elapsed = logger.endTimer('test-timer');
 
 ---
 
-### 8.4 demo-real-llm (실제 LLM Plan & Execute)
+### 8.3 demo-real-llm (실제 LLM Plan & Execute)
 
 ```
 파일: test/e2e/scenarios/demos.ts
@@ -1214,61 +1168,7 @@ validation: {
 
 ---
 
-## 10. Human-in-the-Loop (HITL) 개요
-
-### HITL이란?
-
-Human-in-the-Loop은 위험한 작업 실행 전 사용자 승인을 요청하는 안전 기능입니다.
-
-### 두 가지 승인 게이트
-
-| 게이트 | 시점 | 설명 |
-|--------|------|------|
-| **Plan Approval** | 계획 수립 후 | 전체 태스크 리스트 승인/거부 |
-| **Task Approval** | 위험 태스크 실행 전 | 개별 태스크 승인/거부 |
-
-### 위험 레벨
-
-| 레벨 | 예시 | 기본 동작 |
-|------|------|----------|
-| 🔴 Critical | `rm -rf`, `DROP DATABASE`, `chmod 777` | 항상 승인 필요 |
-| 🟠 High | Delete `.ts` files, global installs, `sudo` | 승인 필요 |
-| 🟡 Medium | 파일 쓰기, `npm install`, `.env` 변경 | 승인 필요 |
-| 🟢 Low | 파일 읽기, `ls`, 조회 작업 | 자동 승인 |
-
-### HITL 설정
-
-```typescript
-const orchestrator = new PlanExecuteOrchestrator(llmClient, {
-  hitl: {
-    enabled: true,        // HITL 활성화
-    approvePlan: true,    // 계획 승인 요청
-    riskConfig: {
-      approvalThreshold: 'medium',  // 승인 필요 최소 레벨
-      autoApprovePatterns: ['^Read.*\\.md$', '^List files'],
-      blockPatterns: ['production', 'rm -rf /'],
-    }
-  }
-});
-```
-
-### 승인 옵션
-
-**계획 승인 시:**
-- `[a]` Approve - 계획 실행
-- `[r]` Reject - 실행 취소
-- `[s]` Stop - 종료
-
-**태스크 승인 시:**
-- `[a]` Approve - 이 태스크 실행
-- `[r]` Reject - 이 태스크 건너뛰기
-- `[A]` Approve All - 이후 모든 태스크 자동 승인
-- `[R]` Reject All - 이후 모든 태스크 거부
-- `[s]` Stop - 실행 중단
-
----
-
-## 11. Real LLM 테스트
+## 10. Real LLM 테스트
 
 ### 빠른 시작
 
