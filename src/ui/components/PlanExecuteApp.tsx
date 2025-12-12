@@ -48,6 +48,7 @@ import { initializeDocsDirectory } from '../../core/knowledge/docs-search-agent.
 import { FileBrowser } from './FileBrowser.js';
 import { SessionBrowser } from './panels/SessionPanel.js';
 import { SettingsBrowser } from './dialogs/SettingsDialog.js';
+import { authManager } from '../../core/auth/index.js';
 import { LLMSetupWizard } from './LLMSetupWizard.js';
 import { ModelSelector } from './ModelSelector.js';
 import { AskUserDialog } from './dialogs/AskUserDialog.js';
@@ -1688,6 +1689,13 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
               {/* Model info - always visible */}
               <Text color="gray">{getHealthIndicator()} </Text>
               <Text color="cyan">{currentModelInfo.model}</Text>
+              {/* User ID */}
+              {authManager.getCurrentUser() && (
+                <>
+                  <Text color="gray"> │ </Text>
+                  <Text color="magenta">@{authManager.getCurrentUser()?.loginid}</Text>
+                </>
+              )}
               {planExecutionState.todos.length > 0 && (
                 <>
                   <Text color="gray"> │ </Text>
