@@ -453,9 +453,9 @@ export async function initializeDocsDirectory(): Promise<void> {
     } catch {
       logger.flow('Creating sample README.md');
       // Create a sample README
-      const sampleReadme = `# Nexus Coder Documentation
+      const sampleReadme = `# LOCAL-CLI Documentation
 
-Welcome to the Nexus Coder documentation directory!
+Welcome to the LOCAL-CLI documentation directory!
 
 ## Overview
 

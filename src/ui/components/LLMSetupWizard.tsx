@@ -174,7 +174,7 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
       {/* Header */}
       <Box borderStyle="double" borderColor="cyan" paddingX={2} marginBottom={1}>
         <Text color="cyan" bold>
-          Welcome to Nexus Coder!
+          Welcome to LOCAL-CLI!
         </Text>
       </Box>
 

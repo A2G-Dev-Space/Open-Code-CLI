@@ -1,9 +1,9 @@
 # 개발자 종합 가이드 (Development Guide)
 
-> **문서 버전**: 8.0.0 (v2.2.0)
-> **최종 수정일**: 2025-12-13
+> **문서 버전**: 7.0.0 (v1.2.3)
+> **최종 수정일**: 2025-12-12
 
-이 문서는 **Nexus Coder** 프로젝트의 전체 구조, 아키텍처, 핵심 기능, 개발 규칙을 설명합니다.
+이 문서는 **LOCAL-CLI** 프로젝트의 전체 구조, 아키텍처, 핵심 기능, 개발 규칙을 설명합니다.
 
 ---
 
@@ -22,38 +22,32 @@
 
 ## 1. 프로젝트 정체성
 
-### Nexus Coder란?
+### LOCAL-CLI란?
 
-**SSO 인증 기반 사내 AI 코딩 어시스턴트**입니다.
+**오프라인 기업 환경을 위한 로컬 LLM CLI 플랫폼**입니다.
 
-- Samsung DS GenAI Portal SSO 연동
-- Admin Server에서 등록된 LLM 모델 사용
+- 인터넷 없이 독립적으로 작동
+- 기업의 로컬 LLM 서버(OpenAI Compatible)와 연결
 - AI가 직접 파일을 읽고, 쓰고, 검색하고, 코드를 실행
 - 터미널에서 Interactive UI로 AI와 대화
-- 사용자 언어를 자동 감지하여 해당 언어로 응답
 
-### 핵심 기능 (v2.2.0)
+### 핵심 기능 (v1.2.3)
 
 | 기능 | 설명 |
 |------|------|
-| **SSO 로그인** | Samsung DS GenAI Portal SSO 연동 (자동 토큰 갱신) |
 | **Supervised Mode** | 파일 수정 도구 실행 전 사용자 승인 (Tab 키 토글) |
-| **Plan & Execute** | 복잡한 작업을 자동으로 분해하여 순차 실행 |
-| **Unified Execution Loop** | Planning/Direct 모드 통합 실행 루프 (v2.2.0) |
-| **TODO Context Injection** | TODO 상태를 매 호출마다 LLM에 주입 (히스토리 오염 방지) |
-| **Bash Tool** | Shell 명령어 실행 (보안 검증 포함) |
+| Plan & Execute | 복잡한 작업을 자동으로 분해하여 순차 실행 |
 | 요청 분류 | simple_response vs requires_todo 자동 분류 |
 | ask-to-user Tool | LLM이 사용자에게 질문 (2-4 선택지 + Other) |
 | tell_to_user Tool | LLM이 사용자에게 진행 상황 메시지 전달 |
 | 사용량 추적 | 세션/일별/월별 토큰 통계 |
 | 문서 다운로드 | /docs download agno, adk |
-| **Auto-Compact** | Context 80% 도달 시 자동 대화 압축 (마지막 2개 메시지 보존) |
+| Auto-Compact | Context 80% 도달 시 자동 대화 압축 |
 | Context 표시 | `Context (1.3K / 13%)` 형식으로 토큰/비율 표시 |
 | 단일 Tool 실행 | `parallel_tool_calls: false` API 파라미터로 강제 |
-| **Language Priority** | 사용자 입력 언어와 동일한 언어로 응답 |
 | Claude Code 스타일 상태바 | `✶ ~하는 중… (esc to interrupt · 2m 7s · ↑ 3.6k tokens)` |
 | Static Log 시스템 | 스크롤 가능한 로그 이력 (Ink Static 컴포넌트) |
-| Tool 아이콘 표시 | 각 도구별 이모지 아이콘 (📖📝✏️📂🔍💬🔧) |
+| Tool 아이콘 표시 | 각 도구별 이모지 아이콘 (📖📝✏️📂🔍💬) |
 
 ---
 
@@ -67,7 +61,6 @@
 | UI | Ink (React), Chalk |
 | HTTP | Axios |
 | 빌드 | tsc |
-| 인증 | JWT (node-forge, jsonwebtoken) |
 
 ---
 
@@ -77,25 +70,15 @@
 
 ```
 src/
-├── cli.ts                          # CLI 진입점 (nexus 명령)
+├── cli.ts                          # CLI 진입점 (open 명령)
 ├── index.ts                        # 라이브러리 진입점
 ├── constants.ts                    # 상수 정의
-│
-├── constants/                      # 상수 모듈
-│   └── banner.ts                   # CLI 배너 (LOCAL-CLI 텍스트 아트)
 │
 ├── core/                           # 핵심 비즈니스 로직
 │   ├── llm/                        # LLM 관련 모듈
 │   │   ├── llm-client.ts           # LLM API 통신 클라이언트
 │   │   ├── planning-llm.ts         # TODO 리스트 생성 LLM
 │   │   ├── request-classifier.ts   # 요청 분류기 (simple/todo)
-│   │   └── index.ts
-│   │
-│   ├── auth/                       # SSO 인증 모듈 (v2.0+)
-│   │   ├── auth-manager.ts         # 인증 상태 관리
-│   │   ├── sso-client.ts           # SSO 서버 통신
-│   │   ├── jwt-decoder.ts          # JWT 토큰 디코딩
-│   │   ├── types.ts                # 인증 타입 정의
 │   │   └── index.ts
 │   │
 │   ├── config/                     # 설정 관리
@@ -120,7 +103,6 @@ src/
 │   ├── __tests__/                  # 테스트 파일
 │   │   └── auto-updater.test.ts
 │   │
-│   ├── nexus-setup.ts              # Nexus Coder 초기 설정 (SSO)
 │   ├── docs-manager.ts             # 문서 다운로드 관리 (/docs)
 │   ├── usage-tracker.ts            # 사용량 추적 (/usage)
 │   ├── slash-command-handler.ts    # 슬래시 명령 처리
@@ -130,10 +112,10 @@ src/
 │   ├── auto-updater.ts             # GitHub 자동 업데이트
 │   └── git-auto-updater.ts         # Git 기반 자동 업데이트
 │
-├── orchestration/                  # Plan & Execute 스키마
-│   ├── orchestrator.ts             # (DEPRECATED) 메인 오케스트레이터
+├── orchestration/                  # Plan & Execute 오케스트레이션
+│   ├── orchestrator.ts             # 메인 오케스트레이터
 │   ├── state-manager.ts            # 실행 상태 관리
-│   ├── llm-schemas.ts              # LLM 입출력 스키마 및 시스템 프롬프트
+│   ├── llm-schemas.ts              # LLM 입출력 스키마
 │   ├── types.ts                    # 타입 정의
 │   └── index.ts
 │
@@ -144,7 +126,6 @@ src/
 │   ├── llm/                        # LLM이 tool_call로 호출하는 도구
 │   │   ├── simple/                 # Sub-LLM 없는 단순 도구
 │   │   │   ├── file-tools.ts       # 파일 도구 + 콜백 시스템
-│   │   │   ├── bash-tool.ts        # Bash 명령 실행 도구 (v2.1.0+)
 │   │   │   ├── todo-tools.ts       # TODO 관리 도구
 │   │   │   ├── ask-user-tool.ts    # ask-to-user 도구
 │   │   │   └── index.ts
@@ -209,10 +190,7 @@ src/
 │   │   └── TokenContext.tsx        # 토큰 사용량 추적
 │   │
 │   ├── hooks/                      # React 커스텀 훅
-│   │   ├── usePlanExecution.ts     # Plan 실행 상태 관리 (핵심!)
-│   │   │                           # - Unified execution loop
-│   │   │                           # - TODO context injection
-│   │   │                           # - Auto-compact 통합
+│   │   ├── usePlanExecution.ts     # Plan 실행 상태 관리
 │   │   ├── useFileBrowserState.ts  # 파일 브라우저 상태
 │   │   ├── useCommandBrowserState.ts # 명령 브라우저 상태
 │   │   ├── useFileList.ts          # 파일 목록 로드
@@ -239,6 +217,7 @@ src/
     ├── llm.ts                      # LLM 관련 에러
     ├── network.ts                  # 네트워크 에러
     ├── file.ts                     # 파일 에러
+    ├── config.ts                   # 설정 에러
     ├── validation.ts               # 검증 에러
     └── index.ts
 ```
@@ -246,9 +225,9 @@ src/
 ### 3.2 데이터 저장 위치
 
 ```
-~/.nexus-coder/                      # 설정 및 데이터 디렉토리
+~/.local-cli/                        # 설정 및 데이터 디렉토리
 ├── config.json                     # 메인 설정
-├── auth.json                       # 인증 정보 (SSO 토큰)
+├── endpoints.json                  # LLM 엔드포인트 목록
 ├── usage.json                      # 사용량 통계
 ├── docs/                           # 로컬 문서 (RAG용)
 │   └── agent_framework/            # 다운로드된 문서
@@ -314,33 +293,7 @@ simple_response      requires_todo
 }
 ```
 
-### 4.3 Bash Tool (v2.1.0+)
-
-**위치**: `src/tools/llm/simple/bash-tool.ts`
-
-LLM이 shell 명령어를 실행할 수 있게 해주는 도구입니다.
-
-| 도구 | 아이콘 | 설명 | 파라미터 |
-|------|--------|------|----------|
-| `bash` | 🔧 | Shell 명령어 실행 | `reason`, `command`, `working_directory?` |
-
-**보안 기능**: 위험한 명령어 패턴 차단
-- `rm -rf /`, `rm -rf ~`, `rm -rf *`
-- `dd if=`, `mkfs`, fork bomb
-- `sudo rm`, `shutdown`, `reboot` 등
-
-```typescript
-// 위험한 명령어 패턴 (차단)
-const DANGEROUS_PATTERNS = [
-  /\brm\s+-rf\s+[\/~]/i,
-  /\bdd\s+if=/i,
-  /\bmkfs\b/i,
-  /\bshutdown\b/i,
-  // ...
-];
-```
-
-### 4.4 Static Log 시스템
+### 4.3 Static Log 시스템
 
 **위치**: `src/ui/components/PlanExecuteApp.tsx`
 
@@ -391,7 +344,7 @@ setTodoFailCallback((title) => { ... });
 setCompactCallback((originalCount, newCount) => { ... });
 ```
 
-### 4.5 Tool 결과 표시 규칙
+### 4.4 Tool 결과 표시 규칙
 
 | Tool | 표시 방식 |
 |------|----------|
@@ -400,19 +353,18 @@ setCompactCallback((originalCount, newCount) => { ... });
 | `find_files` | "N개 항목 (preview...)" |
 | `create_file` | diff 형식 (+ 로 전체 줄 표시, 녹색) |
 | `edit_file` | diff 형식 (- / + 전체 표시, 빨강/녹색) |
-| `bash` | 명령어 출력 (stdout/stderr) |
 | `tell_to_user` | tool_result 숨김 (tell_user 로그에서 표시) |
 
-### 4.6 TODO 관리 LLM Tools
+### 4.5 TODO 관리 LLM Tools
 
 **위치**: `src/tools/llm/simple/todo-tools.ts`
 
 | 도구 | 설명 |
 |------|------|
-| `update_todos` | TODO 상태 업데이트 (in_progress, completed, failed) - 배치 지원 |
-| `get_todo_list` | 현재 TODO 목록 조회 |
+| `update-todo-list` | TODO 상태 업데이트 (in_progress, completed, failed) |
+| `get-todo-list` | 현재 TODO 목록 조회 |
 
-### 4.7 ask-to-user Tool
+### 4.6 ask-to-user Tool
 
 **위치**: `src/tools/llm/simple/ask-user-tool.ts`
 
@@ -431,7 +383,7 @@ interface AskUserRequest {
 - 숫자 키(1-4)로 빠른 선택
 - "Other" 선택 시 텍스트 입력
 
-### 4.8 Auto-Compact (대화 압축)
+### 4.7 Auto-Compact (대화 압축)
 
 **위치**: `src/core/compact/`
 
@@ -450,14 +402,9 @@ Context window가 80%에 도달하면 자동으로 대화를 압축합니다.
 // 자동 압축
 - Context 80% 도달 시 메시지 전송 전 자동 실행
 - StatusBar에 "Context XX%" 표시 (초록/노랑/빨강)
-- 압축 시 마지막 2개 메시지 보존 (연속성 유지)
 ```
 
-**v2.2.0 변경사항**:
-- Planning 모드에서도 Auto-Compact 동작
-- `contextTracker.reset()` 호출로 반복 압축 가능
-
-### 4.9 사용량 추적
+### 4.8 사용량 추적
 
 **위치**: `src/core/usage-tracker.ts`
 
@@ -482,7 +429,7 @@ usageTracker.formatSessionStatus(activity);  // Claude Code 스타일
 
 **슬래시 명령어**: `/usage`
 
-### 4.10 문서 다운로드
+### 4.9 문서 다운로드
 
 **위치**: `src/core/docs-manager.ts`
 
@@ -506,7 +453,7 @@ AVAILABLE_SOURCES = [
 - 숫자 키(1-9)로 빠른 다운로드
 - 설치 상태 표시 (✅ 설치됨 / ⬜ 미설치)
 
-### 4.11 LLM-Client
+### 4.10 LLM-Client
 
 **위치**: `src/core/llm/llm-client.ts`
 
@@ -517,70 +464,18 @@ AVAILABLE_SOURCES = [
 | Tool Calling | `sendMessageWithTools()` | AI 도구 호출 |
 | Tool + 반복 | `chatCompletionWithTools()` | 도구 호출 반복 실행 |
 
-### 4.12 Plan-Execute (Unified Execution Loop)
+### 4.11 Plan-Execute (Orchestration)
 
-**위치**: `src/ui/hooks/usePlanExecution.ts`
+**위치**: `src/orchestration/`
 
-v2.2.0부터 Planning 모드와 Direct 모드가 통합된 실행 루프를 사용합니다.
+| 파일 | 역할 |
+|------|------|
+| `orchestrator.ts` | 전체 워크플로우 조율 |
+| `state-manager.ts` | 실행 상태 관리 |
+| `llm-schemas.ts` | LLM 입출력 형식 |
+| `types.ts` | 타입 정의 |
 
-#### 아키텍처 변경 (v2.2.0)
-
-| 이전 (v2.1.x) | 현재 (v2.2.0) |
-|--------------|--------------|
-| `PlanExecuteOrchestrator` for-loop | Unified while-loop in `usePlanExecution` |
-| TODO 상태가 히스토리에 포함 | TODO Context Injection (히스토리 오염 없음) |
-| 별도의 Orchestrator 인스턴스 | 단일 실행 루프 |
-
-#### 핵심 함수들
-
-```typescript
-// TODO 컨텍스트 생성 (매 LLM 호출마다 주입)
-function buildTodoContext(todos: TodoItem[]): string {
-  // 현재 TODO 상태를 마크다운 형식으로 생성
-  // 히스토리에는 저장되지 않음
-}
-
-// 완료 조건 체크
-function areAllTodosCompleted(todos: TodoItem[]): boolean {
-  return todos.every(t => t.status === 'completed' || t.status === 'failed');
-}
-
-// 실행 루프
-while (!areAllTodosCompleted(currentTodos) && iterations < MAX_ITERATIONS) {
-  // 1. TODO 컨텍스트 생성
-  const todoContext = buildTodoContext(currentTodos);
-
-  // 2. 임시로 사용자 메시지에 TODO 컨텍스트 추가
-  const messagesForLLM = currentMessages.map((m, i) =>
-    i === lastUserMsgIndex ? { ...m, content: m.content + todoContext } : m
-  );
-
-  // 3. LLM 호출
-  const result = await llmClient.chatCompletionWithTools(messagesForLLM, FILE_TOOLS);
-
-  // 4. 메시지 업데이트 (TODO 컨텍스트 없이)
-  currentMessages = [...currentMessages, ...newMessages];
-
-  // 5. Auto-compact 체크
-  if (contextTracker.shouldTriggerAutoCompact(maxTokens)) {
-    // 압축 실행, 마지막 2개 메시지 보존
-  }
-}
-```
-
-#### Orchestration 모듈 (DEPRECATED)
-
-`src/orchestration/orchestrator.ts`는 더 이상 사용되지 않습니다.
-하지만 스키마와 타입 정의는 여전히 사용됩니다:
-
-| 파일 | 상태 | 역할 |
-|------|------|------|
-| `orchestrator.ts` | DEPRECATED | (사용 안함) |
-| `state-manager.ts` | 사용중 | 실행 상태 관리 |
-| `llm-schemas.ts` | 사용중 | 시스템 프롬프트, LLM 스키마 |
-| `types.ts` | 사용중 | 타입 정의 |
-
-### 4.13 슬래시 명령어
+### 4.12 슬래시 명령어
 
 **위치**: `src/ui/hooks/slashCommandProcessor.ts`
 
@@ -595,27 +490,6 @@ while (!areAllTodosCompleted(currentTodos) && iterations < MAX_ITERATIONS) {
 | `/docs` | 문서 브라우저 열기 |
 | `/usage` | 토큰 사용량 통계 |
 | `/help` | 도움말 표시 |
-
-### 4.14 SSO 인증 (v2.0+)
-
-**위치**: `src/core/auth/`
-
-Samsung DS GenAI Portal SSO 연동을 지원합니다.
-
-| 파일 | 역할 |
-|------|------|
-| `auth-manager.ts` | 인증 상태 관리, 토큰 갱신 |
-| `sso-client.ts` | SSO 서버와의 통신 |
-| `jwt-decoder.ts` | JWT 토큰 디코딩 및 검증 |
-| `types.ts` | 인증 관련 타입 정의 |
-
-```typescript
-// 인증 흐름
-1. nexus 실행
-2. 인증 정보 없으면 브라우저에서 SSO 로그인
-3. 토큰 저장 (~/.nexus-coder/auth.json)
-4. 만료 시 자동 갱신
-```
 
 ---
 
@@ -640,7 +514,6 @@ User Input (터미널 메시지)
 ┌─────────────────────────────────────────────────────────────────┐
 │                   Auto-Compact Check                             │
 │              Context 80% 이상이면 압축 먼저 실행                   │
-│              (마지막 2개 메시지 보존)                              │
 └──────────────────────────┬──────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -651,15 +524,10 @@ User Input (터미널 메시지)
 └──────────────────────────┬──────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│               Unified Execution Loop (v2.2.0)                    │
-│              src/ui/hooks/usePlanExecution.ts                    │
+│                   Plan-Execute (Orchestration)                   │
+│                     src/orchestration/                           │
 │                                                                  │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │ executePlanMode / executeDirectMode                     │     │
-│  │ - TODO Context Injection (per-invoke)                   │     │
-│  │ - Context Tracking + Auto-compact                       │     │
-│  │ - areAllTodosCompleted() 체크                           │     │
-│  └────────────────────────────────────────────────────────┘     │
+│              Planning → Execution → Debugging                    │
 └──────────────────────────┬──────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -668,8 +536,8 @@ User Input (터미널 메시지)
 │                                                                  │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐   │
 │  │ LLM Tools  │ │ System     │ │ User       │ │ MCP        │   │
-│  │ (File,Bash,│ │ Tools      │ │ Commands   │ │ Tools      │   │
-│  │  TODO,Ask) │ │            │ │ (/slash)   │ │            │   │
+│  │ (Simple/   │ │ Tools      │ │ Commands   │ │ Tools      │   │
+│  │  Agent)    │ │            │ │ (/slash)   │ │            │   │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘   │
 │                                                                  │
 │  Tool Callbacks → PlanExecuteApp → Static Log                   │
@@ -860,22 +728,9 @@ reason: {
   description: `A natural, conversational explanation for the user about what you're doing (in user's language).
 Write as if you're talking to the user directly.
 Examples:
-- "Checking how the current authentication logic is implemented"
-- "Opening the file where the error occurred to find the problem"`
+- "현재 인증 로직이 어떻게 구현되어 있는지 확인해볼게요"
+- "에러가 발생한 파일을 열어서 문제를 찾아볼게요"`
 }
-```
-
-### 7.5 Language Priority
-
-시스템 프롬프트에는 Language Priority 가이드가 포함되어 있습니다:
-
-```
-## ⚠️ CRITICAL - Language Priority (HIGHEST)
-
-ALWAYS respond in the SAME LANGUAGE as the user's input.
-- If user writes in Korean → respond in Korean, use Korean for tool reasons
-- If user writes in English → respond in English, use English for tool reasons
-- Match the user's language for ALL outputs including status messages and notes
 ```
 
 ---
@@ -884,9 +739,9 @@ ALWAYS respond in the SAME LANGUAGE as the user's input.
 
 | 모드 | 명령어 | 로그 레벨 | 용도 |
 |------|--------|----------|------|
-| Normal | `nexus` | INFO | 일반 사용 |
-| Verbose | `nexus --verbose` | DEBUG | 개발/디버깅 |
-| Debug | `nexus --debug` | VERBOSE | 심층 분석 |
+| Normal | `open` | INFO | 일반 사용 |
+| Verbose | `open --verbose` | DEBUG | 개발/디버깅 |
+| Debug | `open --debug` | VERBOSE | 심층 분석 |
 
 ---
 
