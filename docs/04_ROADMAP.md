@@ -9,10 +9,11 @@
 1. [개요](#1-개요)
 2. [v1.0.0 완료 기능](#2-v100-완료-기능)
 3. [Phase 5: Supervised Mode (실행 모드)](#3-phase-5-supervised-mode-실행-모드)
-4. [Phase 6: Codebase RAG](#4-phase-6-codebase-rag)
-5. [Phase 7: MCP 기능 지원](#5-phase-7-mcp-기능-지원)
-6. [Phase 8: Tool Selector](#6-phase-8-tool-selector)
-7. [우선순위 매트릭스](#7-우선순위-매트릭스)
+4. [Phase 5.5: Session Management (최우선)](#4-phase-55-session-management-최우선)
+5. [Phase 6: Codebase RAG](#5-phase-6-codebase-rag)
+6. [Phase 7: MCP 기능 지원](#6-phase-7-mcp-기능-지원)
+7. [Phase 8: Tool Selector](#7-phase-8-tool-selector)
+8. [우선순위 매트릭스](#8-우선순위-매트릭스)
 
 ---
 
@@ -151,12 +152,159 @@ AI가 피드백 반영하여 재시도
 
 ---
 
-## 4. Phase 6: Codebase RAG
+## 4. Phase 5.5: Session Management (최우선) 🚨
+
+> **목표**: 완벽한 세션 관리 및 사용자 제어 강화
+> **우선순위**: 🔴🔴 최우선 (Phase 6 이전 필수)
+> **상태**: 🔲 구현 예정
+
+### 4.1 개요
+
+세션 저장/복구, 인터럽트, 사용자 입력 큐잉 등 핵심 UX 기능을 완벽하게 구현합니다.
+
+### 4.2 Auto Save / Load
+
+| 기능 | 설명 |
+|------|------|
+| **Auto Save** | 매 메시지/Tool 실행 후 자동 저장 |
+| **Auto Load** | 앱 시작 시 마지막 세션 자동 복구 옵션 |
+| `/load` | 저장된 세션 목록에서 선택하여 복구 |
+| `/save` | 현재 세션 수동 저장 (이름 지정 가능) |
+
+```
+~/.open-cli/projects/{cwd}/
+├── auto_session.json        # 자동 저장 세션
+├── session_2025-12-12.json  # 수동 저장 세션
+└── ...
+```
+
+### 4.3 Session Load 시 메시지 히스토리 복원
+
+세션 로드 시 이전 대화가 마치 방금 채팅한 것처럼 Static Log에 표시됩니다.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  📂 세션 복구됨: 2025-12-12 14:30                            │
+│  ───────────────────────────────────────────────────────    │
+│  👤 You: 프로젝트에 로깅 시스템을 추가해줘                      │
+│  ───────────────────────────────────────────────────────    │
+│  📖 read_file: src/index.ts                                 │
+│  ⎿ 파일 내용 (15줄)                                          │
+│  ───────────────────────────────────────────────────────    │
+│  📝 create_file: src/utils/logger.ts                        │
+│  ⎿ 파일 생성 완료                                            │
+│  ───────────────────────────────────────────────────────    │
+│  🤖 Assistant: 로깅 시스템을 추가했습니다...                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**구현 항목:**
+- [ ] 세션 저장 시 `LogEntry[]` 배열도 함께 저장
+- [ ] 세션 로드 시 저장된 `LogEntry[]`를 Static Log에 복원
+- [ ] 복원된 메시지에 "복구됨" 표시 또는 구분선
+
+### 4.4 Supervised Mode + Session Load
+
+세션 로드 시 `autoApprovedTools` Set 초기화:
+
+```typescript
+// 세션 로드 시
+autoApprovedTools.clear();  // 기존 자동 승인 목록 초기화
+// → 모든 파일 수정 도구에 대해 다시 승인 필요
+```
+
+**이유**: 새로운 세션 컨텍스트에서는 이전 승인이 유효하지 않을 수 있음
+
+### 4.5 ESC 즉시 중단 (Interrupt)
+
+ESC 키 누르면 **즉시** 중단되어야 합니다:
+
+```
+User가 ESC 누름
+    ↓ (즉시)
+┌─────────────────────────────────────────────────────────────┐
+│  ⎿ Interrupted                                              │  ← 빨간색
+└─────────────────────────────────────────────────────────────┘
+    ↓
+- LLM 응답 대기 중이면 → 응답 폐기, 요청 취소
+- Tool 실행 중이면 → 가능한 경우 중단
+- 상태 즉시 idle로 전환
+- 입력창 활성화
+```
+
+**구현 항목:**
+- [ ] `AbortController` 사용하여 진행 중인 HTTP 요청 취소
+- [ ] ESC 시 `isProcessing = false` 즉시 설정
+- [ ] Static Log에 빨간색 `⎿ Interrupted` 메시지 추가
+- [ ] 진행 중이던 partial 응답 폐기
+
+### 4.6 사용자 메시지 큐잉 (User Message Queue)
+
+LLM 처리 중에 사용자가 메시지를 입력하면 큐에 저장:
+
+```
+LLM 응답 생성 중...
+    ↓
+User가 메시지 입력: "잠깐, 그거 말고 다른 방법으로 해줘"
+    ↓
+메시지 큐에 저장
+    ↓
+현재 Tool call 완료 (tool response 포함)
+    ↓
+다음 LLM invoke 시 마지막 메시지로 포함:
+┌─────────────────────────────────────────────────────────────┐
+│  messages: [                                                │
+│    ...이전 메시지들,                                          │
+│    { role: "user", content: "[Request interrupted by user]  │
+│      잠깐, 그거 말고 다른 방법으로 해줘" }                      │
+│  ]                                                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**구현 항목:**
+- [ ] `pendingUserMessage` 상태 추가
+- [ ] 처리 중 입력 시 큐에 저장 (입력창은 비활성화하지 않음)
+- [ ] Tool response 완료 후 큐 확인
+- [ ] 큐에 메시지가 있으면 `[Request interrupted by user]\n{message}` 형식으로 추가
+- [ ] 큐 메시지 처리 후 큐 비우기
+
+### 4.7 구현 항목 체크리스트
+
+**Auto Save / Load:**
+- [ ] 매 메시지 후 자동 저장 로직
+- [ ] 앱 시작 시 자동 복구 옵션
+- [ ] `/load` 명령어 개선 (UI로 세션 선택)
+- [ ] `/save [name]` 명령어 추가
+
+**Session Load 메시지 복원:**
+- [ ] `LogEntry[]` 세션 파일에 저장
+- [ ] 로드 시 Static Log에 복원
+- [ ] 복원 시 "세션 복구됨" 헤더 표시
+
+**Supervised Mode 초기화:**
+- [ ] 세션 로드 시 `autoApprovedTools.clear()` 호출
+- [ ] 로드 후 모든 파일 수정 도구 재승인 필요
+
+**ESC 즉시 중단:**
+- [ ] `AbortController` 통합
+- [ ] ESC 시 HTTP 요청 취소
+- [ ] 빨간색 `⎿ Interrupted` 로그 표시
+- [ ] 상태 즉시 초기화
+
+**User Message Queue:**
+- [ ] `pendingUserMessage` 상태
+- [ ] 처리 중 입력 감지 및 큐잉
+- [ ] `[Request interrupted by user]` 프리픽스로 다음 invoke에 포함
+- [ ] 큐 처리 후 초기화
+
+---
+
+## 5. Phase 6: Codebase RAG
 
 > **목표**: 대규모 코드베이스를 LLM이 이해하기 쉽게 인덱싱
 > **우선순위**: 🟡 중간
 
-### 4.1 `/indexing` User Command
+### 5.1 `/indexing` User Command
 
 ```
 /indexing                 # 도움말
@@ -165,7 +313,7 @@ AI가 피드백 반영하여 재시도
 /indexing refresh         # 변경된 파일만 재인덱싱
 ```
 
-### 4.2 인덱스 구조
+### 5.2 인덱스 구조
 
 ```typescript
 interface CodebaseIndex {
@@ -187,7 +335,7 @@ interface CodebaseIndex {
 }
 ```
 
-### 4.3 구현 항목
+### 5.3 구현 항목
 
 - [ ] `/indexing` 명령어 구현
 - [ ] 코드 구조 분석기
@@ -197,19 +345,19 @@ interface CodebaseIndex {
 
 ---
 
-## 5. Phase 7: MCP 기능 지원
+## 6. Phase 7: MCP 기능 지원
 
 > **목표**: Model Context Protocol 통합
 > **우선순위**: 🟡 중간
 
-### 5.1 MCP Client 구현
+### 6.1 MCP Client 구현
 
 - [ ] MCP 프로토콜 구현 (JSON-RPC)
 - [ ] stdio 전송 지원
 - [ ] SSE 전송 지원
 - [ ] 서버 연결/해제 관리
 
-### 5.2 `/mcp` User Command
+### 6.2 `/mcp` User Command
 
 ```
 /mcp                      # 도움말
@@ -220,26 +368,26 @@ interface CodebaseIndex {
 /mcp disable <tool>       # 도구 비활성화
 ```
 
-### 5.3 MCP Tool 통합
+### 6.3 MCP Tool 통합
 
 - [ ] MCP Tool을 LLM Tool로 자동 등록
 - [ ] Tool Selector와 연동 (Phase 8)
 
 ---
 
-## 6. Phase 8: Tool Selector
+## 7. Phase 8: Tool Selector
 
 > **목표**: LLM Tool이 많아질 경우 성능 저하 방지
 > **우선순위**: 🟢 낮음 (Tool이 많아진 후 구현)
 
-### 6.1 문제 정의
+### 7.1 문제 정의
 
 ```
 현재: 모든 LLM Tool을 프롬프트에 포함
 문제: Tool 수 증가 → 프롬프트 길이 증가 → 성능 저하
 ```
 
-### 6.2 해결 방안
+### 7.2 해결 방안
 
 ```
 User 요청
@@ -252,7 +400,7 @@ User 요청
 선택된 Tool만 포함하여 메인 LLM 호출
 ```
 
-### 6.3 구현 항목
+### 7.3 구현 항목
 
 - [ ] `tools/selector/` 폴더 구조 생성
 - [ ] Tool 메타데이터 정의 (name, description, keywords)
@@ -260,9 +408,9 @@ User 요청
 
 ---
 
-## 7. 우선순위 매트릭스
+## 8. 우선순위 매트릭스
 
-### 7.1 구현 순서
+### 8.1 구현 순서
 
 | Phase | 항목 | 상태 | 우선순위 |
 |-------|------|------|----------|
@@ -270,18 +418,19 @@ User 요청
 | 2 | ask-to-user Tool | ✅ 완료 | - |
 | 3 | 사용량 추적 | ✅ 완료 | - |
 | 4 | 문서 다운로드 내재화 | ✅ 완료 | - |
-| 5 | **Supervised Mode (실행 모드)** | ✅ 완료 | - |
-| 6 | Codebase RAG | 🔲 예정 | 🔴 높음 |
+| 5 | Supervised Mode (실행 모드) | ✅ 완료 | - |
+| **5.5** | **Session Management** | 🔲 예정 | 🔴🔴 **최우선** |
+| 6 | Codebase RAG | 🔲 예정 | 🟡 중간 |
 | 7 | MCP 기능 지원 | 🔲 예정 | 🟡 중간 |
 | 8 | Tool Selector | 🔲 예정 | 🟢 낮음 |
 
-### 7.2 권장 구현 순서
+### 8.2 권장 구현 순서
 
 ```
-Phase 6 → Phase 7 → Phase 8
-   ↓         ↓         ↓
- 코드      외부      최적화
- 분석      연동     (나중에)
+Phase 5.5 → Phase 6 → Phase 7 → Phase 8
+    ↓          ↓         ↓         ↓
+  세션       코드      외부      최적화
+  관리       분석      연동     (나중에)
 ```
 
 ---
