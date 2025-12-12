@@ -1383,13 +1383,13 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
               </Text>
             </Box>
             <Box>
-              {/* Context remaining indicator (also shown during processing) */}
+              {/* Context usage indicator (tokens / percent) */}
               {(() => {
-                const ctxPercent = planExecutionState.getContextRemainingPercent();
-                const ctxColor = ctxPercent > 50 ? 'green' : ctxPercent > 20 ? 'yellow' : 'red';
+                const ctxInfo = planExecutionState.getContextUsageInfo();
+                const ctxColor = ctxInfo.percent < 50 ? 'green' : ctxInfo.percent < 80 ? 'yellow' : 'red';
                 return (
                   <>
-                    <Text color={ctxColor}>Context {ctxPercent}%</Text>
+                    <Text color={ctxColor}>Context ({formatTokensCompact(ctxInfo.tokens)} / {ctxInfo.percent}%)</Text>
                     <Text color="gray"> │ </Text>
                   </>
                 );
@@ -1406,13 +1406,13 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
                 [{executionMode === 'auto' ? 'Auto' : 'Supervised'}]
               </Text>
               <Text color="gray"> │ </Text>
-              {/* Context remaining indicator */}
+              {/* Context usage indicator (tokens / percent) */}
               {(() => {
-                const ctxPercent = planExecutionState.getContextRemainingPercent();
-                const ctxColor = ctxPercent > 50 ? 'green' : ctxPercent > 20 ? 'yellow' : 'red';
+                const ctxInfo = planExecutionState.getContextUsageInfo();
+                const ctxColor = ctxInfo.percent < 50 ? 'green' : ctxInfo.percent < 80 ? 'yellow' : 'red';
                 return (
                   <>
-                    <Text color={ctxColor}>Context {ctxPercent}%</Text>
+                    <Text color={ctxColor}>Context ({formatTokensCompact(ctxInfo.tokens)} / {ctxInfo.percent}%)</Text>
                     <Text color="gray"> │ </Text>
                   </>
                 );

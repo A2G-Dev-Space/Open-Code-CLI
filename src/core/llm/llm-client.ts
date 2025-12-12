@@ -417,18 +417,17 @@ export class LLMClient {
 
   /**
    * Tools를 사용한 메시지 전송 (반복적으로 tool call 처리)
+   * No iteration limit - continues until LLM stops calling tools
    */
   async sendMessageWithTools(
     userMessage: string,
     tools: import('../../types/index.js').ToolDefinition[],
-    systemPrompt?: string,
-    maxIterations: number = 20
+    systemPrompt?: string
   ): Promise<{ response: string; toolCalls: Array<{ tool: string; args: unknown; result: string }> }> {
     logger.enter('sendMessageWithTools', {
       messageLength: userMessage.length,
       toolsCount: tools.length,
-      hasSystemPrompt: !!systemPrompt,
-      maxIterations
+      hasSystemPrompt: !!systemPrompt
     });
 
     logger.flow('메시지 준비');
@@ -454,16 +453,13 @@ export class LLMClient {
     const toolCallHistory: Array<{ tool: string; args: unknown; result: string }> = [];
     let iterations = 0;
 
-    logger.flow('Tool call 반복 시작');
-    while (iterations < maxIterations) {
+    logger.flow('Tool call 반복 시작 (무제한)');
+    while (true) {
       iterations++;
 
-      logger.vars(
-        { name: 'iteration', value: iterations },
-        { name: 'maxIterations', value: maxIterations }
-      );
+      logger.vars({ name: 'iteration', value: iterations });
 
-      logger.flow(`반복 ${iterations}/${maxIterations} - LLM 호출`);
+      logger.flow(`반복 ${iterations} - LLM 호출`);
 
       // LLM 호출 (tools 포함)
       logger.startTimer(`tool-iteration-${iterations}`);
@@ -625,30 +621,16 @@ export class LLMClient {
         };
       }
     }
-
-    // Max iterations 도달
-    logger.flow('최대 반복 횟수 도달');
-    logger.exit('sendMessageWithTools', {
-      success: false,
-      reason: 'Max iterations reached',
-      iterations: maxIterations,
-      toolCallsCount: toolCallHistory.length
-    });
-
-    return {
-      response: '최대 반복 횟수에 도달했습니다. Tool 실행이 완료되지 않았을 수 있습니다.',
-      toolCalls: toolCallHistory,
-    };
   }
 
   /**
    * Chat Completion with Tools (대화 히스토리 유지)
    * Interactive Mode에서 사용 - 전체 대화 히스토리와 함께 tool calling 지원
+   * No iteration limit - continues until LLM stops calling tools
    */
   async chatCompletionWithTools(
     messages: Message[],
-    tools: import('../../types/index.js').ToolDefinition[],
-    maxIterations: number = 20
+    tools: import('../../types/index.js').ToolDefinition[]
   ): Promise<{
     message: Message;
     toolCalls: Array<{ tool: string; args: unknown; result: string }>;
@@ -658,7 +640,7 @@ export class LLMClient {
     const toolCallHistory: Array<{ tool: string; args: unknown; result: string }> = [];
     let iterations = 0;
 
-    while (iterations < maxIterations) {
+    while (true) {
       iterations++;
 
       // LLM 호출 (tools 포함)
@@ -792,24 +774,6 @@ export class LLMClient {
         };
       }
     }
-
-    // Max iterations 도달
-    const finalMessage: Message = {
-      role: 'assistant',
-      content: '최대 반복 횟수에 도달했습니다. Tool 실행이 완료되지 않았을 수 있습니다.',
-    };
-
-    workingMessages.push(finalMessage);
-
-    // Emit assistant response event for UI
-    const { emitAssistantResponse } = await import('../../tools/llm/simple/file-tools.js');
-    emitAssistantResponse(finalMessage.content || '');
-
-    return {
-      message: finalMessage,
-      toolCalls: toolCallHistory,
-      allMessages: workingMessages,
-    };
   }
 
   /**
