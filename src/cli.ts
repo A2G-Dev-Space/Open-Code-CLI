@@ -17,6 +17,7 @@ import { createLLMClient } from './core/llm/llm-client.js';
 import { PlanExecuteApp } from './ui/components/PlanExecuteApp.js';
 import { setupLogging } from './utils/logger.js';
 import { authManager, AuthenticationRequiredError } from './core/auth/index.js';
+import { setupNexusModels } from './core/nexus-setup.js';
 
 // Read version from package.json (single source of truth)
 const require = createRequire(import.meta.url);
@@ -107,6 +108,23 @@ program
 
       // ConfigManager 초기화
       await configManager.initialize();
+
+      // Admin Server에서 모델 목록 가져와서 설정
+      if (options.verbose || options.debug) {
+        console.log(chalk.gray('Fetching models from Admin Server...'));
+      }
+      try {
+        await setupNexusModels();
+        if (options.verbose || options.debug) {
+          console.log(chalk.green('✓ Models loaded from Admin Server\n'));
+        }
+      } catch (error) {
+        console.error(chalk.yellow('\n⚠️  Admin Server에서 모델 목록을 가져올 수 없습니다.'));
+        if (error instanceof Error) {
+          console.error(chalk.gray(`  ${error.message}`));
+        }
+        console.log(chalk.gray('  기존 설정을 사용합니다.\n'));
+      }
 
       // LLMClient 생성 (엔드포인트가 없으면 null)
       let llmClient = null;
