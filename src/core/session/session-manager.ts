@@ -49,6 +49,8 @@ export interface SessionTodoItem {
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   result?: string;
   error?: string;
+  requiresDocsSearch?: boolean;
+  dependencies?: string[];
 }
 
 /**
