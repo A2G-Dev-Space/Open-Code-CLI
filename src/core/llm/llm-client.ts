@@ -524,7 +524,33 @@ export class LLMClient {
 
           // Tool 실행 (외부에서 주입받아야 함 - 여기서는 import)
           logger.flow('Tool 모듈 로드');
-          const { executeFileTool } = await import('../../tools/llm/simple/file-tools.js');
+          const { executeFileTool, requestToolApproval } = await import('../../tools/llm/simple/file-tools.js');
+
+          // Supervised Mode: Request user approval before tool execution
+          const approvalResult = await requestToolApproval(toolName, toolArgs);
+
+          if (approvalResult && typeof approvalResult === 'object' && approvalResult.reject) {
+            // User rejected the tool execution
+            logger.flow(`Tool rejected by user: ${toolName}`);
+
+            const rejectMessage = approvalResult.comment
+              ? `Tool execution rejected by user. Reason: ${approvalResult.comment}`
+              : 'Tool execution rejected by user.';
+
+            messages.push({
+              role: 'tool',
+              content: rejectMessage,
+              tool_call_id: toolCall.id,
+            });
+
+            toolCallHistory.push({
+              tool: toolName,
+              args: toolArgs,
+              result: rejectMessage,
+            });
+
+            continue;
+          }
 
           logger.debug(`Executing tool: ${toolName}`, toolArgs);
 
@@ -679,7 +705,33 @@ export class LLMClient {
           }
 
           // Tool 실행
-          const { executeFileTool } = await import('../../tools/llm/simple/file-tools.js');
+          const { executeFileTool, requestToolApproval } = await import('../../tools/llm/simple/file-tools.js');
+
+          // Supervised Mode: Request user approval before tool execution
+          const approvalResult = await requestToolApproval(toolName, toolArgs);
+
+          if (approvalResult && typeof approvalResult === 'object' && approvalResult.reject) {
+            // User rejected the tool execution
+            logger.flow(`Tool rejected by user: ${toolName}`);
+
+            const rejectMessage = approvalResult.comment
+              ? `Tool execution rejected by user. Reason: ${approvalResult.comment}`
+              : 'Tool execution rejected by user.';
+
+            workingMessages.push({
+              role: 'tool',
+              content: rejectMessage,
+              tool_call_id: toolCall.id,
+            });
+
+            toolCallHistory.push({
+              tool: toolName,
+              args: toolArgs,
+              result: rejectMessage,
+            });
+
+            continue;
+          }
 
           logger.debug(`Executing tool: ${toolName}`, toolArgs);
 

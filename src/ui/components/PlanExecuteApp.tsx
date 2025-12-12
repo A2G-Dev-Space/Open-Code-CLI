@@ -23,7 +23,9 @@ export type LogEntryType =
   | 'todo_start'
   | 'todo_complete'
   | 'todo_fail'
-  | 'compact';
+  | 'compact'
+  | 'approval_request'
+  | 'approval_response';
 
 export interface LogEntry {
   id: string;
@@ -47,6 +49,7 @@ import { SettingsBrowser } from './dialogs/SettingsDialog.js';
 import { LLMSetupWizard } from './LLMSetupWizard.js';
 import { ModelSelector } from './ModelSelector.js';
 import { AskUserDialog } from './dialogs/AskUserDialog.js';
+import { ApprovalDialog } from './dialogs/ApprovalDialog.js';
 import { DocsBrowser } from './dialogs/DocsBrowser.js';
 import { CommandBrowser } from './CommandBrowser.js';
 // ChatView removed - using Static log instead
@@ -76,6 +79,8 @@ import {
   setTodoFailCallback,
   setCompactCallback,
   setAssistantResponseCallback,
+  setToolApprovalCallback,
+  type ToolApprovalResult,
 } from '../../tools/llm/simple/file-tools.js';
 import { createRequire } from 'module';
 
@@ -86,6 +91,10 @@ const VERSION = pkg.version;
 
 // Initialization steps for detailed progress display
 type InitStep = 'docs' | 'config' | 'health' | 'done';
+
+// Tools that require user approval in Supervised Mode
+// Only file-modifying tools need approval (read-only and internal tools are auto-approved)
+const TOOLS_REQUIRING_APPROVAL = new Set(['create_file', 'edit_file']);
 
 // Helper functions for status bar
 function formatElapsedTime(seconds: number): string {
@@ -153,6 +162,20 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // TODO Panel details toggle state
   const [showTodoDetails, setShowTodoDetails] = useState(true);
+
+  // Execution mode: 'auto' (autonomous) or 'supervised' (requires user approval)
+  const [executionMode, setExecutionMode] = useState<'auto' | 'supervised'>('auto');
+
+  // Auto-approved tools for this session (only in supervised mode)
+  const [autoApprovedTools, setAutoApprovedTools] = useState<Set<string>>(new Set());
+
+  // Pending tool approval state
+  const [pendingToolApproval, setPendingToolApproval] = useState<{
+    toolName: string;
+    args: Record<string, unknown>;
+    reason?: string;
+    resolve: (result: 'approve' | 'always' | { reject: true; comment: string }) => void;
+  } | null>(null);
 
   // Static log entries for scrollable history
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
@@ -274,6 +297,87 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       setAssistantResponseCallback(null);
     };
   }, [addLog]);
+
+  // Setup tool approval callback (Supervised Mode)
+  useEffect(() => {
+    setToolApprovalCallback(async (toolName, args, reason) => {
+      // Auto mode: no approval needed
+      if (executionMode === 'auto') {
+        return 'approve';
+      }
+
+      // Only file-modifying tools require approval
+      if (!TOOLS_REQUIRING_APPROVAL.has(toolName)) {
+        return 'approve';
+      }
+
+      // Check if this tool is already auto-approved for this session
+      if (autoApprovedTools.has(toolName)) {
+        logger.debug('Tool auto-approved from session', { toolName });
+        return 'approve';
+      }
+
+      // Add approval request to log
+      addLog({
+        type: 'approval_request',
+        content: toolName,
+        details: reason,
+        toolArgs: args,
+      });
+
+      // Request approval from user via dialog
+      return new Promise<ToolApprovalResult>((resolve) => {
+        setPendingToolApproval({
+          toolName,
+          args,
+          reason,
+          resolve,
+        });
+      });
+    });
+
+    return () => {
+      setToolApprovalCallback(null);
+    };
+  }, [executionMode, autoApprovedTools, addLog]);
+
+  // Handle approval dialog response
+  const handleApprovalResponse = useCallback((result: ToolApprovalResult) => {
+    if (!pendingToolApproval) return;
+
+    const { toolName, resolve } = pendingToolApproval;
+
+    // Log the approval response
+    if (result === 'approve') {
+      addLog({
+        type: 'approval_response',
+        content: toolName,
+        details: 'approved',
+        success: true,
+      });
+    } else if (result === 'always') {
+      setAutoApprovedTools(prev => new Set([...prev, toolName]));
+      addLog({
+        type: 'approval_response',
+        content: toolName,
+        details: 'always_approved',
+        success: true,
+      });
+    } else if (typeof result === 'object' && result.reject) {
+      addLog({
+        type: 'approval_response',
+        content: toolName,
+        details: result.comment || 'rejected',
+        success: false,
+      });
+    }
+
+    // Resolve the promise
+    resolve(result);
+    setPendingToolApproval(null);
+
+    logger.debug('Approval response', { toolName, result });
+  }, [pendingToolApproval, addLog]);
 
   // Setup plan/todo callbacks - adds to Static log
   useEffect(() => {
@@ -431,8 +535,21 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       logger.flow('ESC pressed - interrupting execution');
       planExecutionState.handleInterrupt();
     }
-    // Tab key mode cycling has been removed - always use auto mode
-  }, { isActive: !fileBrowserState.showFileBrowser && !commandBrowserState.showCommandBrowser });
+    // Tab key: toggle execution mode (auto/supervised)
+    if (key.tab && !isProcessing && !pendingToolApproval) {
+      const newMode = executionMode === 'auto' ? 'supervised' : 'auto';
+      setExecutionMode(newMode);
+      // Clear auto-approved tools when switching to auto mode
+      if (newMode === 'auto') {
+        setAutoApprovedTools(new Set());
+      }
+      addLog({
+        type: 'assistant_message',
+        content: `실행 모드 변경: ${newMode === 'auto' ? '🚀 Auto Mode (자율 실행)' : '👁️ Supervised Mode (승인 필요)'}`,
+      });
+      logger.debug('Execution mode toggled', { newMode });
+    }
+  }, { isActive: !fileBrowserState.showFileBrowser && !commandBrowserState.showCommandBrowser && !pendingToolApproval });
 
   // Handle file selection from browser
   const handleFileSelect = useCallback((filePaths: string[]) => {
@@ -1030,6 +1147,58 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           </Box>
         );
 
+      case 'approval_request': {
+        // Format tool args for display
+        const formatArg = (_key: string, value: unknown): string => {
+          if (typeof value === 'string') {
+            if (value.length > 100) return value.substring(0, 100) + '...';
+            return value;
+          }
+          return JSON.stringify(value);
+        };
+
+        return (
+          <Box key={entry.id} flexDirection="column" marginTop={1}>
+            <Box>
+              <Text color="yellow" bold>⚠️ 승인 요청: </Text>
+              <Text color="cyan" bold>{entry.content}</Text>
+            </Box>
+            {entry.details && (
+              <Box marginLeft={2}>
+                <Text color="gray">⎿ </Text>
+                <Text>{entry.details}</Text>
+              </Box>
+            )}
+            {entry.toolArgs && Object.entries(entry.toolArgs).map(([key, value], idx) => {
+              if (key === 'reason') return null;
+              return (
+                <Box key={idx} marginLeft={2}>
+                  <Text color="gray">⎿ </Text>
+                  <Text color="magenta">{key}: </Text>
+                  <Text color="gray">{formatArg(key, value)}</Text>
+                </Box>
+              );
+            })}
+          </Box>
+        );
+      }
+
+      case 'approval_response':
+        return (
+          <Box key={entry.id} marginLeft={2}>
+            <Text color="gray">⎿ </Text>
+            {entry.success ? (
+              <Text color="green">
+                ✓ {entry.details === 'always_approved' ? '항상 승인됨' : '승인됨'}
+              </Text>
+            ) : (
+              <Text color="red">
+                ✗ 거부됨{entry.details && entry.details !== 'rejected' ? `: ${entry.details}` : ''}
+              </Text>
+            )}
+          </Box>
+        );
+
       default:
         return null;
     }
@@ -1042,8 +1211,20 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         {(entry) => renderLogEntry(entry)}
       </Static>
 
+      {/* Tool Approval Dialog (Supervised Mode) - shown in scrollable area */}
+      {pendingToolApproval && (
+        <Box marginY={1}>
+          <ApprovalDialog
+            toolName={pendingToolApproval.toolName}
+            args={pendingToolApproval.args}
+            reason={pendingToolApproval.reason}
+            onResponse={handleApprovalResponse}
+          />
+        </Box>
+      )}
+
       {/* Activity Indicator (shown when processing, but NOT when TODO panel is visible) */}
-      {isProcessing && planExecutionState.todos.length === 0 && (
+      {isProcessing && planExecutionState.todos.length === 0 && !pendingToolApproval && (
         <Box marginY={0}>
           <ActivityIndicator
             activity={getCurrentActivityType()}
@@ -1220,6 +1401,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           // Default status bar
           <>
             <Box>
+              {/* Execution mode indicator */}
+              <Text color={executionMode === 'auto' ? 'green' : 'yellow'} bold>
+                [{executionMode === 'auto' ? 'Auto' : 'Supervised'}]
+              </Text>
+              <Text color="gray"> │ </Text>
               {/* Context remaining indicator */}
               {(() => {
                 const ctxPercent = planExecutionState.getContextRemainingPercent();
@@ -1242,7 +1428,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
               )}
             </Box>
             <Text color="gray" dimColor>
-              /help
+              Tab: mode │ /help
             </Text>
           </>
         )}
