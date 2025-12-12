@@ -93,7 +93,7 @@ npm run build
 npm link
 
 # Run
-local-cli
+lcli
 ```
 
 ### Development Mode
@@ -103,10 +103,10 @@ local-cli
 npm run watch
 
 # Run with verbose logging
-local-cli --verbose
+lcli --verbose
 
 # Run with debug logging
-local-cli --debug
+lcli --debug
 ```
 
 ---
@@ -118,7 +118,7 @@ local-cli --debug
 Start the CLI and begin chatting with AI:
 
 ```bash
-local-cli
+lcli
 ```
 
 Then simply type your request:
@@ -283,7 +283,7 @@ npm run build
 Try running with verbose mode to see detailed logs:
 
 ```bash
-local-cli --verbose
+lcli --verbose
 ```
 
 ### Session issues

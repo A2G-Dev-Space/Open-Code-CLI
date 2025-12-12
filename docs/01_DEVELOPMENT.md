@@ -847,9 +847,9 @@ ALWAYS respond in the SAME LANGUAGE as the user's input.
 
 | Mode | Command | Log Level | Use Case |
 |------|---------|-----------|----------|
-| Normal | `local-cli` | INFO | General use |
-| Verbose | `local-cli --verbose` | DEBUG | Development/debugging |
-| Debug | `local-cli --debug` | VERBOSE | Deep analysis |
+| Normal | `lcli` | INFO | General use |
+| Verbose | `lcli --verbose` | DEBUG | Development/debugging |
+| Debug | `lcli --debug` | VERBOSE | Deep analysis |
 
 ---
 
