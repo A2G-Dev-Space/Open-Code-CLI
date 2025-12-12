@@ -1,11 +1,11 @@
 {
-  "name": "nexus-coder",
+  "name": "local-cli",
   "version": "2.2.0",
-  "description": "Nexus Coder - Enterprise AI Coding Assistant",
+  "description": "Local-CLI - AI-Powered Terminal Coding Assistant",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "nexus": "dist/cli.js"
+    "lcli": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -32,13 +32,12 @@
     "cli",
     "ai",
     "llm",
-    "enterprise",
     "coding-assistant",
     "coding-agent",
-    "nexus",
-    "sso"
+    "terminal",
+    "developer-tools"
   ],
-  "author": "Nexus Coder Team",
+  "author": "Local-CLI Team",
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0",
