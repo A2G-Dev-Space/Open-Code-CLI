@@ -1,4 +1,4 @@
-# Nexus Coder v2.1.2
+# Nexus Coder v2.2.0
 
 **Enterprise AI Coding Assistant**
 
