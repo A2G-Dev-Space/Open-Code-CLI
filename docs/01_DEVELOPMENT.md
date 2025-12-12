@@ -1,166 +1,151 @@
-# 개발자 종합 가이드 (Development Guide)
+# Development Guide
 
-> **문서 버전**: 8.0.0 (v2.2.0)
-> **최종 수정일**: 2025-12-13
+> **Document Version**: 8.0.0 (v2.2.0)
+> **Last Updated**: 2025-12-13
 
-이 문서는 **Nexus Coder** 프로젝트의 전체 구조, 아키텍처, 핵심 기능, 개발 규칙을 설명합니다.
-
----
-
-## 목차
-
-1. [프로젝트 정체성](#1-프로젝트-정체성)
-2. [기술 스택](#2-기술-스택)
-3. [폴더 구조](#3-폴더-구조)
-4. [핵심 기능 상세](#4-핵심-기능-상세)
-5. [데이터 흐름 아키텍처](#5-데이터-흐름-아키텍처)
-6. [새 기능 추가하기](#6-새-기능-추가하기)
-7. [코딩 규칙](#7-코딩-규칙)
-8. [CLI 실행 모드](#8-cli-실행-모드)
+This document provides a comprehensive overview of the **Local-CLI** project architecture, core features, and development guidelines.
 
 ---
 
-## 1. 프로젝트 정체성
+## Table of Contents
 
-### Nexus Coder란?
-
-**SSO 인증 기반 사내 AI 코딩 어시스턴트**입니다.
-
-- Samsung DS GenAI Portal SSO 연동
-- Admin Server에서 등록된 LLM 모델 사용
-- AI가 직접 파일을 읽고, 쓰고, 검색하고, 코드를 실행
-- 터미널에서 Interactive UI로 AI와 대화
-- 사용자 언어를 자동 감지하여 해당 언어로 응답
-
-### 핵심 기능 (v2.2.0)
-
-| 기능 | 설명 |
-|------|------|
-| **SSO 로그인** | Samsung DS GenAI Portal SSO 연동 (자동 토큰 갱신) |
-| **Supervised Mode** | 파일 수정 도구 실행 전 사용자 승인 (Tab 키 토글) |
-| **Plan & Execute** | 복잡한 작업을 자동으로 분해하여 순차 실행 |
-| **Unified Execution Loop** | Planning/Direct 모드 통합 실행 루프 (v2.2.0) |
-| **TODO Context Injection** | TODO 상태를 매 호출마다 LLM에 주입 (히스토리 오염 방지) |
-| **Bash Tool** | Shell 명령어 실행 (보안 검증 포함) |
-| 요청 분류 | simple_response vs requires_todo 자동 분류 |
-| ask-to-user Tool | LLM이 사용자에게 질문 (2-4 선택지 + Other) |
-| tell_to_user Tool | LLM이 사용자에게 진행 상황 메시지 전달 |
-| 사용량 추적 | 세션/일별/월별 토큰 통계 |
-| 문서 다운로드 | /docs download agno, adk |
-| **Auto-Compact** | Context 80% 도달 시 자동 대화 압축 (마지막 2개 메시지 보존) |
-| Context 표시 | `Context (1.3K / 13%)` 형식으로 토큰/비율 표시 |
-| 단일 Tool 실행 | `parallel_tool_calls: false` API 파라미터로 강제 |
-| **Language Priority** | 사용자 입력 언어와 동일한 언어로 응답 |
-| Claude Code 스타일 상태바 | `✶ ~하는 중… (esc to interrupt · 2m 7s · ↑ 3.6k tokens)` |
-| Static Log 시스템 | 스크롤 가능한 로그 이력 (Ink Static 컴포넌트) |
-| Tool 아이콘 표시 | 각 도구별 이모지 아이콘 (📖📝✏️📂🔍💬🔧) |
+1. [Project Overview](#1-project-overview)
+2. [Tech Stack](#2-tech-stack)
+3. [Project Structure](#3-project-structure)
+4. [Core Features](#4-core-features)
+5. [Data Flow Architecture](#5-data-flow-architecture)
+6. [Adding New Features](#6-adding-new-features)
+7. [Coding Standards](#7-coding-standards)
+8. [CLI Execution Modes](#8-cli-execution-modes)
 
 ---
 
-## 2. 기술 스택
+## 1. Project Overview
 
-| 항목 | 기술 |
-|------|------|
-| 언어 | TypeScript (ESM) |
-| 런타임 | Node.js v20+ |
+### What is Local-CLI?
+
+**Local-CLI** is an AI-powered terminal coding assistant that enables developers to interact with their codebase through natural language.
+
+- AI reads, writes, and searches files directly
+- Execute shell commands with security validation
+- Interactive terminal UI for seamless conversations
+- Automatic language detection and response matching
+
+### Key Features (v2.2.0)
+
+| Feature | Description |
+|---------|-------------|
+| **File Tools** | Read, create, edit, list, and find files through AI |
+| **Bash Tool** | Shell command execution with dangerous pattern blocking |
+| **Supervised Mode** | User approval before file modifications (Tab key toggle) |
+| **Plan & Execute** | Automatic task decomposition and sequential execution |
+| **Unified Execution Loop** | Integrated Planning/Direct mode execution (v2.2.0) |
+| **TODO Context Injection** | TODO state injected per-invoke (prevents history pollution) |
+| **Request Classification** | Automatic simple_response vs requires_todo routing |
+| **ask-to-user Tool** | LLM asks user questions (2-4 choices + Other option) |
+| **tell_to_user Tool** | LLM sends progress messages to user |
+| **Usage Tracking** | Session/daily/monthly token statistics |
+| **Auto-Compact** | Automatic conversation compression at 80% context usage |
+| **Context Display** | `Context (1.3K / 13%)` format showing tokens/percentage |
+| **Single Tool Execution** | Forced via `parallel_tool_calls: false` API parameter |
+| **Language Priority** | Responds in the same language as user input |
+| **Claude Code-style Status Bar** | `✶ Working on... (esc to interrupt · 2m 7s · ↑ 3.6k tokens)` |
+| **Static Log System** | Scrollable log history using Ink Static component |
+| **Tool Icons** | Emoji icons for each tool (📖📝✏️📂🔍💬🔧) |
+
+---
+
+## 2. Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Language | TypeScript (ESM) |
+| Runtime | Node.js v20+ |
 | CLI | Commander.js |
 | UI | Ink (React), Chalk |
 | HTTP | Axios |
-| 빌드 | tsc |
-| 인증 | JWT (node-forge, jsonwebtoken) |
+| Build | tsc |
+| Testing | Jest |
 
 ---
 
-## 3. 폴더 구조
+## 3. Project Structure
 
-### 3.1 전체 구조
+### 3.1 Directory Layout
 
 ```
 src/
-├── cli.ts                          # CLI 진입점 (nexus 명령)
-├── index.ts                        # 라이브러리 진입점
-├── constants.ts                    # 상수 정의
+├── cli.ts                          # CLI entry point
+├── index.ts                        # Library entry point
+├── constants.ts                    # Constants definition
 │
-├── constants/                      # 상수 모듈
-│   └── banner.ts                   # CLI 배너 (LOCAL-CLI 텍스트 아트)
+├── constants/                      # Constant modules
+│   └── banner.ts                   # CLI banner ASCII art
 │
-├── core/                           # 핵심 비즈니스 로직
-│   ├── llm/                        # LLM 관련 모듈
-│   │   ├── llm-client.ts           # LLM API 통신 클라이언트
-│   │   ├── planning-llm.ts         # TODO 리스트 생성 LLM
-│   │   ├── request-classifier.ts   # 요청 분류기 (simple/todo)
+├── core/                           # Core business logic
+│   ├── llm/                        # LLM-related modules
+│   │   ├── llm-client.ts           # LLM API communication client
+│   │   ├── planning-llm.ts         # TODO list generation LLM
+│   │   ├── request-classifier.ts   # Request classifier (simple/todo)
 │   │   └── index.ts
 │   │
-│   ├── auth/                       # SSO 인증 모듈 (v2.0+)
-│   │   ├── auth-manager.ts         # 인증 상태 관리
-│   │   ├── sso-client.ts           # SSO 서버 통신
-│   │   ├── jwt-decoder.ts          # JWT 토큰 디코딩
-│   │   ├── types.ts                # 인증 타입 정의
+│   ├── config/                     # Configuration management
+│   │   ├── config-manager.ts       # Configuration file management
 │   │   └── index.ts
 │   │
-│   ├── config/                     # 설정 관리
-│   │   ├── config-manager.ts       # 설정 파일 관리
+│   ├── session/                    # Session management
+│   │   ├── session-manager.ts      # Session save/restore
 │   │   └── index.ts
 │   │
-│   ├── session/                    # 세션 관리
-│   │   ├── session-manager.ts      # 세션 저장/복구
+│   ├── knowledge/                  # Knowledge management (RAG)
+│   │   ├── docs-search-agent.ts    # Local document search agent
+│   │   ├── document-manager.ts     # Document indexing management
 │   │   └── index.ts
 │   │
-│   ├── knowledge/                  # 지식 관리 (RAG)
-│   │   ├── docs-search-agent.ts    # 로컬 문서 검색 에이전트
-│   │   ├── document-manager.ts     # 문서 인덱싱 관리
+│   ├── compact/                    # Conversation compression (Auto-Compact)
+│   │   ├── context-tracker.ts      # Context usage tracking
+│   │   ├── compact-prompts.ts      # Compression prompt templates
+│   │   ├── compact-manager.ts      # Compression execution logic
 │   │   └── index.ts
 │   │
-│   ├── compact/                    # 대화 압축 (Auto-Compact)
-│   │   ├── context-tracker.ts      # Context 사용량 추적
-│   │   ├── compact-prompts.ts      # 압축 프롬프트 템플릿
-│   │   ├── compact-manager.ts      # 압축 실행 로직
-│   │   └── index.ts
-│   │
-│   ├── __tests__/                  # 테스트 파일
-│   │   └── auto-updater.test.ts
-│   │
-│   ├── nexus-setup.ts              # Nexus Coder 초기 설정 (SSO)
-│   ├── docs-manager.ts             # 문서 다운로드 관리 (/docs)
-│   ├── usage-tracker.ts            # 사용량 추적 (/usage)
-│   ├── slash-command-handler.ts    # 슬래시 명령 처리
-│   ├── bash-command-tool.ts        # Bash 명령 실행 (보안 검증)
-│   ├── todo-executor.ts            # TODO 실행기
-│   ├── agent-framework-handler.ts  # 에이전트 프레임워크 핸들러
-│   ├── auto-updater.ts             # GitHub 자동 업데이트
-│   └── git-auto-updater.ts         # Git 기반 자동 업데이트
+│   ├── docs-manager.ts             # Document download management (/docs)
+│   ├── usage-tracker.ts            # Usage tracking (/usage)
+│   ├── slash-command-handler.ts    # Slash command processing
+│   ├── bash-command-tool.ts        # Bash command execution (security validation)
+│   ├── todo-executor.ts            # TODO executor
+│   └── auto-updater.ts             # GitHub auto-updater
 │
-├── orchestration/                  # Plan & Execute 스키마
-│   ├── orchestrator.ts             # (DEPRECATED) 메인 오케스트레이터
-│   ├── state-manager.ts            # 실행 상태 관리
-│   ├── llm-schemas.ts              # LLM 입출력 스키마 및 시스템 프롬프트
-│   ├── types.ts                    # 타입 정의
+├── orchestration/                  # Plan & Execute schemas
+│   ├── orchestrator.ts             # (DEPRECATED) Main orchestrator
+│   ├── state-manager.ts            # Execution state management
+│   ├── llm-schemas.ts              # LLM I/O schemas and system prompts
+│   ├── types.ts                    # Type definitions
 │   └── index.ts
 │
-├── tools/                          # AI 도구 (6가지 분류 시스템)
-│   ├── types.ts                    # 도구 타입 인터페이스
-│   ├── registry.ts                 # 도구 중앙 등록 시스템
+├── tools/                          # AI tools (6-category system)
+│   ├── types.ts                    # Tool type interfaces
+│   ├── registry.ts                 # Central tool registration system
 │   │
-│   ├── llm/                        # LLM이 tool_call로 호출하는 도구
-│   │   ├── simple/                 # Sub-LLM 없는 단순 도구
-│   │   │   ├── file-tools.ts       # 파일 도구 + 콜백 시스템
-│   │   │   ├── bash-tool.ts        # Bash 명령 실행 도구 (v2.1.0+)
-│   │   │   ├── todo-tools.ts       # TODO 관리 도구
-│   │   │   ├── ask-user-tool.ts    # ask-to-user 도구
+│   ├── llm/                        # Tools called by LLM via tool_call
+│   │   ├── simple/                 # Simple tools (no Sub-LLM)
+│   │   │   ├── file-tools.ts       # File tools + callback system
+│   │   │   ├── bash-tool.ts        # Bash command execution tool (v2.1.0+)
+│   │   │   ├── todo-tools.ts       # TODO management tools
+│   │   │   ├── ask-user-tool.ts    # ask-to-user tool
 │   │   │   └── index.ts
-│   │   ├── agents/                 # Sub-LLM 사용 에이전트 도구
+│   │   ├── agents/                 # Agent tools (with Sub-LLM)
 │   │   │   └── index.ts
 │   │   └── index.ts
 │   │
-│   ├── system/                     # 로직에서 자동 호출되는 도구
-│   │   ├── simple/                 # Sub-LLM 없는 시스템 도구
+│   ├── system/                     # Auto-invoked system tools
+│   │   ├── simple/                 # Simple system tools (no Sub-LLM)
 │   │   │   └── index.ts
-│   │   ├── agents/                 # Sub-LLM 사용 시스템 도구
-│   │   │   ├── docs-search.ts      # 로컬 RAG 문서 검색
+│   │   ├── agents/                 # System agent tools (with Sub-LLM)
+│   │   │   ├── docs-search.ts      # Local RAG document search
 │   │   │   └── index.ts
 │   │   └── index.ts
 │   │
-│   ├── user/                       # 사용자 /슬래시 명령어
+│   ├── user/                       # User /slash commands
 │   │   └── index.ts
 │   │
 │   ├── mcp/                        # MCP (Model Context Protocol)
@@ -168,169 +153,168 @@ src/
 │   │
 │   └── index.ts
 │
-├── ui/                             # UI 컴포넌트 (React/Ink)
-│   ├── ink-entry.tsx               # Ink 렌더링 진입점
+├── ui/                             # UI components (React/Ink)
+│   ├── ink-entry.tsx               # Ink rendering entry point
 │   ├── index.ts
 │   │
 │   ├── components/
-│   │   ├── PlanExecuteApp.tsx      # 메인 앱 (가장 중요!)
-│   │   │                           # - Static log 시스템
-│   │   │                           # - LogEntry 타입 및 렌더링
-│   │   │                           # - Tool 아이콘/이모지
-│   │   ├── StatusBar.tsx           # 상태바 (Claude Code 스타일, Context %)
-│   │   ├── Logo.tsx                # 시작 화면 로고 (컬러 그라데이션)
-│   │   ├── CustomTextInput.tsx     # 텍스트 입력 (한글 지원)
-│   │   ├── FileBrowser.tsx         # @ 파일 선택기
-│   │   ├── CommandBrowser.tsx      # / 명령어 선택기
-│   │   ├── TodoListView.tsx        # TODO 리스트 뷰
-│   │   ├── ProgressBar.tsx         # 진행 상태바
-│   │   ├── LLMSetupWizard.tsx      # 첫 실행 LLM 설정 마법사
-│   │   ├── ModelSelector.tsx       # /model 모델 선택기
-│   │   ├── MarkdownRenderer.tsx    # 마크다운/코드 구문 강조
-│   │   ├── ActivityIndicator.tsx   # 활동 표시기 (토큰 메트릭)
-│   │   ├── ThinkingIndicator.tsx   # 생각 중 표시기
+│   │   ├── PlanExecuteApp.tsx      # Main app (most important!)
+│   │   │                           # - Static log system
+│   │   │                           # - LogEntry types and rendering
+│   │   │                           # - Tool icons/emojis
+│   │   ├── StatusBar.tsx           # Status bar (Claude Code style, Context %)
+│   │   ├── Logo.tsx                # Start screen logo (color gradient)
+│   │   ├── CustomTextInput.tsx     # Text input (Korean support)
+│   │   ├── FileBrowser.tsx         # @ file selector
+│   │   ├── CommandBrowser.tsx      # / command selector
+│   │   ├── TodoListView.tsx        # TODO list view
+│   │   ├── ProgressBar.tsx         # Progress status bar
+│   │   ├── LLMSetupWizard.tsx      # First-run LLM setup wizard
+│   │   ├── ModelSelector.tsx       # /model model selector
+│   │   ├── MarkdownRenderer.tsx    # Markdown/code syntax highlighting
+│   │   ├── ActivityIndicator.tsx   # Activity indicator (token metrics)
+│   │   ├── ThinkingIndicator.tsx   # Thinking indicator
 │   │   ├── index.ts
 │   │   │
-│   │   ├── dialogs/                # 다이얼로그 컴포넌트
-│   │   │   ├── AskUserDialog.tsx   # ask-to-user 다이얼로그
-│   │   │   ├── SettingsDialog.tsx  # 설정 다이얼로그
-│   │   │   ├── DocsBrowser.tsx     # /docs 문서 브라우저
+│   │   ├── dialogs/                # Dialog components
+│   │   │   ├── AskUserDialog.tsx   # ask-to-user dialog
+│   │   │   ├── SettingsDialog.tsx  # Settings dialog
+│   │   │   ├── DocsBrowser.tsx     # /docs document browser
 │   │   │   └── index.ts
 │   │   │
-│   │   ├── panels/                 # 패널 컴포넌트
-│   │   │   ├── SessionPanel.tsx    # 세션 패널
+│   │   ├── panels/                 # Panel components
+│   │   │   ├── SessionPanel.tsx    # Session panel
 │   │   │   └── index.ts
 │   │   │
-│   │   └── views/                  # 뷰 컴포넌트
-│   │       ├── ChatView.tsx        # 채팅 뷰 (마크다운 렌더링)
+│   │   └── views/                  # View components
+│   │       ├── ChatView.tsx        # Chat view (markdown rendering)
 │   │       └── index.ts
 │   │
 │   ├── contexts/                   # React Context
-│   │   └── TokenContext.tsx        # 토큰 사용량 추적
+│   │   └── TokenContext.tsx        # Token usage tracking
 │   │
-│   ├── hooks/                      # React 커스텀 훅
-│   │   ├── usePlanExecution.ts     # Plan 실행 상태 관리 (핵심!)
+│   ├── hooks/                      # React custom hooks
+│   │   ├── usePlanExecution.ts     # Plan execution state management (core!)
 │   │   │                           # - Unified execution loop
 │   │   │                           # - TODO context injection
-│   │   │                           # - Auto-compact 통합
-│   │   ├── useFileBrowserState.ts  # 파일 브라우저 상태
-│   │   ├── useCommandBrowserState.ts # 명령 브라우저 상태
-│   │   ├── useFileList.ts          # 파일 목록 로드
-│   │   ├── slashCommandProcessor.ts # /명령어 처리
-│   │   ├── atFileProcessor.ts      # @파일 처리
+│   │   │                           # - Auto-compact integration
+│   │   ├── useFileBrowserState.ts  # File browser state
+│   │   ├── useCommandBrowserState.ts # Command browser state
+│   │   ├── useFileList.ts          # File list loading
+│   │   ├── slashCommandProcessor.ts # /command processing
+│   │   ├── atFileProcessor.ts      # @file processing
 │   │   └── index.ts
 │   │
 │   ├── PlanExecuteView.tsx         # (legacy)
-│   ├── TodoPanel.tsx               # TODO 패널
-│   └── UpdateNotification.tsx      # 업데이트 알림
+│   ├── TodoPanel.tsx               # TODO panel
+│   └── UpdateNotification.tsx      # Update notification
 │
-├── types/                          # 전역 타입 정의
+├── types/                          # Global type definitions
 │   └── index.ts
 │
-├── utils/                          # 유틸리티
-│   ├── logger.ts                   # 로깅 시스템
-│   ├── json-stream-logger.ts       # JSON 로그 스트림
-│   ├── cache.ts                    # 캐싱
-│   ├── file-system.ts              # 파일 시스템 헬퍼
-│   └── retry.ts                    # 재시도 로직
+├── utils/                          # Utilities
+│   ├── logger.ts                   # Logging system
+│   ├── json-stream-logger.ts       # JSON log stream
+│   ├── cache.ts                    # Caching
+│   ├── file-system.ts              # File system helpers
+│   └── retry.ts                    # Retry logic
 │
-└── errors/                         # 에러 클래스
-    ├── base.ts                     # 기본 에러
-    ├── llm.ts                      # LLM 관련 에러
-    ├── network.ts                  # 네트워크 에러
-    ├── file.ts                     # 파일 에러
-    ├── validation.ts               # 검증 에러
+└── errors/                         # Error classes
+    ├── base.ts                     # Base error
+    ├── llm.ts                      # LLM-related errors
+    ├── network.ts                  # Network errors
+    ├── file.ts                     # File errors
+    ├── validation.ts               # Validation errors
     └── index.ts
 ```
 
-### 3.2 데이터 저장 위치
+### 3.2 Data Storage Location
 
 ```
-~/.nexus-coder/                      # 설정 및 데이터 디렉토리
-├── config.json                     # 메인 설정
-├── auth.json                       # 인증 정보 (SSO 토큰)
-├── usage.json                      # 사용량 통계
-├── docs/                           # 로컬 문서 (RAG용)
-│   └── agent_framework/            # 다운로드된 문서
-│       ├── agno/                   # Agno Framework 문서
-│       └── adk/                    # Google ADK 문서
-├── backups/                        # 자동 백업
-└── projects/{cwd}/                 # 프로젝트별 데이터
-    ├── {session-id}.json           # 세션 데이터
-    ├── {session-id}_log.json       # JSON 로그
-    └── {session-id}_error.json     # 에러 로그
+~/.local-cli/                        # Configuration and data directory
+├── config.json                     # Main configuration
+├── usage.json                      # Usage statistics
+├── docs/                           # Local documents (for RAG)
+│   └── agent_framework/            # Downloaded documents
+│       ├── agno/                   # Agno Framework docs
+│       └── adk/                    # Google ADK docs
+├── backups/                        # Automatic backups
+└── projects/{cwd}/                 # Per-project data
+    ├── {session-id}.json           # Session data
+    ├── {session-id}_log.json       # JSON log
+    └── {session-id}_error.json     # Error log
 ```
 
 ---
 
-## 4. 핵심 기능 상세
+## 4. Core Features
 
-### 4.1 요청 분류 시스템
+### 4.1 Request Classification System
 
-**위치**: `src/core/llm/request-classifier.ts`
+**Location**: `src/core/llm/request-classifier.ts`
 
-사용자 요청을 자동으로 분류하여 적절한 처리 방식을 결정합니다.
+Automatically classifies user requests to determine appropriate handling:
 
 ```typescript
 type ClassificationType = 'simple_response' | 'requires_todo';
 
-// 분류 흐름
-User 요청
+// Classification flow
+User Request
     ↓
 ┌─────────────────────────────────┐
 │  RequestClassifier.classify()   │
-│  - LLM이 요청 유형 분석         │
+│  - LLM analyzes request type    │
 └─────────────────────────────────┘
     ↓                    ↓
 simple_response      requires_todo
-(바로 응답)          (TODO 생성 후 실행)
+(direct response)    (create TODOs then execute)
 ```
 
-### 4.2 File-Tools (파일 도구)
+### 4.2 File Tools
 
-**위치**: `src/tools/llm/simple/file-tools.ts`
+**Location**: `src/tools/llm/simple/file-tools.ts`
 
-| 도구 | 아이콘 | 설명 | 파라미터 |
-|------|--------|------|----------|
-| `read_file` | 📖 | 파일 내용 읽기 | `reason`, `file_path` |
-| `create_file` | 📝 | 새 파일 생성 (기존 파일 있으면 실패) | `reason`, `file_path`, `content` |
-| `edit_file` | ✏️ | 기존 파일 수정 (줄 단위 편집) | `reason`, `file_path`, `edits[]` |
-| `list_files` | 📂 | 디렉토리 목록 조회 | `reason`, `directory_path?`, `recursive?` |
-| `find_files` | 🔍 | glob 패턴으로 파일 검색 | `reason`, `pattern`, `directory_path?` |
-| `tell_to_user` | 💬 | 사용자에게 메시지 전달 | `message` |
+| Tool | Icon | Description | Parameters |
+|------|------|-------------|------------|
+| `read_file` | 📖 | Read file contents | `reason`, `file_path` |
+| `create_file` | 📝 | Create new file (fails if exists) | `reason`, `file_path`, `content` |
+| `edit_file` | ✏️ | Edit existing file (line-based) | `reason`, `file_path`, `edits[]` |
+| `list_files` | 📂 | List directory contents | `reason`, `directory_path?`, `recursive?` |
+| `find_files` | 🔍 | Search files with glob pattern | `reason`, `pattern`, `directory_path?` |
+| `tell_to_user` | 💬 | Send message to user | `message` |
 
-**중요**: 모든 파일 도구는 `reason` 파라미터 필수 (사용자에게 무엇을 하는지 설명)
+**Important**: All file tools require the `reason` parameter (explains what's being done to user)
 
-#### edit_file 사용법
+#### edit_file Usage
 
 ```typescript
-// 줄 단위 편집 (line_number는 1-based)
+// Line-based editing (line_number is 1-based)
 {
   "file_path": "src/app.ts",
   "edits": [
     { "line_number": 5, "original_text": "const x = 1;", "new_text": "const x = 2;" },
-    { "line_number": 10, "original_text": "// delete this", "new_text": "" }  // 삭제
+    { "line_number": 10, "original_text": "// delete this", "new_text": "" }  // deletion
   ]
 }
 ```
 
 ### 4.3 Bash Tool (v2.1.0+)
 
-**위치**: `src/tools/llm/simple/bash-tool.ts`
+**Location**: `src/tools/llm/simple/bash-tool.ts`
 
-LLM이 shell 명령어를 실행할 수 있게 해주는 도구입니다.
+Enables LLM to execute shell commands safely.
 
-| 도구 | 아이콘 | 설명 | 파라미터 |
-|------|--------|------|----------|
-| `bash` | 🔧 | Shell 명령어 실행 | `reason`, `command`, `working_directory?` |
+| Tool | Icon | Description | Parameters |
+|------|------|-------------|------------|
+| `bash` | 🔧 | Execute shell command | `reason`, `command`, `working_directory?` |
 
-**보안 기능**: 위험한 명령어 패턴 차단
+**Security Features**: Dangerous command patterns are blocked:
 - `rm -rf /`, `rm -rf ~`, `rm -rf *`
 - `dd if=`, `mkfs`, fork bomb
-- `sudo rm`, `shutdown`, `reboot` 등
+- `sudo rm`, `shutdown`, `reboot`, etc.
 
 ```typescript
-// 위험한 명령어 패턴 (차단)
+// Dangerous patterns (blocked)
 const DANGEROUS_PATTERNS = [
   /\brm\s+-rf\s+[\/~]/i,
   /\bdd\s+if=/i,
@@ -340,49 +324,49 @@ const DANGEROUS_PATTERNS = [
 ];
 ```
 
-### 4.4 Static Log 시스템
+### 4.4 Static Log System
 
-**위치**: `src/ui/components/PlanExecuteApp.tsx`
+**Location**: `src/ui/components/PlanExecuteApp.tsx`
 
-Ink의 `Static` 컴포넌트를 사용한 스크롤 가능한 로그 시스템입니다.
+Scrollable log system using Ink's `Static` component.
 
 ```typescript
-// LogEntry 타입
+// LogEntry types
 type LogEntryType =
-  | 'logo'              // 시작 로고
-  | 'user_input'        // 사용자 입력
-  | 'assistant_message' // AI 응답
-  | 'tool_start'        // 도구 실행 시작
-  | 'tool_result'       // 도구 실행 결과
-  | 'tell_user'         // tell_to_user 메시지
-  | 'plan_created'      // 플랜 생성됨
-  | 'todo_start'        // TODO 시작
-  | 'todo_complete'     // TODO 완료
-  | 'todo_fail'         // TODO 실패
-  | 'compact';          // 대화 압축됨
+  | 'logo'              // Start logo
+  | 'user_input'        // User input
+  | 'assistant_message' // AI response
+  | 'tool_start'        // Tool execution start
+  | 'tool_result'       // Tool execution result
+  | 'tell_user'         // tell_to_user message
+  | 'plan_created'      // Plan created
+  | 'todo_start'        // TODO started
+  | 'todo_complete'     // TODO completed
+  | 'todo_fail'         // TODO failed
+  | 'compact';          // Conversation compressed
 
 interface LogEntry {
   id: string;
   type: LogEntryType;
   content: string;
   details?: string;
-  toolArgs?: Record<string, unknown>;  // tool_start, tool_result용
+  toolArgs?: Record<string, unknown>;  // for tool_start, tool_result
   success?: boolean;
-  items?: string[];     // plan_created용
-  diff?: string[];      // edit_file diff용
+  items?: string[];     // for plan_created
+  diff?: string[];      // for edit_file diff
 }
 ```
 
-#### 콜백 시스템
+#### Callback System
 
-`file-tools.ts`에서 UI로 이벤트를 전달하는 콜백 함수들:
+Callbacks in `file-tools.ts` for delivering events to UI:
 
 ```typescript
-// Tool 실행 시작/결과
+// Tool execution start/result
 setToolExecutionCallback((toolName, reason, args) => { ... });
 setToolResponseCallback((toolName, success, result) => { ... });
 
-// 메시지/플랜/TODO 이벤트
+// Message/plan/TODO events
 setTellToUserCallback((message) => { ... });
 setPlanCreatedCallback((todoTitles) => { ... });
 setTodoStartCallback((title) => { ... });
@@ -391,75 +375,75 @@ setTodoFailCallback((title) => { ... });
 setCompactCallback((originalCount, newCount) => { ... });
 ```
 
-### 4.5 Tool 결과 표시 규칙
+### 4.5 Tool Result Display Rules
 
-| Tool | 표시 방식 |
-|------|----------|
-| `read_file` | 5줄까지만 표시 + "... (N more lines)" |
-| `list_files` | "N개 항목 (preview...)" |
-| `find_files` | "N개 항목 (preview...)" |
-| `create_file` | diff 형식 (+ 로 전체 줄 표시, 녹색) |
-| `edit_file` | diff 형식 (- / + 전체 표시, 빨강/녹색) |
-| `bash` | 명령어 출력 (stdout/stderr) |
-| `tell_to_user` | tool_result 숨김 (tell_user 로그에서 표시) |
+| Tool | Display Format |
+|------|----------------|
+| `read_file` | Show up to 5 lines + "... (N more lines)" |
+| `list_files` | "N items (preview...)" |
+| `find_files` | "N items (preview...)" |
+| `create_file` | diff format (+ for all lines, green) |
+| `edit_file` | diff format (- / + full display, red/green) |
+| `bash` | Command output (stdout/stderr) |
+| `tell_to_user` | Hidden tool_result (shown in tell_user log) |
 
-### 4.6 TODO 관리 LLM Tools
+### 4.6 TODO Management LLM Tools
 
-**위치**: `src/tools/llm/simple/todo-tools.ts`
+**Location**: `src/tools/llm/simple/todo-tools.ts`
 
-| 도구 | 설명 |
-|------|------|
-| `update_todos` | TODO 상태 업데이트 (in_progress, completed, failed) - 배치 지원 |
-| `get_todo_list` | 현재 TODO 목록 조회 |
+| Tool | Description |
+|------|-------------|
+| `update_todos` | Update TODO status (in_progress, completed, failed) - batch support |
+| `get_todo_list` | Get current TODO list |
 
 ### 4.7 ask-to-user Tool
 
-**위치**: `src/tools/llm/simple/ask-user-tool.ts`
+**Location**: `src/tools/llm/simple/ask-user-tool.ts`
 
-LLM이 사용자에게 질문할 수 있는 도구입니다.
+Enables LLM to ask questions to the user.
 
 ```typescript
 interface AskUserRequest {
   question: string;
-  options: string[];  // 2-4개 선택지
-  // "Other (직접 입력)" 옵션은 UI에서 자동 추가
+  options: string[];  // 2-4 choices
+  // "Other (type your own)" option is auto-added by UI
 }
 ```
 
 **UI**: `src/ui/components/dialogs/AskUserDialog.tsx`
-- 방향키와 Enter로 선택
-- 숫자 키(1-4)로 빠른 선택
-- "Other" 선택 시 텍스트 입력
+- Arrow keys and Enter for selection
+- Number keys (1-4) for quick selection
+- Text input when "Other" is selected
 
-### 4.8 Auto-Compact (대화 압축)
+### 4.8 Auto-Compact (Conversation Compression)
 
-**위치**: `src/core/compact/`
+**Location**: `src/core/compact/`
 
-Context window가 80%에 도달하면 자동으로 대화를 압축합니다.
+Automatically compresses conversation when context window reaches 80%.
 
-| 파일 | 역할 |
+| File | Role |
 |------|------|
-| `context-tracker.ts` | prompt_tokens 추적, 80% 감지 |
-| `compact-prompts.ts` | 압축 프롬프트 템플릿, 동적 컨텍스트 주입 |
-| `compact-manager.ts` | LLM 호출로 압축 실행 |
+| `context-tracker.ts` | Track prompt_tokens, detect 80% |
+| `compact-prompts.ts` | Compression prompt templates, dynamic context injection |
+| `compact-manager.ts` | Execute compression via LLM call |
 
 ```typescript
-// 수동 압축
+// Manual compression
 /compact
 
-// 자동 압축
-- Context 80% 도달 시 메시지 전송 전 자동 실행
-- StatusBar에 "Context XX%" 표시 (초록/노랑/빨강)
-- 압축 시 마지막 2개 메시지 보존 (연속성 유지)
+// Auto compression
+- Triggered when Context reaches 80% before message send
+- StatusBar shows "Context XX%" (green/yellow/red)
+- Last 2 messages preserved during compression (continuity)
 ```
 
-**v2.2.0 변경사항**:
-- Planning 모드에서도 Auto-Compact 동작
-- `contextTracker.reset()` 호출로 반복 압축 가능
+**v2.2.0 Changes**:
+- Auto-Compact works in Planning mode too
+- `contextTracker.reset()` call enables repeated compression
 
-### 4.9 사용량 추적
+### 4.9 Usage Tracking
 
-**위치**: `src/core/usage-tracker.ts`
+**Location**: `src/core/usage-tracker.ts`
 
 ```typescript
 interface SessionUsage {
@@ -469,162 +453,141 @@ interface SessionUsage {
   requestCount: number;
   startTime: number;
   models: Record<string, number>;
-  lastPromptTokens: number;  // Context 추적용
+  lastPromptTokens: number;  // For context tracking
 }
 
-// 주요 메서드
+// Key methods
 usageTracker.recordUsage(model, inputTokens, outputTokens);
 usageTracker.getSessionUsage();
 usageTracker.getSessionElapsedSeconds();
 usageTracker.resetSession();
-usageTracker.formatSessionStatus(activity);  // Claude Code 스타일
+usageTracker.formatSessionStatus(activity);  // Claude Code style
 ```
 
-**슬래시 명령어**: `/usage`
+**Slash command**: `/usage`
 
-### 4.10 문서 다운로드
+### 4.10 Document Download
 
-**위치**: `src/core/docs-manager.ts`
+**Location**: `src/core/docs-manager.ts`
 
-개발팀이 사전 정의한 문서 소스만 다운로드 가능합니다.
+Download from developer-predefined document sources only.
 
 ```typescript
-// 사용 가능한 소스
+// Available sources
 AVAILABLE_SOURCES = [
   { id: 'agno', name: 'Agno Framework', repoUrl: '...' },
   { id: 'adk', name: 'Google ADK', repoUrl: '...' },
 ];
 
-// 슬래시 명령어
-/docs                    # 문서 브라우저 UI 표시 (↑↓ 이동, Enter 다운로드)
-/docs download agno      # Agno 문서 다운로드
-/docs download adk       # ADK 문서 다운로드
+// Slash commands
+/docs                    # Show document browser UI (↑↓ navigate, Enter download)
+/docs download agno      # Download Agno docs
+/docs download adk       # Download ADK docs
 ```
 
 **UI**: `src/ui/components/dialogs/DocsBrowser.tsx`
-- 방향키와 Enter로 선택
-- 숫자 키(1-9)로 빠른 다운로드
-- 설치 상태 표시 (✅ 설치됨 / ⬜ 미설치)
+- Arrow keys and Enter for selection
+- Number keys (1-9) for quick download
+- Installation status display (✅ installed / ⬜ not installed)
 
-### 4.11 LLM-Client
+### 4.11 LLM Client
 
-**위치**: `src/core/llm/llm-client.ts`
+**Location**: `src/core/llm/llm-client.ts`
 
-| 기능 | 메서드 | 설명 |
-|------|--------|------|
-| 기본 대화 | `sendMessage()` | 단일 메시지 전송 |
-| 스트리밍 | `sendMessageStream()` | 실시간 토큰 응답 |
-| Tool Calling | `sendMessageWithTools()` | AI 도구 호출 |
-| Tool + 반복 | `chatCompletionWithTools()` | 도구 호출 반복 실행 |
+| Feature | Method | Description |
+|---------|--------|-------------|
+| Basic chat | `sendMessage()` | Single message send |
+| Streaming | `sendMessageStream()` | Real-time token response |
+| Tool Calling | `sendMessageWithTools()` | AI tool invocation |
+| Tool + Loop | `chatCompletionWithTools()` | Repeated tool call execution |
 
 ### 4.12 Plan-Execute (Unified Execution Loop)
 
-**위치**: `src/ui/hooks/usePlanExecution.ts`
+**Location**: `src/ui/hooks/usePlanExecution.ts`
 
-v2.2.0부터 Planning 모드와 Direct 모드가 통합된 실행 루프를 사용합니다.
+Since v2.2.0, Planning mode and Direct mode use a unified execution loop.
 
-#### 아키텍처 변경 (v2.2.0)
+#### Architecture Change (v2.2.0)
 
-| 이전 (v2.1.x) | 현재 (v2.2.0) |
-|--------------|--------------|
+| Before (v2.1.x) | Now (v2.2.0) |
+|-----------------|--------------|
 | `PlanExecuteOrchestrator` for-loop | Unified while-loop in `usePlanExecution` |
-| TODO 상태가 히스토리에 포함 | TODO Context Injection (히스토리 오염 없음) |
-| 별도의 Orchestrator 인스턴스 | 단일 실행 루프 |
+| TODO state included in history | TODO Context Injection (no history pollution) |
+| Separate Orchestrator instance | Single execution loop |
 
-#### 핵심 함수들
+#### Core Functions
 
 ```typescript
-// TODO 컨텍스트 생성 (매 LLM 호출마다 주입)
+// Build TODO context (injected per LLM call)
 function buildTodoContext(todos: TodoItem[]): string {
-  // 현재 TODO 상태를 마크다운 형식으로 생성
-  // 히스토리에는 저장되지 않음
+  // Create markdown format of current TODO state
+  // Not saved to history
 }
 
-// 완료 조건 체크
+// Check completion condition
 function areAllTodosCompleted(todos: TodoItem[]): boolean {
   return todos.every(t => t.status === 'completed' || t.status === 'failed');
 }
 
-// 실행 루프
+// Execution loop
 while (!areAllTodosCompleted(currentTodos) && iterations < MAX_ITERATIONS) {
-  // 1. TODO 컨텍스트 생성
+  // 1. Build TODO context
   const todoContext = buildTodoContext(currentTodos);
 
-  // 2. 임시로 사용자 메시지에 TODO 컨텍스트 추가
+  // 2. Temporarily add TODO context to user message
   const messagesForLLM = currentMessages.map((m, i) =>
     i === lastUserMsgIndex ? { ...m, content: m.content + todoContext } : m
   );
 
-  // 3. LLM 호출
+  // 3. LLM call
   const result = await llmClient.chatCompletionWithTools(messagesForLLM, FILE_TOOLS);
 
-  // 4. 메시지 업데이트 (TODO 컨텍스트 없이)
+  // 4. Update messages (without TODO context)
   currentMessages = [...currentMessages, ...newMessages];
 
-  // 5. Auto-compact 체크
+  // 5. Auto-compact check
   if (contextTracker.shouldTriggerAutoCompact(maxTokens)) {
-    // 압축 실행, 마지막 2개 메시지 보존
+    // Execute compression, preserve last 2 messages
   }
 }
 ```
 
-#### Orchestration 모듈 (DEPRECATED)
+#### Orchestration Module (DEPRECATED)
 
-`src/orchestration/orchestrator.ts`는 더 이상 사용되지 않습니다.
-하지만 스키마와 타입 정의는 여전히 사용됩니다:
+`src/orchestration/orchestrator.ts` is no longer used.
+However, schemas and type definitions are still in use:
 
-| 파일 | 상태 | 역할 |
-|------|------|------|
-| `orchestrator.ts` | DEPRECATED | (사용 안함) |
-| `state-manager.ts` | 사용중 | 실행 상태 관리 |
-| `llm-schemas.ts` | 사용중 | 시스템 프롬프트, LLM 스키마 |
-| `types.ts` | 사용중 | 타입 정의 |
+| File | Status | Role |
+|------|--------|------|
+| `orchestrator.ts` | DEPRECATED | (not used) |
+| `state-manager.ts` | In use | Execution state management |
+| `llm-schemas.ts` | In use | System prompts, LLM schemas |
+| `types.ts` | In use | Type definitions |
 
-### 4.13 슬래시 명령어
+### 4.13 Slash Commands
 
-**위치**: `src/ui/hooks/slashCommandProcessor.ts`
+**Location**: `src/ui/hooks/slashCommandProcessor.ts`
 
-| 명령어 | 설명 |
-|--------|------|
-| `/exit`, `/quit` | 앱 종료 |
-| `/clear` | 대화 및 TODO 초기화 |
-| `/compact` | 대화 압축 (수동) |
-| `/settings` | 설정 메뉴 열기 |
-| `/model` | 모델 선택기 열기 |
-| `/load` | 저장된 세션 불러오기 |
-| `/docs` | 문서 브라우저 열기 |
-| `/usage` | 토큰 사용량 통계 |
-| `/help` | 도움말 표시 |
-
-### 4.14 SSO 인증 (v2.0+)
-
-**위치**: `src/core/auth/`
-
-Samsung DS GenAI Portal SSO 연동을 지원합니다.
-
-| 파일 | 역할 |
-|------|------|
-| `auth-manager.ts` | 인증 상태 관리, 토큰 갱신 |
-| `sso-client.ts` | SSO 서버와의 통신 |
-| `jwt-decoder.ts` | JWT 토큰 디코딩 및 검증 |
-| `types.ts` | 인증 관련 타입 정의 |
-
-```typescript
-// 인증 흐름
-1. nexus 실행
-2. 인증 정보 없으면 브라우저에서 SSO 로그인
-3. 토큰 저장 (~/.nexus-coder/auth.json)
-4. 만료 시 자동 갱신
-```
+| Command | Description |
+|---------|-------------|
+| `/exit`, `/quit` | Exit app |
+| `/clear` | Reset conversation and TODOs |
+| `/compact` | Compress conversation (manual) |
+| `/settings` | Open settings menu |
+| `/model` | Open model selector |
+| `/load` | Load saved session |
+| `/docs` | Open document browser |
+| `/usage` | Token usage statistics |
+| `/help` | Show help |
 
 ---
 
-## 5. 데이터 흐름 아키텍처
+## 5. Data Flow Architecture
 
-### 5.1 전체 실행 흐름
+### 5.1 Overall Execution Flow
 
 ```
-User Input (터미널 메시지)
+User Input (terminal message)
         ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                   React/Ink UI Layer                             │
@@ -632,15 +595,15 @@ User Input (터미널 메시지)
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │ Static Log System                                         │   │
-│  │ - LogEntry[] 배열로 이력 관리                              │   │
-│  │ - Ink Static 컴포넌트로 스크롤 가능                        │   │
+│  │ - Manage history with LogEntry[] array                    │   │
+│  │ - Scrollable via Ink Static component                     │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └──────────────────────────┬──────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                   Auto-Compact Check                             │
-│              Context 80% 이상이면 압축 먼저 실행                   │
-│              (마지막 2개 메시지 보존)                              │
+│              Execute compression first if Context > 80%          │
+│              (preserve last 2 messages)                          │
 └──────────────────────────┬──────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -658,7 +621,7 @@ User Input (터미널 메시지)
 │  │ executePlanMode / executeDirectMode                     │     │
 │  │ - TODO Context Injection (per-invoke)                   │     │
 │  │ - Context Tracking + Auto-compact                       │     │
-│  │ - areAllTodosCompleted() 체크                           │     │
+│  │ - areAllTodosCompleted() check                          │     │
 │  └────────────────────────────────────────────────────────┘     │
 └──────────────────────────┬──────────────────────────────────────┘
                            ↓
@@ -687,11 +650,11 @@ User Input (터미널 메시지)
 
 ---
 
-## 6. 새 기능 추가하기
+## 6. Adding New Features
 
-### 6.1 새 LLM Tool 추가
+### 6.1 Adding a New LLM Tool
 
-**1단계**: `src/tools/llm/simple/`에 도구 파일 생성
+**Step 1**: Create tool file in `src/tools/llm/simple/`
 
 ```typescript
 // src/tools/llm/simple/my-tool.ts
@@ -719,7 +682,7 @@ const MY_TOOL_DEFINITION: ToolDefinition = {
 
 async function executeMyTool(args: Record<string, unknown>): Promise<ToolResult> {
   const param1 = args['param1'] as string;
-  // 도구 로직 구현
+  // Implement tool logic
   return { success: true, result: 'result' };
 }
 
@@ -731,29 +694,29 @@ export const myTool: LLMSimpleTool = {
 };
 ```
 
-**2단계**: `src/tools/llm/simple/index.ts`에서 export
+**Step 2**: Export from `src/tools/llm/simple/index.ts`
 
-**3단계**: Tool 아이콘 추가 (PlanExecuteApp.tsx의 `getToolIcon` 함수)
+**Step 3**: Add tool icon (in PlanExecuteApp.tsx's `getToolIcon` function)
 
 ```typescript
 const getToolIcon = (toolName: string): string => {
   switch (toolName) {
-    // ... 기존 도구들
+    // ... existing tools
     case 'my_tool':
-      return '🔧';  // 적절한 아이콘 선택
+      return '🔧';  // Choose appropriate icon
     default:
       return '🔧';
   }
 };
 ```
 
-### 6.2 새 슬래시 명령어 추가
+### 6.2 Adding a New Slash Command
 
-**1단계**: `src/ui/hooks/slashCommandProcessor.ts`에 명령어 등록
+**Step 1**: Register command in `src/ui/hooks/slashCommandProcessor.ts`
 
 ```typescript
 export const SLASH_COMMANDS: CommandMetadata[] = [
-  // ... 기존 명령어
+  // ... existing commands
   {
     name: '/mycommand',
     description: 'My command description',
@@ -761,13 +724,13 @@ export const SLASH_COMMANDS: CommandMetadata[] = [
 ];
 ```
 
-**2단계**: `src/core/slash-command-handler.ts`에 핸들러 추가
+**Step 2**: Add handler in `src/core/slash-command-handler.ts`
 
 ```typescript
-// /mycommand 명령어 추가
+// Add /mycommand command
 if (trimmedCommand === '/mycommand') {
-  // 명령어 로직
-  const resultMessage = '결과 메시지';
+  // Command logic
+  const resultMessage = 'Result message';
   const updatedMessages = [
     ...context.messages,
     { role: 'assistant' as const, content: resultMessage },
@@ -781,17 +744,17 @@ if (trimmedCommand === '/mycommand') {
 }
 ```
 
-### 6.3 새 문서 소스 추가
+### 6.3 Adding a New Document Source
 
-**위치**: `src/core/docs-manager.ts`의 `AVAILABLE_SOURCES` 배열에 추가
+**Location**: Add to `AVAILABLE_SOURCES` array in `src/core/docs-manager.ts`
 
 ```typescript
 export const AVAILABLE_SOURCES: DocsSource[] = [
-  // ... 기존 소스
+  // ... existing sources
   {
     id: 'new-source',
     name: 'New Framework',
-    description: '새 프레임워크 문서',
+    description: 'New framework documentation',
     repoUrl: 'https://github.com/org/repo',
     branch: 'main',
     subPath: 'docs',
@@ -802,19 +765,19 @@ export const AVAILABLE_SOURCES: DocsSource[] = [
 
 ---
 
-## 7. 코딩 규칙
+## 7. Coding Standards
 
-### 7.1 파일 명명 규칙
+### 7.1 File Naming Conventions
 
-| 종류 | 규칙 | 예시 |
-|------|------|------|
-| Core 로직 | kebab-case.ts | `llm-client.ts`, `usage-tracker.ts` |
-| UI 컴포넌트 | PascalCase.tsx | `PlanExecuteApp.tsx`, `AskUserDialog.tsx` |
-| 타입 정의 | index.ts 또는 types.ts | `types/index.ts` |
+| Type | Convention | Example |
+|------|------------|---------|
+| Core logic | kebab-case.ts | `llm-client.ts`, `usage-tracker.ts` |
+| UI components | PascalCase.tsx | `PlanExecuteApp.tsx`, `AskUserDialog.tsx` |
+| Type definitions | index.ts or types.ts | `types/index.ts` |
 
-### 7.2 로깅 규칙 (필수!)
+### 7.2 Logging Rules (Required!)
 
-자세한 내용은 `docs/02_LOGGING.md` 참조.
+See `docs/02_LOGGING.md` for details.
 
 ```typescript
 import { logger } from '../utils/logger.js';
@@ -836,23 +799,23 @@ async function myFunction(input: string) {
 }
 ```
 
-**주의**: `logger.info()`는 deprecated. `logger.debug()` 또는 `logger.flow()` 사용.
+**Note**: `logger.info()` is deprecated. Use `logger.debug()` or `logger.flow()`.
 
-### 7.3 Index Signature 접근
+### 7.3 Index Signature Access
 
-TypeScript에서 Record 타입의 속성 접근 시 bracket notation 사용:
+Use bracket notation when accessing Record type properties in TypeScript:
 
 ```typescript
-// 올바른 방법
+// Correct
 const value = args['param_name'];
 
-// 틀린 방법 (TS4111 에러)
+// Wrong (TS4111 error)
 const value = args.param_name;
 ```
 
-### 7.4 Tool reason 파라미터
+### 7.4 Tool reason Parameter
 
-모든 LLM Tool은 `reason` 파라미터를 포함해야 합니다:
+All LLM Tools must include the `reason` parameter:
 
 ```typescript
 reason: {
@@ -867,10 +830,10 @@ Examples:
 
 ### 7.5 Language Priority
 
-시스템 프롬프트에는 Language Priority 가이드가 포함되어 있습니다:
+System prompt includes Language Priority guide:
 
 ```
-## ⚠️ CRITICAL - Language Priority (HIGHEST)
+## CRITICAL - Language Priority (HIGHEST)
 
 ALWAYS respond in the SAME LANGUAGE as the user's input.
 - If user writes in Korean → respond in Korean, use Korean for tool reasons
@@ -880,24 +843,24 @@ ALWAYS respond in the SAME LANGUAGE as the user's input.
 
 ---
 
-## 8. CLI 실행 모드
+## 8. CLI Execution Modes
 
-| 모드 | 명령어 | 로그 레벨 | 용도 |
-|------|--------|----------|------|
-| Normal | `nexus` | INFO | 일반 사용 |
-| Verbose | `nexus --verbose` | DEBUG | 개발/디버깅 |
-| Debug | `nexus --debug` | VERBOSE | 심층 분석 |
-
----
-
-## 문서 목록
-
-1. `README.md` - 프로젝트 소개 및 빠른 시작
-2. `docs/01_DEVELOPMENT.md` - 개발자 종합 가이드 (이 문서)
-3. `docs/02_LOGGING.md` - 로깅 시스템 상세 가이드
-4. `docs/03_TESTING.md` - 테스트 가이드
-5. `docs/04_ROADMAP.md` - 프로젝트 로드맵
+| Mode | Command | Log Level | Use Case |
+|------|---------|-----------|----------|
+| Normal | `local-cli` | INFO | General use |
+| Verbose | `local-cli --verbose` | DEBUG | Development/debugging |
+| Debug | `local-cli --debug` | VERBOSE | Deep analysis |
 
 ---
 
-**질문이나 제안사항이 있으면 GitHub Issues를 이용해주세요!**
+## Document List
+
+1. `README.md` - Project introduction and quick start
+2. `docs/01_DEVELOPMENT.md` - Development guide (this document)
+3. `docs/02_LOGGING.md` - Logging system detailed guide
+4. `docs/03_TESTING.md` - Testing guide
+5. `docs/04_ROADMAP.md` - Project roadmap
+
+---
+
+**Questions or suggestions? Please use GitHub Issues!**
