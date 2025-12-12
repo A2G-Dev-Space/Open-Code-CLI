@@ -101,6 +101,39 @@ export class SessionManager {
   }
 
   /**
+   * Validate tool messages: remove orphaned tool messages that have no matching tool_calls
+   * This fixes sessions saved before tool_calls were properly persisted
+   */
+  private validateToolMessages(messages: Message[]): Message[] {
+    // Collect all valid tool_call_ids from assistant messages with tool_calls
+    const validToolCallIds = new Set<string>();
+    for (const msg of messages) {
+      if (msg.role === 'assistant' && msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          validToolCallIds.add(tc.id);
+        }
+      }
+    }
+
+    // Filter out tool messages with invalid tool_call_ids
+    const validated = messages.filter(msg => {
+      // Keep non-tool messages
+      if (msg.role !== 'tool') {
+        return true;
+      }
+      // For tool messages, check if tool_call_id exists and is valid
+      if (msg.tool_call_id && validToolCallIds.has(msg.tool_call_id)) {
+        return true;
+      }
+      // Remove orphaned tool messages
+      logger.warn('Removing orphaned tool message', { tool_call_id: msg.tool_call_id });
+      return false;
+    });
+
+    return validated;
+  }
+
+  /**
    * 세션 디렉토리 초기화
    */
   async ensureSessionsDir(): Promise<void> {
@@ -125,11 +158,26 @@ export class SessionManager {
     const endpoint = configManager.getCurrentEndpoint();
     const model = configManager.getCurrentModel();
 
-    // 메시지 키 순서 정규화 (role -> content 순서 보장)
-    const normalizedMessages = messages.map(msg => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    // 메시지 정규화 (tool_calls, tool_call_id 포함)
+    const normalizedMessages: Message[] = messages.map(msg => {
+      const normalized: Message = {
+        role: msg.role,
+        content: msg.content,
+      };
+      // tool_calls가 있으면 포함 (assistant 메시지)
+      if (msg.tool_calls && msg.tool_calls.length > 0) {
+        normalized.tool_calls = msg.tool_calls;
+      }
+      // tool_call_id가 있으면 포함 (tool 메시지)
+      if (msg.tool_call_id) {
+        normalized.tool_call_id = msg.tool_call_id;
+      }
+      // name이 있으면 포함 (tool 메시지)
+      if (msg.name) {
+        normalized.name = msg.name;
+      }
+      return normalized;
+    });
 
     // 세션 데이터 생성
     const sessionData: SessionData = {
@@ -165,6 +213,11 @@ export class SessionManager {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       const sessionData = JSON.parse(content) as SessionData;
+
+      // Validate and clean messages: remove orphaned tool messages (tool_call_id without matching tool_calls)
+      const validatedMessages = this.validateToolMessages(sessionData.messages);
+      sessionData.messages = validatedMessages;
+      sessionData.metadata.messageCount = validatedMessages.length;
 
       // updatedAt 갱신
       sessionData.metadata.updatedAt = new Date().toISOString();
@@ -270,11 +323,26 @@ export class SessionManager {
       return false;
     }
 
-    // 메시지 키 순서 정규화 (role -> content 순서 보장)
-    const normalizedMessages = messages.map(msg => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    // 메시지 정규화 (tool_calls, tool_call_id 포함)
+    const normalizedMessages: Message[] = messages.map(msg => {
+      const normalized: Message = {
+        role: msg.role,
+        content: msg.content,
+      };
+      // tool_calls가 있으면 포함 (assistant 메시지)
+      if (msg.tool_calls && msg.tool_calls.length > 0) {
+        normalized.tool_calls = msg.tool_calls;
+      }
+      // tool_call_id가 있으면 포함 (tool 메시지)
+      if (msg.tool_call_id) {
+        normalized.tool_call_id = msg.tool_call_id;
+      }
+      // name이 있으면 포함 (tool 메시지)
+      if (msg.name) {
+        normalized.name = msg.name;
+      }
+      return normalized;
+    });
 
     sessionData.messages = normalizedMessages;
     sessionData.metadata.messageCount = messages.length;
