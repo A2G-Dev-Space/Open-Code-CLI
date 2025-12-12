@@ -487,6 +487,12 @@ export class LLMClient {
         logger.flow(`Tool calls 발견: ${message.tool_calls.length}개`);
         logger.vars({ name: 'toolCallsCount', value: message.tool_calls.length });
 
+        // Multi-tool detection logging
+        if (message.tool_calls.length > 1) {
+          const toolNames = message.tool_calls.map(tc => tc.function.name).join(', ');
+          logger.info(`[MULTI-TOOL DETECTED] LLM returned ${message.tool_calls.length} tools: ${toolNames}`);
+        }
+
         // Tool calls 실행 (parallel_tool_calls: false로 API에서 단일 tool만 호출됨)
         for (const toolCall of message.tool_calls) {
           const toolName = toolCall.function.name;
@@ -662,6 +668,12 @@ export class LLMClient {
 
       // Tool calls 확인
       if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+        // Multi-tool detection logging
+        if (assistantMessage.tool_calls.length > 1) {
+          const toolNames = assistantMessage.tool_calls.map(tc => tc.function.name).join(', ');
+          logger.info(`[MULTI-TOOL DETECTED] LLM returned ${assistantMessage.tool_calls.length} tools: ${toolNames}`);
+        }
+
         // Tool calls 실행 (parallel_tool_calls: false로 API에서 단일 tool만 호출됨)
         for (const toolCall of assistantMessage.tool_calls) {
           const toolName = toolCall.function.name;
