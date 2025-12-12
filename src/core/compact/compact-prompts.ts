@@ -196,7 +196,7 @@ ${compactSummary}
     },
     {
       role: 'assistant',
-      content: '세션이 압축되었습니다. 이전 컨텍스트를 기반으로 계속 진행하겠습니다. 무엇을 도와드릴까요?',
+      content: 'Session has been compacted. Continuing based on the previous context. How can I help you?',
     },
   ];
 }
