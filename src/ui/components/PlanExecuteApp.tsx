@@ -69,7 +69,7 @@ import {
 } from '../../core/slash-command-handler.js';
 import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
 import { configManager } from '../../core/config/config-manager.js';
-import { GitAutoUpdater } from '../../core/git-auto-updater.js';
+import { GitAutoUpdater, UpdateStatus } from '../../core/git-auto-updater.js';
 import { logger } from '../../utils/logger.js';
 import { usageTracker } from '../../core/usage-tracker.js';
 import {
@@ -155,6 +155,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const [isInitializing, setIsInitializing] = useState(true);
   const [initStep, setInitStep] = useState<InitStep>('docs');
   const [healthStatus, setHealthStatus] = useState<'checking' | 'healthy' | 'unhealthy' | 'unknown'>('checking');
+  const [gitUpdateStatus, setGitUpdateStatus] = useState<UpdateStatus | null>(null);
 
   // Model Selector state
   const [showModelSelector, setShowModelSelector] = useState(false);
@@ -475,7 +476,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         // Step 1: Check for git updates
         setInitStep('git_update');
         logger.flow('Checking for git updates');
-        const updater = new GitAutoUpdater();
+        const updater = new GitAutoUpdater({
+          onStatus: setGitUpdateStatus,
+        });
         const needsRestart = await updater.run();
         if (needsRestart) {
           // Exit immediately so user can restart with new version
@@ -987,10 +990,33 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // Show loading screen with logo during initialization
   if (isInitializing) {
+    // Get git update status text
+    const getGitStatusText = (): string => {
+      if (!gitUpdateStatus) return 'Checking for updates...';
+      switch (gitUpdateStatus.type) {
+        case 'checking':
+          return 'Checking for updates...';
+        case 'no_update':
+          return 'Up to date';
+        case 'first_run':
+          return `${gitUpdateStatus.message} (${gitUpdateStatus.step}/${gitUpdateStatus.totalSteps})`;
+        case 'updating':
+          return `${gitUpdateStatus.message} (${gitUpdateStatus.step}/${gitUpdateStatus.totalSteps})`;
+        case 'complete':
+          return gitUpdateStatus.message;
+        case 'error':
+          return gitUpdateStatus.message;
+        case 'skipped':
+          return `Skipped: ${gitUpdateStatus.reason}`;
+        default:
+          return 'Checking for updates...';
+      }
+    };
+
     const getInitStepInfo = () => {
       switch (initStep) {
         case 'git_update':
-          return { icon: '🔄', text: 'Checking for updates...', progress: 1 };
+          return { icon: '🔄', text: getGitStatusText(), progress: 1 };
         case 'health':
           return { icon: '🏥', text: 'Checking model health...', progress: 2 };
         case 'docs':
