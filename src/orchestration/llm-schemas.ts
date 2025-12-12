@@ -253,12 +253,6 @@ For ANY coding-related request, you MUST first understand the user's codebase in
 - Follow the existing code style, naming conventions, and architectural patterns
 This prevents breaking existing functionality and ensures consistency.
 
-**⚠️ CRITICAL - ONE TOOL AT A TIME**:
-You MUST call only ONE tool per response. Never call multiple tools in a single response.
-- Call one tool, wait for its result, then decide what to do next
-- This ensures proper execution flow and user feedback
-- Violation of this rule may cause execution failures
-
 **CRITICAL - Tool "reason" Parameter**:
 Every tool has a required "reason" parameter. This will be shown directly to the user.
 Write naturally as if talking to the user. Examples:
@@ -324,13 +318,6 @@ For ANY coding-related task, you MUST first understand the user's codebase in ./
 - NEVER assume or guess about existing code - always verify first
 - Follow the existing code style, naming conventions, and architectural patterns
 This prevents breaking existing functionality and ensures consistency.
-
-## ⚠️ CRITICAL - ONE TOOL AT A TIME
-
-You MUST call only ONE tool per response. Never call multiple tools in a single response.
-- Call one tool, wait for its result, then decide what to do next
-- This ensures proper execution flow and user feedback
-- Violation of this rule may cause execution failures
 
 ## Tool "reason" Parameter
 

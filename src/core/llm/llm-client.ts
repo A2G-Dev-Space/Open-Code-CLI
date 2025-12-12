@@ -163,7 +163,10 @@ export class LLMClient {
         temperature: options.temperature ?? 0.7,
         max_tokens: options.max_tokens,
         stream: false,
-        ...(options.tools && { tools: options.tools }),
+        ...(options.tools && {
+          tools: options.tools,
+          parallel_tool_calls: false,  // Enforce one tool at a time via API
+        }),
       };
 
       logger.flow('API 요청 준비 완료');
@@ -484,22 +487,8 @@ export class LLMClient {
         logger.flow(`Tool calls 발견: ${message.tool_calls.length}개`);
         logger.vars({ name: 'toolCallsCount', value: message.tool_calls.length });
 
-        // ENFORCE ONE TOOL AT A TIME: Only execute the first tool, skip the rest
-        const toolCallsToProcess = message.tool_calls.slice(0, 1);
-        const skippedToolCalls = message.tool_calls.slice(1);
-
-        // Add skip messages for additional tool calls
-        for (const skippedCall of skippedToolCalls) {
-          logger.flow(`Tool 스킵 (한번에 하나만 실행): ${skippedCall.function.name}`);
-          messages.push({
-            role: 'tool',
-            content: 'SKIPPED: Only one tool can be executed at a time. Please call this tool in your next response.',
-            tool_call_id: skippedCall.id,
-          });
-        }
-
-        // Tool calls 실행 (첫 번째만)
-        for (const toolCall of toolCallsToProcess) {
+        // Tool calls 실행 (parallel_tool_calls: false로 API에서 단일 tool만 호출됨)
+        for (const toolCall of message.tool_calls) {
           const toolName = toolCall.function.name;
           logger.flow(`Tool 실행: ${toolName}`);
 
@@ -673,22 +662,8 @@ export class LLMClient {
 
       // Tool calls 확인
       if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-        // ENFORCE ONE TOOL AT A TIME: Only execute the first tool, skip the rest
-        const toolCallsToProcess = assistantMessage.tool_calls.slice(0, 1);
-        const skippedToolCalls = assistantMessage.tool_calls.slice(1);
-
-        // Add skip messages for additional tool calls
-        for (const skippedCall of skippedToolCalls) {
-          logger.flow(`Tool 스킵 (한번에 하나만 실행): ${skippedCall.function.name}`);
-          workingMessages.push({
-            role: 'tool',
-            content: 'SKIPPED: Only one tool can be executed at a time. Please call this tool in your next response.',
-            tool_call_id: skippedCall.id,
-          });
-        }
-
-        // Tool calls 실행 (첫 번째만)
-        for (const toolCall of toolCallsToProcess) {
+        // Tool calls 실행 (parallel_tool_calls: false로 API에서 단일 tool만 호출됨)
+        for (const toolCall of assistantMessage.tool_calls) {
           const toolName = toolCall.function.name;
           let toolArgs: Record<string, unknown>;
 
