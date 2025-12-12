@@ -167,6 +167,10 @@ export const LLMSetupWizard: React.FC<LLMSetupWizardProps> = ({ onComplete, onSk
 
   return (
     <Box flexDirection="column">
+      {/* Top spacing */}
+      <Text>{' '}</Text>
+      <Text>{' '}</Text>
+
       {/* Header */}
       <Box borderStyle="double" borderColor="cyan" paddingX={2} marginBottom={1}>
         <Text color="cyan" bold>
