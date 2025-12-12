@@ -48,7 +48,6 @@ import { initializeDocsDirectory } from '../../core/knowledge/docs-search-agent.
 import { FileBrowser } from './FileBrowser.js';
 import { SessionBrowser } from './panels/SessionPanel.js';
 import { SettingsBrowser } from './dialogs/SettingsDialog.js';
-import { authManager } from '../../core/auth/index.js';
 import { LLMSetupWizard } from './LLMSetupWizard.js';
 import { ModelSelector } from './ModelSelector.js';
 import { AskUserDialog } from './dialogs/AskUserDialog.js';
@@ -1034,7 +1033,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
     // Authors component with cycling highlight animation
     const AuthorsDisplay = () => {
-      const authors = ['syngha.han', 'byeongju.lee', 'young87.kim'];
+      const authors = ['syngha.han', 'byeongju.lee', 'youngsub.kim'];
       const [highlightIndex, setHighlightIndex] = useState(0);
 
       useEffect(() => {
@@ -1130,18 +1129,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             <Text>{' '}</Text>
             <Text>{' '}</Text>
             <Text>{' '}</Text>
-            <Text bold color="cyanBright"> ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗</Text>
-            <Text bold color="cyan"> ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝</Text>
-            <Text bold color="cyan"> ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗</Text>
-            <Text bold color="blue"> ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║</Text>
-            <Text bold color="blue"> ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║</Text>
-            <Text bold color="blueBright"> ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝</Text>
-            <Text bold color="cyanBright">      ██████╗ ██████╗ ██████╗ ███████╗██████╗ </Text>
-            <Text bold color="cyan">     ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗</Text>
-            <Text bold color="cyan">     ██║     ██║   ██║██║  ██║█████╗  ██████╔╝</Text>
-            <Text bold color="blue">     ██║     ██║   ██║██║  ██║██╔══╝  ██╔══██╗</Text>
-            <Text bold color="blue">     ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║</Text>
-            <Text bold color="blueBright">      ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝</Text>
+            <Text bold color="cyanBright"> ██╗      ██████╗  ██████╗ █████╗ ██╗          ██████╗██╗     ██╗</Text>
+            <Text bold color="cyan"> ██║     ██╔═══██╗██╔════╝██╔══██╗██║         ██╔════╝██║     ██║</Text>
+            <Text bold color="cyan"> ██║     ██║   ██║██║     ███████║██║         ██║     ██║     ██║</Text>
+            <Text bold color="blue"> ██║     ██║   ██║██║     ██╔══██║██║         ██║     ██║     ██║</Text>
+            <Text bold color="blue"> ███████╗╚██████╔╝╚██████╗██║  ██║███████╗    ╚██████╗███████╗██║</Text>
+            <Text bold color="blueBright"> ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝     ╚═════╝╚══════╝╚═╝</Text>
             <Text color="gray">                      {entry.content}</Text>
           </Box>
         );
@@ -1400,18 +1393,12 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             <Text>{' '}</Text>
             <Text>{' '}</Text>
             <Text>{' '}</Text>
-            <Text bold color="cyanBright"> ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗</Text>
-            <Text bold color="cyan"> ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝</Text>
-            <Text bold color="cyan"> ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗</Text>
-            <Text bold color="blue"> ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║</Text>
-            <Text bold color="blue"> ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║</Text>
-            <Text bold color="blueBright"> ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝</Text>
-            <Text bold color="cyanBright">      ██████╗ ██████╗ ██████╗ ███████╗██████╗ </Text>
-            <Text bold color="cyan">     ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗</Text>
-            <Text bold color="cyan">     ██║     ██║   ██║██║  ██║█████╗  ██████╔╝</Text>
-            <Text bold color="blue">     ██║     ██║   ██║██║  ██║██╔══╝  ██╔══██╗</Text>
-            <Text bold color="blue">     ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║</Text>
-            <Text bold color="blueBright">      ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝</Text>
+            <Text bold color="cyanBright"> ██╗      ██████╗  ██████╗ █████╗ ██╗          ██████╗██╗     ██╗</Text>
+            <Text bold color="cyan"> ██║     ██╔═══██╗██╔════╝██╔══██╗██║         ██╔════╝██║     ██║</Text>
+            <Text bold color="cyan"> ██║     ██║   ██║██║     ███████║██║         ██║     ██║     ██║</Text>
+            <Text bold color="blue"> ██║     ██║   ██║██║     ██╔══██║██║         ██║     ██║     ██║</Text>
+            <Text bold color="blue"> ███████╗╚██████╔╝╚██████╗██║  ██║███████╗    ╚██████╗███████╗██║</Text>
+            <Text bold color="blueBright"> ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝     ╚═════╝╚══════╝╚═╝</Text>
             <Text color="gray">── {entry.content} ──</Text>
           </Box>
         );
@@ -1689,13 +1676,6 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
               {/* Model info - always visible */}
               <Text color="gray">{getHealthIndicator()} </Text>
               <Text color="cyan">{currentModelInfo.model}</Text>
-              {/* User ID */}
-              {authManager.getCurrentUser() && (
-                <>
-                  <Text color="gray"> │ </Text>
-                  <Text color="magenta">@{authManager.getCurrentUser()?.loginid}</Text>
-                </>
-              )}
               {planExecutionState.todos.length > 0 && (
                 <>
                   <Text color="gray"> │ </Text>

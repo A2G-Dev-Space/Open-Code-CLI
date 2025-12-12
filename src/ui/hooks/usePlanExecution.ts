@@ -9,7 +9,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message, TodoItem } from '../../types/index.js';
 import { LLMClient } from '../../core/llm/llm-client.js';
 import { RequestClassifier } from '../../core/llm/request-classifier.js';
-// PlanExecuteOrchestrator removed - now using unified execution loop
+import { PlanExecuteOrchestrator } from '../../orchestration/orchestrator.js';
 import { sessionManager } from '../../core/session/session-manager.js';
 import { performDocsSearchIfNeeded } from '../../core/agent-framework-handler.js';
 import { BaseError } from '../../errors/base.js';
@@ -32,8 +32,7 @@ import {
   type AskUserRequest,
   type AskUserResponse,
 } from '../../tools/llm/simple/ask-user-tool.js';
-import { DEFAULT_SYSTEM_PROMPT, PLAN_EXECUTE_SYSTEM_PROMPT } from '../../orchestration/llm-schemas.js';
-import { PlanningLLM } from '../../core/llm/planning-llm.js';
+import { DEFAULT_SYSTEM_PROMPT } from '../../orchestration/llm-schemas.js';
 import {
   CompactManager,
   CompactResult,
@@ -133,46 +132,6 @@ function formatErrorMessage(error: unknown): string {
   return `❌ Unknown Error: ${String(error)}`;
 }
 
-/**
- * Build TODO context to append to user message (not stored in history)
- * This provides LLM with current TODO state without polluting conversation history
- */
-function buildTodoContext(todos: TodoItem[]): string {
-  if (todos.length === 0) return '';
-
-  const completedCount = todos.filter(t => t.status === 'completed').length;
-  const inProgressCount = todos.filter(t => t.status === 'in_progress').length;
-  const pendingCount = todos.filter(t => t.status === 'pending').length;
-
-  const todoList = todos.map((todo, idx) => {
-    const statusIcon = todo.status === 'completed' ? '✅' :
-                       todo.status === 'in_progress' ? '🔄' :
-                       todo.status === 'failed' ? '❌' : '⏳';
-    const detail = todo.status === 'in_progress' || todo.status === 'pending'
-      ? `\n   Description: ${todo.description || 'No description'}`
-      : '';
-    return `${idx + 1}. ${statusIcon} [${todo.status.toUpperCase()}] ${todo.title}${detail}`;
-  }).join('\n');
-
-  return `
----
-## 📋 Current TODO List (${completedCount}/${todos.length} completed)
-
-${todoList}
-
-${pendingCount > 0 || inProgressCount > 0
-  ? '**Continue working on the TODO list. Update status using update_todos tool.**'
-  : '**All TODOs are completed! Provide a brief summary of what was accomplished.**'}
----`;
-}
-
-/**
- * Check if all TODOs are completed (empty array is considered completed)
- */
-function areAllTodosCompleted(todos: TodoItem[]): boolean {
-  return todos.every(t => t.status === 'completed' || t.status === 'failed');
-}
-
 export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExecutionActions {
   logger.enter('usePlanExecution');
 
@@ -184,6 +143,9 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
 
   // Ref for interrupt flag (allows checking in async callbacks)
   const isInterruptedRef = useRef(false);
+
+  // Ref for orchestrator (maintained across executions, reset on compact)
+  const orchestratorRef = useRef<PlanExecuteOrchestrator | null>(null);
 
   // Ask-user state
   const [askUserRequest, setAskUserRequest] = useState<AskUserRequest | null>(null);
@@ -411,7 +373,6 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
 
   /**
    * Execute plan mode (TODO-based execution)
-   * New unified workflow: same as direct mode but with TODO context injection
    */
   const executePlanMode = useCallback(async (
     userMessage: string,
@@ -425,11 +386,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     isInterruptedRef.current = false;
     setIsInterrupted(false);
     setExecutionPhase('planning');
-    setCurrentActivity('Planning tasks');
-
-    // Local TODO state for this execution
-    let currentTodos: TodoItem[] = [];
-    const startTime = Date.now();
+    setCurrentActivity('계획 수립 중');
 
     try {
       // Check for interrupt
@@ -437,173 +394,106 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         throw new Error('INTERRUPTED');
       }
 
-      // 1. Docs search (same as direct mode)
-      setCurrentActivity('Searching docs');
+      setCurrentActivity('문서 검색 중');
       const { messages: messagesWithDocs, performed: docsSearchPerformed } =
         await performDocsSearchIfNeeded(llmClient, userMessage, messages);
 
+      // Check for interrupt
       if (isInterruptedRef.current) {
         throw new Error('INTERRUPTED');
       }
 
-      let currentMessages = docsSearchPerformed ? messagesWithDocs : messages;
+      setCurrentActivity('계획 수립 중');
+
       if (docsSearchPerformed) {
         setMessages(messagesWithDocs);
       }
 
-      // 2. Generate TODO list using PlanningLLM
-      setCurrentActivity('Creating plan');
-      const planningLLM = new PlanningLLM(llmClient);
-      const planResult = await planningLLM.generateTODOList(userMessage);
-      currentTodos = planResult.todos;
+      // Reuse existing orchestrator or create new one (maintains conversation history)
+      if (!orchestratorRef.current) {
+        orchestratorRef.current = new PlanExecuteOrchestrator(llmClient, {
+          maxDebugAttempts: 2,
+          verbose: false,
+        });
+      }
+      const orchestrator = orchestratorRef.current;
 
-      // Update UI with TODOs
-      setTodos(currentTodos);
-      emitPlanCreated(currentTodos.map(t => t.title));
+      // Sync external messages to orchestrator's conversation history
+      // This ensures continuity between direct mode and plan mode
+      const currentMessages = docsSearchPerformed ? messagesWithDocs : messages;
+      orchestrator.setConversationHistory(currentMessages as any);
 
-      const planMessage = `📋 Created ${currentTodos.length} tasks. Starting execution...`;
-      currentMessages = [
-        ...currentMessages,
-        { role: 'user' as const, content: userMessage },
-        { role: 'assistant' as const, content: planMessage }
-      ];
-      setMessages(currentMessages);
+      // Remove existing listeners to prevent duplicates when reusing orchestrator
+      orchestrator.removeAllListeners();
 
-      // 3. Setup TODO callbacks for tool updates
-      setTodoUpdateCallback(async (todoId, status, note) => {
-        const todo = currentTodos.find(t => t.id === todoId);
-        if (!todo) return false;
+      orchestrator.on('planCreated', (newTodos: TodoItem[]) => {
+        logger.flow('Plan created', { todoCount: newTodos.length });
+        setTodos(newTodos);
 
-        const todoTitle = todo.title;
-        currentTodos = currentTodos.map(t =>
-          t.id === todoId ? { ...t, status, result: note } : t
-        );
-        setTodos([...currentTodos]);
+        // Emit plan created event for Static log
+        emitPlanCreated(newTodos.map(t => t.title));
 
-        // Emit events for UI
-        if (status === 'completed') {
-          emitTodoComplete(todoTitle);
-        } else if (status === 'failed') {
-          emitTodoFail(todoTitle);
-        } else if (status === 'in_progress') {
-          emitTodoStart(todoTitle);
-        }
-
-        return true;
+        const planningMessage = `📋 ${newTodos.length}개의 작업을 생성했습니다. 자동으로 실행합니다...`;
+        setMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: planningMessage }
+        ]);
       });
 
-      setTodoListCallback(() => currentTodos.map(t => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        status: t.status,
-      })));
-
-      // 4. Execute loop until all TODOs completed
-      setExecutionPhase('executing');
-      const { FILE_TOOLS } = await import('../../tools/llm/simple/file-tools.js');
-
-      // Prepare system message
-      const hasSystemMessage = currentMessages.some(m => m.role === 'system');
-      if (!hasSystemMessage) {
-        currentMessages = [
-          { role: 'system' as const, content: PLAN_EXECUTE_SYSTEM_PROMPT },
-          ...currentMessages
-        ];
-      }
-
-      // Max iterations to prevent infinite loops
-      const MAX_ITERATIONS = 50;
-      let iterations = 0;
-
-      while (!areAllTodosCompleted(currentTodos) && iterations < MAX_ITERATIONS) {
-        iterations++;
-
-        // Check for interrupt
+      orchestrator.on('todoStarted', (todo: TodoItem) => {
+        // Check for interrupt before starting new TODO
         if (isInterruptedRef.current) {
-          throw new Error('INTERRUPTED');
+          return;
         }
+        logger.flow('TODO started', { todoId: todo.id });
+        handleTodoUpdate({ ...todo, status: 'in_progress' as const });
+        setExecutionPhase('executing');
+        setCurrentActivity(todo.title);
 
-        // Update activity display
-        const inProgressTodo = currentTodos.find(t => t.status === 'in_progress');
-        const pendingTodo = currentTodos.find(t => t.status === 'pending');
-        setCurrentActivity(inProgressTodo?.title || pendingTodo?.title || 'Working on tasks');
+        // Emit todo start event for Static log
+        emitTodoStart(todo.title);
+      });
 
-        // Build TODO context (NOT stored in history)
-        const todoContext = buildTodoContext(currentTodos);
+      orchestrator.on('todoCompleted', (todo: TodoItem) => {
+        logger.flow('TODO completed', { todoId: todo.id });
+        handleTodoUpdate({ ...todo, status: 'completed' as const });
 
-        // Create temporary message with TODO context appended
-        const lastUserMsgIndex = currentMessages.map(m => m.role).lastIndexOf('user');
-        const messagesForLLM = lastUserMsgIndex >= 0
-          ? currentMessages.map((m, i) =>
-              i === lastUserMsgIndex
-                ? { ...m, content: m.content + todoContext }
-                : m
-            )
-          : [...currentMessages, { role: 'user' as const, content: `Continue with the TODO list.${todoContext}` }];
+        // Emit todo complete event for Static log
+        emitTodoComplete(todo.title);
+      });
 
-        // Call LLM with tools
-        const result = await llmClient.chatCompletionWithTools(
-          messagesForLLM,
-          FILE_TOOLS
-        );
+      orchestrator.on('todoFailed', (todo: TodoItem) => {
+        logger.flow('TODO failed', { todoId: todo.id });
+        handleTodoUpdate({ ...todo, status: 'failed' as const });
 
-        // Update messages (WITHOUT TODO context - use original messages + new responses)
-        // Extract only the new messages from result
-        const newMessages = result.allMessages.slice(currentMessages.length);
-        currentMessages = [...currentMessages, ...newMessages];
-        setMessages([...currentMessages]);
-        sessionManager.autoSaveCurrentSession(currentMessages);
+        // Emit todo fail event for Static log
+        emitTodoFail(todo.title);
+      });
 
-        // Check for auto-compact
-        const model = configManager.getCurrentModel();
-        const maxTokens = model?.maxTokens || 128000;
-        if (contextTracker.shouldTriggerAutoCompact(maxTokens)) {
-          logger.flow('Auto-compact triggered during plan execution');
-          setExecutionPhase('compacting');
-          setCurrentActivity('Compacting context');
+      const summary = await orchestrator.execute(userMessage);
 
-          const compactManager = new CompactManager(llmClient);
-          const compactResult = await compactManager.compact(currentMessages, {
-            todos: currentTodos,
-            workingDirectory: process.cwd(),
-          });
-
-          if (compactResult.success && compactResult.compactedSummary) {
-            // Build new messages preserving last 2 history items
-            const lastTwoMessages = currentMessages.slice(-2);
-            currentMessages = [
-              ...buildCompactedMessages(compactResult.compactedSummary, {
-                workingDirectory: process.cwd(),
-              }),
-              ...lastTwoMessages,
-            ];
-            setMessages([...currentMessages]);
-            emitCompact(compactResult.originalMessageCount, compactResult.newMessageCount);
-            // Note: contextTracker.reset() is already called inside compactManager.compact()
-          }
-
-          setExecutionPhase('executing');
-        }
+      // Check for interrupt after execution
+      if (isInterruptedRef.current) {
+        throw new Error('INTERRUPTED');
       }
 
-      // 5. Completion
-      const duration = Date.now() - startTime;
-      const completedCount = currentTodos.filter(t => t.status === 'completed').length;
-      const failedCount = currentTodos.filter(t => t.status === 'failed').length;
+      // Sync orchestrator's conversation history back to external messages
+      // This includes all tool calls and responses from task execution
+      const orchestratorHistory = orchestrator.getConversationHistory();
 
-      const completionMessage = iterations >= MAX_ITERATIONS
-        ? `⚠️ Execution stopped (max iterations reached)\nTotal: ${currentTodos.length} | Completed: ${completedCount} | Failed: ${failedCount}`
-        : `✅ Execution complete\nTotal: ${currentTodos.length} | Completed: ${completedCount} | Failed: ${failedCount}\nDuration: ${(duration / 1000).toFixed(2)}s`;
+      const completionMessage = `✅ 실행 완료\n` +
+        `전체: ${summary.totalTasks} | 완료: ${summary.completedTasks} | 실패: ${summary.failedTasks}\n` +
+        `소요 시간: ${(summary.duration / 1000).toFixed(2)}초`;
 
-      const finalMessages: Message[] = [
-        ...currentMessages,
+      // Use orchestrator's history as the new messages state
+      const updatedMessages: Message[] = [
+        ...orchestratorHistory as Message[],
         { role: 'assistant' as const, content: completionMessage }
       ];
-      setMessages(finalMessages);
-      sessionManager.autoSaveCurrentSession(finalMessages);
+      setMessages(updatedMessages);
+      sessionManager.autoSaveCurrentSession(updatedMessages);
 
-      logger.exit('executePlanMode', { success: true, iterations, completedCount, failedCount });
+      logger.exit('executePlanMode', { success: true, summary });
     } catch (error) {
       // Handle interrupt specially
       if (error instanceof Error && error.message === 'INTERRUPTED') {
@@ -611,7 +501,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
         setMessages(prev => {
           const updatedMessages: Message[] = [
             ...prev,
-            { role: 'assistant' as const, content: '⚠️ Execution interrupted.' }
+            { role: 'assistant' as const, content: '⚠️ 실행이 중단되었습니다.' }
           ];
           sessionManager.autoSaveCurrentSession(updatedMessages);
           return updatedMessages;
@@ -620,21 +510,31 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       }
 
       logger.error('Plan mode execution failed', error as Error);
+
       const errorMessage = formatErrorMessage(error);
 
       setMessages(prev => {
-        const updatedMessages: Message[] = [
-          ...prev,
-          { role: 'assistant' as const, content: `Execution error:\n\n${errorMessage}` }
-        ];
+        const lastMessage = prev[prev.length - 1];
+        const hasUserMessage = lastMessage?.role === 'user' && lastMessage.content === userMessage;
+
+        const updatedMessages: Message[] = hasUserMessage
+          ? [
+              ...prev,
+              { role: 'assistant' as const, content: `실행 중 오류 발생:\n\n${errorMessage}` }
+            ]
+          : [
+              ...prev,
+              { role: 'user' as const, content: userMessage },
+              { role: 'assistant' as const, content: `실행 중 오류 발생:\n\n${errorMessage}` }
+            ];
+
         sessionManager.autoSaveCurrentSession(updatedMessages);
         return updatedMessages;
       });
     } finally {
       setExecutionPhase('idle');
-      clearTodoCallbacks();
     }
-  }, []);
+  }, [handleTodoUpdate]);
 
   /**
    * Auto mode: Classify request and execute appropriately
@@ -739,24 +639,23 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       });
 
       if (result.success && result.compactedSummary) {
-        // Preserve last 2 messages from original history
-        const lastTwoMessages = messages.slice(-2);
-
-        const compactedBase = buildCompactedMessages(result.compactedSummary, {
+        const compactedMessages = buildCompactedMessages(result.compactedSummary, {
           workingDirectory: process.cwd(),
         });
-
-        // Combine: compacted summary + last 2 messages
-        const finalMessages = [...compactedBase, ...lastTwoMessages];
-
-        setMessages(finalMessages);
+        setMessages(compactedMessages);
         contextTracker.reset();
-        sessionManager.autoSaveCurrentSession(finalMessages);
+        sessionManager.autoSaveCurrentSession(compactedMessages);
+
+        // Reset orchestrator conversation history on compact
+        if (orchestratorRef.current) {
+          orchestratorRef.current.resetConversationHistory();
+          logger.flow('Orchestrator conversation history reset on compact');
+        }
 
         // Emit compact event for Static log
-        emitCompact(result.originalMessageCount, finalMessages.length);
+        emitCompact(result.originalMessageCount, result.newMessageCount);
 
-        logger.flow('Compact completed successfully', { preservedMessages: 2 });
+        logger.flow('Compact completed successfully');
       }
 
       logger.exit('performCompact', { success: result.success });

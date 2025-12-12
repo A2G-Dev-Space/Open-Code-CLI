@@ -420,11 +420,15 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
     }
   });
 
-  // Main menu items (Planning Mode and LLMs removed - models are managed by Admin Server)
+  // Main menu items (Planning Mode removed - always auto)
   const mainMenuItems: SelectItem[] = [
     {
       label: '0. Status',
       value: 'status',
+    },
+    {
+      label: '1. LLMs',
+      value: 'llms',
     },
   ];
 
@@ -471,6 +475,8 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
   const handleMainSelect = (item: SelectItem) => {
     if (item.value === 'status') {
       setView('status');
+    } else if (item.value === 'llms') {
+      setView('llms');
     }
   };
 
