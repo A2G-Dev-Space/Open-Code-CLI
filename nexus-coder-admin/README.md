@@ -1,103 +1,98 @@
 # Nexus Coder Admin Server
 
-Admin server for managing Nexus Coder CLI - models, users, and usage statistics.
+Nexus Coder CLI를 위한 Admin 서버입니다. LLM 모델 관리, 사용자 관리, 사용량 통계를 제공합니다.
 
-## Architecture
+## 설치 및 배포
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                  Docker Compose Stack                    │
-│                                                          │
-│  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐ │
-│  │  Nginx  │──►│   API   │──►│Postgres │   │  Redis  │ │
-│  │  :4090  │   │  :3000  │   │  :5432  │   │  :6379  │ │
-│  │         │   └─────────┘   └─────────┘   └─────────┘ │
-│  │         │                                            │
-│  │         │   ┌───────────────────────┐               │
-│  │         │──►│  React Dashboard      │               │
-│  │         │   │  :8080                │               │
-│  └─────────┘   └───────────────────────┘               │
-└──────────────────────────────────────────────────────────┘
-```
-
-## Quick Start
-
-### 1. Setup Environment
+### 1. 환경 설정
 
 ```bash
+# 저장소 클론
+git clone https://github.com/A2G-Dev-Space/Local-CLI.git
+cd Local-CLI/nexus-coder-admin
+
+# 환경변수 설정
 cp .env.example .env
-# Edit .env with your configuration
 ```
 
-### 2. Add SSO Certificate
+`.env` 파일 수정:
+```env
+POSTGRES_DB=nexuscoder
+POSTGRES_USER=nexuscoder
+POSTGRES_PASSWORD=your-secure-password
 
-Place your SSO certificate in `./cert/cert.cer`
+JWT_SECRET=your-jwt-secret-change-in-production
 
-### 3. Start Services
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-admin-password
+```
+
+### 2. SSO 인증서 설정
+
+SSO 인증서를 `./cert/cert.cer` 경로에 배치합니다.
 
 ```bash
-docker-compose up -d
+mkdir -p cert
+cp /path/to/your/cert.cer ./cert/
 ```
 
-### 4. Initialize Database
+### 3. Docker Compose 실행
 
 ```bash
-docker-compose exec api npx prisma migrate deploy
+# 빌드 및 실행
+docker compose up -d --build
+
+# 로그 확인
+docker compose logs -f
 ```
 
-### 5. Create Initial Super Admin
+### 4. 데이터베이스 초기화
 
 ```bash
-docker-compose exec api npx ts-node scripts/create-admin.ts --loginid your.loginid --role SUPER_ADMIN
+docker compose exec api npx prisma db push
 ```
 
-## Access Points
+### 5. 접속 확인
 
-- **Admin Dashboard**: http://localhost:4090
-- **API**: http://localhost:4090/api
+- **Admin Dashboard**: http://your-server:4090
+- **API Endpoint**: http://your-server:4090/api
 
-## Configuration
+기본 관리자 계정: `.env`에 설정한 `ADMIN_USERNAME` / `ADMIN_PASSWORD`
 
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| POSTGRES_DB | Database name | nexuscoder |
-| POSTGRES_USER | Database user | nexuscoder |
-| POSTGRES_PASSWORD | Database password | nexuscoder123 |
-| JWT_SECRET | JWT signing secret | (required) |
-| SSO_BASE_URL | Samsung SSO server URL | https://genai.samsungds.net:36810 |
-
-## Development
-
-### API Server
+## 서비스 관리
 
 ```bash
-cd packages/api
-npm install
-npm run dev
+# 시작
+docker compose up -d
+
+# 중지
+docker compose down
+
+# 재시작
+docker compose restart
+
+# 로그 확인
+docker compose logs -f api
+
+# 재빌드 (코드 변경 후)
+docker compose up -d --build
 ```
 
-### Dashboard
+## 포트 정보
 
-```bash
-cd packages/dashboard
-npm install
-npm run dev
+| 서비스 | 내부 포트 | 외부 포트 |
+|--------|----------|----------|
+| Nginx (프록시) | 4090 | 4090 |
+| PostgreSQL | 5432 | 4091 |
+| Redis | 6379 | 4092 |
+
+## 사내 네트워크 설정
+
+사내 네트워크에서 프록시 문제가 있을 경우 `docker-compose.yml`의 프록시 설정을 확인하세요:
+
+```yaml
+x-proxy-env: &proxy-env
+  HTTP_PROXY: ""
+  HTTPS_PROXY: ""
+  NO_PROXY: "localhost,127.0.0.1,.samsungds.net,postgres,redis,api,dashboard,nginx"
 ```
-
-## API Endpoints
-
-### Public (for CLI)
-- `POST /api/auth/callback` - SSO callback
-- `GET /api/auth/me` - Current user info
-- `GET /api/models` - List enabled models
-- `POST /api/usage` - Report usage
-
-### Admin
-- `GET /api/admin/models` - All models
-- `POST /api/admin/models` - Create model
-- `PUT /api/admin/models/:id` - Update model
-- `DELETE /api/admin/models/:id` - Delete model
-- `GET /api/admin/users` - List users
-- `GET /api/admin/stats/*` - Usage statistics
