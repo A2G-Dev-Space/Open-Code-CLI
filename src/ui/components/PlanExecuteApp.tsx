@@ -655,8 +655,8 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           title: todo.title,
           description: todo.description || '',
           status: todo.status,
-          requiresDocsSearch: false,  // Default value
-          dependencies: [],            // Default value
+          requiresDocsSearch: todo.requiresDocsSearch ?? false,
+          dependencies: todo.dependencies ?? [],
           result: todo.result,
           error: todo.error,
         }));
