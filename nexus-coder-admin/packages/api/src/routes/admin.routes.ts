@@ -11,6 +11,18 @@ import { authenticateToken, requireAdmin, requireSuperAdmin, AuthenticatedReques
 import { getActiveUserCount, getTodayUsage } from '../services/redis.service.js';
 import { z } from 'zod';
 
+/**
+ * Helper: PostgreSQL DATE() 결과를 YYYY-MM-DD 문자열로 변환
+ * Prisma raw query에서 DATE 타입은 Date 객체 또는 string으로 올 수 있음
+ */
+function formatDateToString(date: Date | string): string {
+  if (typeof date === 'string') {
+    // 이미 문자열이면 YYYY-MM-DD 형식으로 정규화
+    return date.split('T')[0] || date;
+  }
+  return date.toISOString().split('T')[0]!;
+}
+
 export const adminRoutes = Router();
 
 // Apply authentication and admin check to all routes
@@ -490,7 +502,7 @@ adminRoutes.get('/stats/daily-active-users', async (req: AuthenticatedRequest, r
     startDate.setHours(0, 0, 0, 0);
 
     // Get distinct users per day from usage logs (일별 활성 사용자)
-    const dailyUsers = await prisma.$queryRaw<Array<{ date: Date; user_count: bigint }>>`
+    const dailyUsers = await prisma.$queryRaw<Array<{ date: Date | string; user_count: bigint }>>`
       SELECT DATE(timestamp) as date, COUNT(DISTINCT user_id) as user_count
       FROM usage_logs
       WHERE timestamp >= ${startDate}
@@ -500,7 +512,7 @@ adminRoutes.get('/stats/daily-active-users', async (req: AuthenticatedRequest, r
 
     // Convert to chart format
     const chartData = dailyUsers.map((item) => ({
-      date: item.date.toISOString().split('T')[0],
+      date: formatDateToString(item.date),
       userCount: Number(item.user_count),
     }));
 
@@ -536,7 +548,7 @@ adminRoutes.get('/stats/cumulative-users', async (req: AuthenticatedRequest, res
     startDate.setHours(0, 0, 0, 0);
 
     // Get the first usage date for each user
-    const userFirstUsage = await prisma.$queryRaw<Array<{ first_date: Date; new_users: bigint }>>`
+    const userFirstUsage = await prisma.$queryRaw<Array<{ first_date: Date | string; new_users: bigint }>>`
       SELECT DATE(first_usage) as first_date, COUNT(*) as new_users
       FROM (
         SELECT user_id, MIN(timestamp) as first_usage
@@ -560,7 +572,7 @@ adminRoutes.get('/stats/cumulative-users', async (req: AuthenticatedRequest, res
     // Build cumulative chart data
     const newUsersMap = new Map(
       userFirstUsage.map((item) => [
-        item.first_date.toISOString().split('T')[0],
+        formatDateToString(item.first_date),
         Number(item.new_users),
       ])
     );
@@ -607,13 +619,19 @@ adminRoutes.get('/stats/model-daily-trend', async (req: AuthenticatedRequest, re
     });
 
     // Get daily stats grouped by model and date using raw SQL
-    const dailyStats = await prisma.$queryRaw<Array<{ date: Date; model_id: string; total_tokens: bigint }>>`
+    const dailyStats = await prisma.$queryRaw<Array<{ date: Date | string; model_id: string; total_tokens: bigint }>>`
       SELECT DATE(timestamp) as date, model_id, SUM(total_tokens) as total_tokens
       FROM usage_logs
       WHERE timestamp >= ${startDate}
       GROUP BY DATE(timestamp), model_id
       ORDER BY date ASC
     `;
+
+    // Debug logging
+    console.log(`[model-daily-trend] Models: ${models.length}, DailyStats rows: ${dailyStats.length}`);
+    if (dailyStats.length > 0) {
+      console.log(`[model-daily-trend] Sample stat:`, JSON.stringify(dailyStats[0]));
+    }
 
     // Process into date-keyed structure with model usage
     const dateMap = new Map<string, Record<string, number>>();
@@ -626,7 +644,7 @@ adminRoutes.get('/stats/model-daily-trend', async (req: AuthenticatedRequest, re
 
     // Populate with actual data
     for (const stat of dailyStats) {
-      const dateStr = stat.date.toISOString().split('T')[0]!;
+      const dateStr = formatDateToString(stat.date);
       const existing = dateMap.get(dateStr) || {};
       existing[stat.model_id] = Number(stat.total_tokens);
       dateMap.set(dateStr, existing);
@@ -697,7 +715,7 @@ adminRoutes.get('/stats/model-user-trend', async (req: AuthenticatedRequest, res
     });
 
     // Get daily stats for these users using raw SQL
-    const dailyStats = await prisma.$queryRaw<Array<{ date: Date; user_id: string; total_tokens: bigint }>>`
+    const dailyStats = await prisma.$queryRaw<Array<{ date: Date | string; user_id: string; total_tokens: bigint }>>`
       SELECT DATE(timestamp) as date, user_id, SUM(total_tokens) as total_tokens
       FROM usage_logs
       WHERE model_id = ${modelId}
@@ -718,7 +736,7 @@ adminRoutes.get('/stats/model-user-trend', async (req: AuthenticatedRequest, res
 
     // Populate with actual data
     for (const stat of dailyStats) {
-      const dateStr = stat.date.toISOString().split('T')[0]!;
+      const dateStr = formatDateToString(stat.date);
       const existing = dateMap.get(dateStr) || {};
       existing[stat.user_id] = Number(stat.total_tokens);
       dateMap.set(dateStr, existing);
