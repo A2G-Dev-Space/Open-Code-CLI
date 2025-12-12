@@ -37,8 +37,15 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
   }
 
   try {
-    // Decode token without verification (SSO token is already verified)
-    // In production, verify with SSO certificate
+    // First try to verify as internally signed token (from admin-login or session)
+    const internalPayload = verifyInternalToken(token);
+    if (internalPayload && internalPayload.loginid) {
+      req.user = internalPayload;
+      next();
+      return;
+    }
+
+    // If not internal token, try decoding as SSO token (base64 decode)
     const decoded = decodeJWT(token);
 
     if (!decoded || !decoded.loginid) {
@@ -64,6 +71,16 @@ export async function requireAdmin(req: AuthenticatedRequest, res: Response, nex
   }
 
   try {
+    // Check if system admin (from environment variables)
+    const adminUsername = process.env['ADMIN_USERNAME'] || 'admin';
+    if (req.user.loginid === adminUsername) {
+      req.isAdmin = true;
+      req.adminRole = 'SUPER_ADMIN';
+      next();
+      return;
+    }
+
+    // Check database admin
     const admin = await prisma.admin.findUnique({
       where: { loginid: req.user.loginid },
     });
@@ -92,6 +109,16 @@ export async function requireSuperAdmin(req: AuthenticatedRequest, res: Response
   }
 
   try {
+    // Check if system admin (from environment variables)
+    const adminUsername = process.env['ADMIN_USERNAME'] || 'admin';
+    if (req.user.loginid === adminUsername) {
+      req.isAdmin = true;
+      req.adminRole = 'SUPER_ADMIN';
+      next();
+      return;
+    }
+
+    // Check database admin
     const admin = await prisma.admin.findUnique({
       where: { loginid: req.user.loginid },
     });
