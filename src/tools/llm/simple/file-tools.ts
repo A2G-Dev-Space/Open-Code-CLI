@@ -10,6 +10,7 @@ import * as path from 'path';
 import { ToolDefinition } from '../../../types/index.js';
 import { LLMSimpleTool, ToolResult, ToolCategory } from '../../types.js';
 import { TODO_TOOLS } from './todo-tools.js';
+import { bashTool } from './bash-tool.js';
 
 // Safety limits
 const EXCLUDED_DIRS = new Set([
@@ -797,6 +798,7 @@ export const FILE_SIMPLE_TOOLS: LLMSimpleTool[] = [
   listFilesTool,
   findFilesTool,
   tellToUserTool,
+  bashTool,
 ];
 
 /**
