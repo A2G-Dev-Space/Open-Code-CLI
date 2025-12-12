@@ -1129,12 +1129,18 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             <Text>{' '}</Text>
             <Text>{' '}</Text>
             <Text>{' '}</Text>
-            <Text bold color="cyanBright"> ██╗      ██████╗  ██████╗ █████╗ ██╗          ██████╗██╗     ██╗</Text>
-            <Text bold color="cyan"> ██║     ██╔═══██╗██╔════╝██╔══██╗██║         ██╔════╝██║     ██║</Text>
-            <Text bold color="cyan"> ██║     ██║   ██║██║     ███████║██║         ██║     ██║     ██║</Text>
-            <Text bold color="blue"> ██║     ██║   ██║██║     ██╔══██║██║         ██║     ██║     ██║</Text>
-            <Text bold color="blue"> ███████╗╚██████╔╝╚██████╗██║  ██║███████╗    ╚██████╗███████╗██║</Text>
-            <Text bold color="blueBright"> ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝     ╚═════╝╚══════╝╚═╝</Text>
+            <Text bold color="cyanBright"> ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗</Text>
+            <Text bold color="cyan"> ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝</Text>
+            <Text bold color="cyan"> ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗</Text>
+            <Text bold color="blue"> ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║</Text>
+            <Text bold color="blue"> ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║</Text>
+            <Text bold color="blueBright"> ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝</Text>
+            <Text bold color="cyanBright">      ██████╗ ██████╗ ██████╗ ███████╗██████╗ </Text>
+            <Text bold color="cyan">     ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗</Text>
+            <Text bold color="cyan">     ██║     ██║   ██║██║  ██║█████╗  ██████╔╝</Text>
+            <Text bold color="blue">     ██║     ██║   ██║██║  ██║██╔══╝  ██╔══██╗</Text>
+            <Text bold color="blue">     ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║</Text>
+            <Text bold color="blueBright">      ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝</Text>
             <Text color="gray">                      {entry.content}</Text>
           </Box>
         );
@@ -1393,12 +1399,18 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             <Text>{' '}</Text>
             <Text>{' '}</Text>
             <Text>{' '}</Text>
-            <Text bold color="cyanBright"> ██╗      ██████╗  ██████╗ █████╗ ██╗          ██████╗██╗     ██╗</Text>
-            <Text bold color="cyan"> ██║     ██╔═══██╗██╔════╝██╔══██╗██║         ██╔════╝██║     ██║</Text>
-            <Text bold color="cyan"> ██║     ██║   ██║██║     ███████║██║         ██║     ██║     ██║</Text>
-            <Text bold color="blue"> ██║     ██║   ██║██║     ██╔══██║██║         ██║     ██║     ██║</Text>
-            <Text bold color="blue"> ███████╗╚██████╔╝╚██████╗██║  ██║███████╗    ╚██████╗███████╗██║</Text>
-            <Text bold color="blueBright"> ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝     ╚═════╝╚══════╝╚═╝</Text>
+            <Text bold color="cyanBright"> ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗</Text>
+            <Text bold color="cyan"> ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝</Text>
+            <Text bold color="cyan"> ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗</Text>
+            <Text bold color="blue"> ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║</Text>
+            <Text bold color="blue"> ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║</Text>
+            <Text bold color="blueBright"> ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝</Text>
+            <Text bold color="cyanBright">      ██████╗ ██████╗ ██████╗ ███████╗██████╗ </Text>
+            <Text bold color="cyan">     ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗</Text>
+            <Text bold color="cyan">     ██║     ██║   ██║██║  ██║█████╗  ██████╔╝</Text>
+            <Text bold color="blue">     ██║     ██║   ██║██║  ██║██╔══╝  ██╔══██╗</Text>
+            <Text bold color="blue">     ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║</Text>
+            <Text bold color="blueBright">      ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝</Text>
             <Text color="gray">── {entry.content} ──</Text>
           </Box>
         );
