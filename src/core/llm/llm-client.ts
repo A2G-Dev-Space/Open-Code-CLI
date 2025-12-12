@@ -422,7 +422,7 @@ export class LLMClient {
     userMessage: string,
     tools: import('../../types/index.js').ToolDefinition[],
     systemPrompt?: string,
-    maxIterations: number = 5
+    maxIterations: number = 20
   ): Promise<{ response: string; toolCalls: Array<{ tool: string; args: unknown; result: string }> }> {
     logger.enter('sendMessageWithTools', {
       messageLength: userMessage.length,
@@ -648,7 +648,7 @@ export class LLMClient {
   async chatCompletionWithTools(
     messages: Message[],
     tools: import('../../types/index.js').ToolDefinition[],
-    maxIterations: number = 5
+    maxIterations: number = 20
   ): Promise<{
     message: Message;
     toolCalls: Array<{ tool: string; args: unknown; result: string }>;
