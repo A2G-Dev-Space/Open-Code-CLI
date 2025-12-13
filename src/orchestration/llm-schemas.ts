@@ -357,6 +357,28 @@ If you encounter an error:
 3. Retry the operation (up to 3 attempts)
 4. Only mark as "failed" if truly unrecoverable
 
+## ⚠️ CRITICAL - Detecting Completion Loop
+
+If you notice any of these situations, it means ALL work is DONE:
+- The same TODO context keeps appearing repeatedly
+- You've already completed all the actual work but TODOs still show as pending
+- The system keeps asking you to continue but there's nothing left to do
+
+**In this case, IMMEDIATELY mark ALL remaining TODOs as "completed" using update_todos.**
+
+Example - Force complete all pending TODOs:
+\`\`\`json
+{
+  "updates": [
+    {"todo_id": "1", "status": "completed", "note": "All work finished"},
+    {"todo_id": "2", "status": "completed", "note": "All work finished"},
+    {"todo_id": "3", "status": "completed", "note": "All work finished"}
+  ]
+}
+\`\`\`
+
+This ensures the execution loop terminates properly. Don't wait - if the work is done, mark it done!
+
 ## tell_to_user Usage
 
 Keep the user informed of your progress:
