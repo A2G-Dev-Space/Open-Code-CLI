@@ -15,6 +15,7 @@ import { authRoutes } from './routes/auth.routes.js';
 import { modelsRoutes } from './routes/models.routes.js';
 import { usageRoutes } from './routes/usage.routes.js';
 import { adminRoutes } from './routes/admin.routes.js';
+import { proxyRoutes } from './routes/proxy.routes.js';
 
 // Load environment variables
 import 'dotenv/config';
@@ -55,6 +56,9 @@ app.use('/auth', authRoutes);
 app.use('/models', modelsRoutes);
 app.use('/usage', usageRoutes);
 app.use('/admin', adminRoutes);
+
+// LLM Proxy Routes (OpenAI-compatible)
+app.use('/v1', proxyRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -155,6 +155,7 @@ class AuthManager {
 
   /**
    * Get auth headers for API calls
+   * 인증 토큰과 사용자 정보를 헤더로 전송
    */
   getAuthHeaders(): Record<string, string> {
     if (!this.authState) return {};
@@ -162,6 +163,8 @@ class AuthManager {
     return {
       'Authorization': `Bearer ${this.authState.token}`,
       'X-User-Id': this.authState.user.loginid,
+      'X-User-Name': this.authState.user.username,
+      'X-User-Dept': this.authState.user.deptname,
     };
   }
 
