@@ -1,4 +1,4 @@
-# Nexus Coder v2.2.0
+# Nexus Coder v2.4.1
 
 **Enterprise AI Coding Assistant**
 
@@ -222,15 +222,18 @@ nexus --debug      # Debug 모드
 
 ## 문제 해결
 
-**사용자 데이터 (`~/.nexus-coder/`):**
-```
-~/.nexus-coder/
-├── config.json        # 설정 파일 (모델 정보 등)
-├── auth.json          # 인증 정보 (자동 저장)
-├── docs/              # 다운로드된 문서
-├── backups/           # 백업 파일
-└── projects/          # 프로젝트별 세션
-```
+### v2.4.x New Features
+
+| Feature | Description |
+|---------|-------------|
+| **Markdown Rendering** | Assistant responses now render markdown (bold, italic, code blocks, lists) in CLI (v2.4.1) |
+| **LLM-based Docs Search** | Intelligent documentation search trigger - LLM decides when to search based on folder structure |
+| **Hierarchical Docs Navigation** | New docs search agent with folder-based navigation (list_directory, read_docs_file, preview_file) |
+| **Docs Search Progress UI** | Real-time progress display during documentation search |
+| **Centralized Prompts** | All prompts moved to `src/prompts/` for better organization |
+| **Restructured Agents** | Agents reorganized under `src/agents/` with base class |
+
+### v2.2.0 Features
 
 **레포지토리:**
 ```
