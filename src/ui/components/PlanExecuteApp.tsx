@@ -1334,10 +1334,14 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
       case 'docs_search': {
         // Truncate content if more than 5 lines (UI only)
+        // Handle both actual newlines and literal \n strings
         let displayContent = entry.content;
-        const lines = entry.content.split('\n');
+        const lines = entry.content.split(/\\n|\n/);
         if (lines.length > 5) {
           displayContent = lines.slice(0, 5).join('\n') + `\n... (${lines.length - 5} more lines)`;
+        } else {
+          // Replace literal \n with actual newlines for display
+          displayContent = lines.join('\n');
         }
         return (
           <Box key={entry.id} marginTop={1} flexDirection="column">
