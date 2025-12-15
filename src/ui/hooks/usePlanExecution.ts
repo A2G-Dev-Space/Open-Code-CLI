@@ -186,7 +186,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
   const [currentTodoId, setCurrentTodoId] = useState<string | undefined>();
   const [executionPhase, setExecutionPhase] = useState<ExecutionPhase>('idle');
   const [isInterrupted, setIsInterrupted] = useState(false);
-  const [currentActivity, setCurrentActivity] = useState<string>('대기 중');
+  const [currentActivity, setCurrentActivity] = useState<string>('Idle');
 
   // Ref for interrupt flag (allows checking in async callbacks)
   const isInterruptedRef = useRef(false);
@@ -343,7 +343,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       // Reset to idle state
       setExecutionPhase('idle');
       setCurrentTodoId(undefined);
-      setCurrentActivity('중단됨');
+      setCurrentActivity('Stopped');
 
       logger.debug('Execution stopped completely');
       logger.exit('handleInterrupt', { result: 'stopped' });
@@ -355,7 +355,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       logger.flow('First ESC - pausing execution');
       setIsInterrupted(true);
       isInterruptedRef.current = true;
-      setCurrentActivity('일시정지됨');
+      setCurrentActivity('Paused');
 
       logger.debug('Execution paused (can resume or press ESC again to stop)');
       logger.exit('handleInterrupt', { result: 'paused' });
@@ -380,7 +380,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     // Reset interrupt flag at start
     isInterruptedRef.current = false;
     setIsInterrupted(false);
-    setCurrentActivity('요청 분석 중');
+    setCurrentActivity('Analyzing request');
 
     // Clear todos when executing direct mode (simple response)
     // This hides the TODO panel after todos are completed
@@ -396,7 +396,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       // Note: Docs search is now handled in executeAutoMode before classification
       // messages parameter already includes docs search results if performed
 
-      setCurrentActivity('응답 생성 중');
+      setCurrentActivity('Generating response');
 
       const { FILE_TOOLS } = await import('../../tools/llm/simple/file-tools.js');
 
@@ -852,7 +852,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     isInterruptedRef.current = false;
     setIsInterrupted(false);
     setExecutionPhase('classifying');
-    setCurrentActivity('요청 분류 중');
+    setCurrentActivity('Classifying request');
 
     try {
       // Check for interrupt
@@ -861,7 +861,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       }
 
       // 1. Docs search decision (before classification)
-      setCurrentActivity('문서 검색 결정 중');
+      setCurrentActivity('Checking documentation');
       const { messages: messagesWithDocs, performed: docsSearchPerformed } =
         await performDocsSearchIfNeeded(llmClient, userMessage, messages);
 
@@ -878,7 +878,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       }
 
       // 2. Request classification
-      setCurrentActivity('요청 분류 중');
+      setCurrentActivity('Classifying request');
       const classifier = new RequestClassifier(llmClient);
       const classification = await classifier.classify(userMessage);
 
@@ -948,7 +948,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
   ): Promise<CompactResult> => {
     logger.enter('performCompact', { messageCount: messages.length });
     setExecutionPhase('compacting');
-    setCurrentActivity('대화 압축 중');
+    setCurrentActivity('Compacting conversation');
 
     try {
       const compactManager = new CompactManager(llmClient);
@@ -994,7 +994,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
       };
     } finally {
       setExecutionPhase('idle');
-      setCurrentActivity('대기 중');
+      setCurrentActivity('Idle');
     }
   }, [todos]);
 
