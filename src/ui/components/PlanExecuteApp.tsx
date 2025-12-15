@@ -27,7 +27,8 @@ export type LogEntryType =
   | 'approval_request'
   | 'approval_response'
   | 'interrupt'
-  | 'session_restored';
+  | 'session_restored'
+  | 'docs_search';
 
 export interface LogEntry {
   id: string;
@@ -44,7 +45,8 @@ import { LLMClient, createLLMClient } from '../../core/llm/llm-client.js';
 import { Message } from '../../types/index.js';
 import { TodoPanel, TodoStatusBar } from '../TodoPanel.js';
 import { sessionManager } from '../../core/session/session-manager.js';
-import { initializeDocsDirectory } from '../../agents/docs-search/index.js';
+import { initializeDocsDirectory, setDocsSearchProgressCallback, type DocsSearchLogType } from '../../agents/docs-search/index.js';
+import { DocsSearchProgress, type DocsSearchLog } from './DocsSearchProgress.js';
 import { FileBrowser } from './FileBrowser.js';
 import { SessionBrowser } from './panels/SessionPanel.js';
 import { SettingsBrowser } from './dialogs/SettingsDialog.js';
@@ -185,6 +187,10 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const logIdCounter = React.useRef(0);
   const lastToolArgsRef = React.useRef<Record<string, unknown> | null>(null);
+
+  // Docs search progress state
+  const [docsSearchLogs, setDocsSearchLogs] = useState<DocsSearchLog[]>([]);
+  const [isDocsSearching, setIsDocsSearching] = useState(false);
 
   // Pending user message queue (for messages entered during LLM processing)
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
@@ -361,6 +367,43 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       setToolApprovalCallback(null);
     };
   }, [executionMode, autoApprovedTools, addLog]);
+
+  // Setup docs search progress callback
+  useEffect(() => {
+    setDocsSearchProgressCallback((type: DocsSearchLogType, message: string) => {
+      // Handle completion
+      if (type === 'complete') {
+        // Add result to static log
+        addLog({
+          type: 'docs_search',
+          content: message,
+        });
+
+        // Clear progress state
+        setIsDocsSearching(false);
+        setDocsSearchLogs([]);
+        return;
+      }
+
+      // Start docs search on first log
+      setIsDocsSearching(true);
+
+      // Add log entry (max 8, remove oldest if exceeding)
+      setDocsSearchLogs(prev => {
+        const newLog: DocsSearchLog = {
+          type: type as DocsSearchLog['type'],
+          message,
+          timestamp: Date.now(),
+        };
+        const updated = [...prev, newLog];
+        return updated.slice(-8); // Keep only last 8
+      });
+    });
+
+    return () => {
+      setDocsSearchProgressCallback(null);
+    };
+  }, [addLog]);
 
   // Handle approval dialog response
   const handleApprovalResponse = useCallback((result: ToolApprovalResult) => {
@@ -1224,6 +1267,17 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           </Box>
         );
 
+      case 'docs_search':
+        return (
+          <Box key={entry.id} marginTop={1} flexDirection="column">
+            <Text color="yellow" bold>📚 Document Search Complete</Text>
+            {entry.details && <Text color="gray" dimColor>   {entry.details}</Text>}
+            <Box paddingLeft={3} marginTop={0}>
+              <Text color="gray">{entry.content}</Text>
+            </Box>
+          </Box>
+        );
+
       case 'tool_start': {
         // Tool별 아이콘 매핑
         const getToolIcon = (toolName: string): string => {
@@ -1534,7 +1588,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       )}
 
       {/* Activity Indicator (shown when processing, but NOT when TODO panel is visible) */}
-      {isProcessing && planExecutionState.todos.length === 0 && !pendingToolApproval && (
+      {isProcessing && planExecutionState.todos.length === 0 && !pendingToolApproval && !isDocsSearching && (
         <Box marginY={0}>
           <ActivityIndicator
             activity={getCurrentActivityType()}
@@ -1544,6 +1598,14 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
             modelName={currentModelInfo.model}
           />
         </Box>
+      )}
+
+      {/* Docs Search Progress (shown when searching documents) */}
+      {isDocsSearching && (
+        <DocsSearchProgress
+          logs={docsSearchLogs}
+          isSearching={isDocsSearching}
+        />
       )}
 
       {/* TODO Panel (always visible when there are todos) */}

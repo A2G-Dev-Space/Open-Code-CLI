@@ -19,4 +19,7 @@ export {
   executeDocsSearchAgent,
   initializeDocsDirectory,
   addDocumentationFile,
+  setDocsSearchProgressCallback,
+  type DocsSearchLogType,
+  type DocsSearchProgressCallback,
 } from './docs-search/index.js';

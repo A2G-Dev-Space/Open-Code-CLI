@@ -15,6 +15,38 @@ import { logger } from '../../utils/logger.js';
 import { RUN_BASH_TOOL } from './tools.js';
 
 /**
+ * Progress log types for docs search
+ */
+export type DocsSearchLogType = 'command' | 'file' | 'info' | 'result' | 'complete';
+
+/**
+ * Progress callback for docs search
+ */
+export type DocsSearchProgressCallback = (
+  type: DocsSearchLogType,
+  message: string
+) => void;
+
+/**
+ * Global progress callback (set from UI)
+ */
+let globalProgressCallback: DocsSearchProgressCallback | null = null;
+
+/**
+ * Set the global docs search progress callback
+ */
+export function setDocsSearchProgressCallback(callback: DocsSearchProgressCallback | null): void {
+  globalProgressCallback = callback;
+}
+
+/**
+ * Get the current progress callback
+ */
+export function getDocsSearchProgressCallback(): DocsSearchProgressCallback | null {
+  return globalProgressCallback;
+}
+
+/**
  * Stop words for keyword extraction
  */
 const STOP_WORDS = new Set([
@@ -90,6 +122,10 @@ export class DocsSearchAgent extends BaseAgent {
 
     this.executedCommands.clear();
 
+    // Notify progress start
+    const progressCallback = globalProgressCallback;
+    progressCallback?.('info', `Searching for: "${input.slice(0, 50)}${input.length > 50 ? '...' : ''}"`);
+
     try {
       const frameworkDetection = detectFrameworkPath(input);
       const keywords = extractKeywords(input);
@@ -100,6 +136,10 @@ export class DocsSearchAgent extends BaseAgent {
         basePath: frameworkDetection.basePath,
         keywords: keywords.join(', ') || 'none',
       });
+
+      if (frameworkDetection.framework) {
+        progressCallback?.('info', `Framework detected: ${frameworkDetection.framework.toUpperCase()}`);
+      }
 
       const systemPrompt = buildDocsSearchPrompt(frameworkDetection, keywords);
 
@@ -166,6 +206,9 @@ export class DocsSearchAgent extends BaseAgent {
       const totalElapsed = logger.endTimer('docs-search-total');
       logger.exit('DocsSearchAgent.execute', { success: true, resultLength: finalResult.length });
 
+      // Notify completion
+      progressCallback?.('complete', finalResult.slice(0, 200) + (finalResult.length > 200 ? '...' : ''));
+
       return {
         success: true,
         result: finalResult,
@@ -178,6 +221,9 @@ export class DocsSearchAgent extends BaseAgent {
       logger.endTimer('docs-search-total');
       logger.error('Documentation Search Failed', error instanceof Error ? error : new Error(String(error)));
 
+      // Notify completion with error
+      progressCallback?.('complete', `Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error in docs search',
@@ -186,6 +232,8 @@ export class DocsSearchAgent extends BaseAgent {
   }
 
   private async executeBashTool(toolCall: { id: string; function: { arguments: string } }): Promise<string> {
+    const progressCallback = globalProgressCallback;
+
     let args: { command: string };
     try {
       args = JSON.parse(toolCall.function.arguments);
@@ -206,6 +254,10 @@ export class DocsSearchAgent extends BaseAgent {
       return `⚠️ STOP: This exact command was already executed. Based on the information you've gathered, provide your final answer NOW. Do not repeat the same search.`;
     }
 
+    // Report command execution to UI
+    const shortCommand = this.formatCommandForDisplay(sanitized);
+    progressCallback?.('command', shortCommand);
+
     logger.debug('Executing bash command', { command: sanitized });
 
     const result = await executeBashCommand(sanitized);
@@ -218,6 +270,9 @@ export class DocsSearchAgent extends BaseAgent {
       this.executedCommands.add(sanitized);
       let toolResult = result.result || 'Command executed successfully (no output)';
 
+      // Report results to UI
+      this.reportResultsToUI(sanitized, toolResult, progressCallback);
+
       if (toolResult.length > DOCS_SEARCH_CONFIG.MAX_OUTPUT_LENGTH) {
         logger.warn('Output truncated due to length', {
           originalLength: toolResult.length,
@@ -229,7 +284,77 @@ export class DocsSearchAgent extends BaseAgent {
 
       return toolResult;
     } else {
+      progressCallback?.('info', `Command failed: ${result.error?.slice(0, 50)}`);
       return `Error: ${result.error}`;
+    }
+  }
+
+  /**
+   * Format command for display (shorten long commands)
+   */
+  private formatCommandForDisplay(command: string): string {
+    // Extract the main command type
+    if (command.startsWith('find ')) {
+      const nameMatch = command.match(/-name\s+"?\*?([^"*]+)/);
+      return nameMatch?.[1] ? `find ... -name "*${nameMatch[1]}*"` : 'find ...';
+    }
+    if (command.startsWith('grep ')) {
+      const patternMatch = command.match(/grep\s+(?:-\w+\s+)*"?([^"]+)"/);
+      return patternMatch?.[1] ? `grep "${patternMatch[1].slice(0, 30)}"` : 'grep ...';
+    }
+    if (command.startsWith('cat ')) {
+      const files = command.substring(4).split(/\s+/).filter(f => f);
+      if (files.length === 1) {
+        const fileName = files[0]?.split('/').pop() || files[0];
+        return `cat ${fileName}`;
+      }
+      return `cat ${files.length} files`;
+    }
+    if (command.startsWith('head ')) {
+      const fileMatch = command.match(/head\s+-n\s+\d+\s+(.+)/);
+      if (fileMatch) {
+        const fileName = fileMatch[1]?.split('/').pop() || fileMatch[1];
+        return `head ${fileName}`;
+      }
+    }
+    if (command.startsWith('ls ') || command === 'ls') {
+      return 'ls (listing files)';
+    }
+    // Default: truncate
+    return command.length > 50 ? command.slice(0, 47) + '...' : command;
+  }
+
+  /**
+   * Report search results to UI
+   */
+  private reportResultsToUI(
+    command: string,
+    result: string,
+    callback: DocsSearchProgressCallback | null
+  ): void {
+    if (!callback) return;
+
+    // For find commands, report number of files found
+    if (command.startsWith('find ') && result.includes('.md')) {
+      const files = result.trim().split('\n').filter(line => line.includes('.md'));
+      if (files.length > 0) {
+        callback('result', `Found ${files.length} file(s)`);
+      }
+    }
+    // For grep commands, report matches
+    else if (command.includes('grep')) {
+      const matches = result.trim().split('\n').filter(line => line.length > 0);
+      if (matches.length > 0) {
+        callback('result', `Found ${matches.length} match(es)`);
+      }
+    }
+    // For cat commands, report file being read
+    else if (command.startsWith('cat ')) {
+      const files = command.substring(4).split(/\s+/).filter(f => f && f.endsWith('.md'));
+      if (files.length > 0) {
+        const fileNames = files.map(f => f.split('/').pop()).join(', ');
+        callback('file', `Reading: ${fileNames.slice(0, 60)}${fileNames.length > 60 ? '...' : ''}`);
+      }
     }
   }
 }
