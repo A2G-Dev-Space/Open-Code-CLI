@@ -1029,17 +1029,30 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         }
       }
 
-      // Phase 1: Use auto mode with LLM-based request classification
-      setActivityType('thinking');
-      setActivityDetail('Analyzing request...');
-
-      logger.vars(
-        { name: 'planningMode', value: planningMode },
-        { name: 'messageLength', value: userMessage.length }
+      // Check if we should resume TODO execution instead of starting fresh
+      const hasPendingTodos = planExecutionState.todos.some(
+        t => t.status === 'pending' || t.status === 'in_progress'
       );
 
-      // Use executeAutoMode which handles classification internally
-      await planExecutionState.executeAutoMode(userMessage, llmClient!, updatedMessages, setMessages);
+      if (hasPendingTodos && planExecutionState.isInterrupted) {
+        // Resume TODO execution with the new message
+        logger.flow('Resuming TODO execution after pause');
+        setActivityType('executing');
+        setActivityDetail('Resuming...');
+        await planExecutionState.resumeTodoExecution(userMessage, llmClient!, messages, setMessages);
+      } else {
+        // Phase 1: Use auto mode with LLM-based request classification
+        setActivityType('thinking');
+        setActivityDetail('Analyzing request...');
+
+        logger.vars(
+          { name: 'planningMode', value: planningMode },
+          { name: 'messageLength', value: userMessage.length }
+        );
+
+        // Use executeAutoMode which handles classification internally
+        await planExecutionState.executeAutoMode(userMessage, llmClient!, updatedMessages, setMessages);
+      }
 
     } catch (error) {
       logger.error('Message processing failed', error as Error);
