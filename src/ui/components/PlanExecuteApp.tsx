@@ -1333,20 +1333,23 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         );
 
       case 'docs_search': {
-        // Truncate content if more than 5 lines (UI only)
+        // Truncate both content and details if more than 5 lines (UI only)
         // Handle both actual newlines and literal \n strings
-        let displayContent = entry.content;
-        const lines = entry.content.split(/\\n|\n/);
-        if (lines.length > 5) {
-          displayContent = lines.slice(0, 5).join('\n') + `\n... (${lines.length - 5} more lines)`;
-        } else {
-          // Replace literal \n with actual newlines for display
-          displayContent = lines.join('\n');
-        }
+        const truncateText = (text: string, maxLines: number = 5): string => {
+          const lines = text.split(/\\n|\n/);
+          if (lines.length > maxLines) {
+            return lines.slice(0, maxLines).join('\n') + `\n... (${lines.length - maxLines} more lines)`;
+          }
+          return lines.join('\n');
+        };
+
+        const displayContent = truncateText(entry.content);
+        const displayDetails = entry.details ? truncateText(entry.details) : undefined;
+
         return (
           <Box key={entry.id} marginTop={1} flexDirection="column">
             <Text color="yellow" bold>📚 Document Search Complete</Text>
-            {entry.details && <Text color="gray" dimColor>   {entry.details}</Text>}
+            {displayDetails && <Text color="gray" dimColor>   {displayDetails}</Text>}
             <Box paddingLeft={3} marginTop={0}>
               <Text color="gray">{displayContent}</Text>
             </Box>
