@@ -1508,7 +1508,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       {/* Input Area */}
       <Box borderStyle="single" borderColor="gray" paddingX={1} flexDirection="column">
         <Box>
-          <Text color="green">👤 </Text>
+          <Text color="green" bold>&gt; </Text>
           <Box flexGrow={1}>
             <CustomTextInput
               value={input}
