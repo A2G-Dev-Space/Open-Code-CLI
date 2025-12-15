@@ -11,7 +11,7 @@ import { LLMClient } from '../../core/llm/llm-client.js';
 import { RequestClassifier } from '../../core/llm/request-classifier.js';
 // PlanExecuteOrchestrator removed - now using unified execution loop
 import { sessionManager } from '../../core/session/session-manager.js';
-import { performDocsSearchIfNeeded } from '../../core/agent-framework-handler.js';
+import { performDocsSearchIfNeeded } from '../../tools/system/agents/docs-search.js';
 import { BaseError } from '../../errors/base.js';
 import { logger } from '../../utils/logger.js';
 import {
