@@ -30,6 +30,7 @@ import {
   emitTodoFail,
   emitCompact,
 } from '../tools/llm/simple/file-tools.js';
+import { toolRegistry } from '../tools/registry.js';
 import { DEFAULT_SYSTEM_PROMPT } from '../prompts/system/default.js';
 import { PLAN_EXECUTE_SYSTEM_PROMPT as PLAN_PROMPT } from '../prompts/system/plan-execute.js';
 import { logger } from '../utils/logger.js';
@@ -89,7 +90,7 @@ export class PlanExecutor {
 
       callbacks.setCurrentActivity('Generating response');
 
-      const { FILE_TOOLS } = await import('../tools/llm/simple/file-tools.js');
+      const tools = toolRegistry.getLLMToolDefinitions();
 
       // Prepare messages with system prompt
       const hasSystemMessage = messages.some(m => m.role === 'system');
@@ -99,7 +100,7 @@ export class PlanExecutor {
 
       const result = await llmClient.chatCompletionWithTools(
         messagesWithSystem.concat({ role: 'user', content: userMessage }),
-        FILE_TOOLS
+        tools
       );
 
       if (isInterruptedRef.current) {
@@ -190,7 +191,7 @@ export class PlanExecutor {
 
       // 3. Execute loop
       callbacks.setExecutionPhase('executing');
-      const { FILE_TOOLS } = await import('../tools/llm/simple/file-tools.js');
+      const tools = toolRegistry.getLLMToolDefinitions();
 
       // Prepare system message
       const hasSystemMessage = currentMessages.some(m => m.role === 'system');
@@ -228,7 +229,7 @@ export class PlanExecutor {
           : [...currentMessages, { role: 'user' as const, content: `Continue with the TODO list.${todoContext}` }];
 
         // Call LLM
-        const result = await llmClient.chatCompletionWithTools(messagesForLLM, FILE_TOOLS);
+        const result = await llmClient.chatCompletionWithTools(messagesForLLM, tools);
 
         // Update messages (without TODO context)
         const newMessages = result.allMessages.slice(currentMessages.length);
@@ -327,8 +328,8 @@ export class PlanExecutor {
         currentTodos = updated;
       });
 
-      // Load file tools
-      const { FILE_TOOLS } = await import('../tools/llm/simple/file-tools.js');
+      // Get tools from registry
+      const tools = toolRegistry.getLLMToolDefinitions();
 
       // Ensure system message
       const hasSystemMessage = currentMessages.some(m => m.role === 'system');
@@ -365,7 +366,7 @@ export class PlanExecutor {
           : [...currentMessages, { role: 'user' as const, content: `Continue with the TODO list.${todoContext}` }];
 
         // Call LLM
-        const result = await llmClient.chatCompletionWithTools(messagesForLLM, FILE_TOOLS);
+        const result = await llmClient.chatCompletionWithTools(messagesForLLM, tools);
 
         // Update messages
         const newMessages = result.allMessages.slice(currentMessages.length);
