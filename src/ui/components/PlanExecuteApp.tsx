@@ -1265,7 +1265,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
         t => t.status === 'pending' || t.status === 'in_progress'
       );
 
-      // Add to log
+      // Add to log (show original message)
       addLog({
         type: 'user_input',
         content: `📩 ${queuedMessage}`,
