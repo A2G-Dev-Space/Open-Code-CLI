@@ -1,11 +1,11 @@
 {
-  "name": "local-cli",
+  "name": "nexus-coder",
   "version": "2.5.0",
-  "description": "LOCAL-CLI - OpenAI-Compatible Local CLI Coding Agent",
+  "description": "Nexus Coder - Enterprise AI Coding Assistant",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "lcli": "dist/cli.js"
+    "nexus": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
