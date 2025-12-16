@@ -1,4 +1,4 @@
-# Nexus Coder v2.5.0
+# Nexus Coder v2.5.1
 
 **Enterprise AI Coding Assistant**
 
@@ -220,56 +220,54 @@ nexus --debug      # Debug 모드
 
 ---
 
-## 문제 해결
+## Release Notes
 
-### v2.4.x New Features
-
-| Feature | Description |
-|---------|-------------|
-| **Markdown Rendering** | Assistant responses render markdown (bold, italic, code blocks, lists) in CLI |
-| **LLM-based Docs Search** | Intelligent documentation search - LLM decides when to search based on folder structure |
-| **Hierarchical Docs Navigation** | New docs search agent with folder-based navigation (list_directory, read_docs_file, preview_file) |
-| **Docs Search Progress UI** | Real-time progress display during documentation search |
-| **Centralized Prompts** | All prompts moved to `src/prompts/` for better organization |
-| **Restructured Agents** | Agents reorganized under `src/agents/` with base class |
-
-### v2.4.x New Features
+### v2.5.1
 
 | Feature | Description |
 |---------|-------------|
-| **Markdown Rendering** | Assistant responses render markdown (bold, italic, code blocks, lists) in CLI |
-| **LLM-based Docs Search** | Intelligent documentation search - LLM decides when to search based on folder structure |
-| **Hierarchical Docs Navigation** | New docs search agent with folder-based navigation (list_directory, read_docs_file, preview_file) |
-| **Docs Search Progress UI** | Real-time progress display during documentation search |
-| **Centralized Prompts** | All prompts moved to `src/prompts/` for better organization |
-| **Restructured Agents** | Agents reorganized under `src/agents/` with base class |
+| **--eval 모드** | Python 자동화 테스트용 평가 모드 (stdin JSON → stdout NDJSON) |
+| **Python 테스트** | pytest 기반 테스트 스위트 (`npm run test`) |
+| **NDJSON 이벤트 스트림** | tool_call, tool_result, response 등 이벤트 스트리밍 |
 
-### v2.5.0 New Features
+### v2.5.0
 
 | Feature | Description |
 |---------|-------------|
-| **Markdown Rendering** | Assistant responses now render markdown (bold, italic, code blocks, lists) in CLI (v2.5.0) |
-| **LLM-based Docs Search** | Intelligent documentation search trigger - LLM decides when to search based on folder structure |
-| **Hierarchical Docs Navigation** | New docs search agent with folder-based navigation (list_directory, read_docs_file, preview_file) |
-| **Docs Search Progress UI** | Real-time progress display during documentation search |
-| **Centralized Prompts** | All prompts moved to `src/prompts/` for better organization |
-| **Restructured Agents** | Agents reorganized under `src/agents/` with base class |
+| **SSO 인증** | Samsung DS GenAI Portal SSO 연동 |
+| **Admin Server 연동** | 중앙집중식 모델 관리 |
+| **Markdown Rendering** | CLI에서 마크다운 렌더링 |
+| **LLM-based Docs Search** | 지능형 문서 검색 |
 
-### v2.5.0 Features
+### v2.4.x
 
-**레포지토리:**
+| Feature | Description |
+|---------|-------------|
+| **Hierarchical Docs Navigation** | 폴더 기반 문서 탐색 |
+| **Docs Search Progress UI** | 문서 검색 진행 상황 표시 |
+| **Centralized Prompts** | 프롬프트 중앙화 (`src/prompts/`) |
+| **Restructured Agents** | 에이전트 재구조화 (`src/agents/`) |
+
+---
+
+## Project Structure
+
 ```
 nexus-coder/
 ├── cert/
 │   └── cert.cer           # SSO 인증서 (번들됨)
 ├── src/
 │   ├── cli.ts             # CLI 진입점
+│   ├── eval/              # --eval 모드 (v2.5.1)
 │   ├── core/
 │   │   ├── auth/          # SSO 인증 모듈
 │   │   ├── llm/           # LLM Client
 │   │   ├── config/        # 설정 관리
 │   │   └── nexus-setup.ts # Admin Server 모델 로드
 │   └── ui/                # React/Ink UI
+├── tests/                 # Python 테스트 (v2.5.1)
+│   ├── test_eval.py
+│   └── conftest.py
 └── nexus-coder-admin/     # Admin Server
     ├── docker-compose.yml
     └── packages/
