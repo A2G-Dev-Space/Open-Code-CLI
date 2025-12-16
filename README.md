@@ -1,4 +1,4 @@
-# Nexus Coder v2.5.1
+# Nexus Coder v2.5.2
 
 **Enterprise AI Coding Assistant**
 
@@ -222,7 +222,7 @@ nexus --debug      # Debug 모드
 
 ## Release Notes
 
-### v2.5.1
+### v2.5.2
 
 | Feature | Description |
 |---------|-------------|
@@ -258,14 +258,14 @@ nexus-coder/
 │   └── cert.cer           # SSO 인증서 (번들됨)
 ├── src/
 │   ├── cli.ts             # CLI 진입점
-│   ├── eval/              # --eval 모드 (v2.5.1)
+│   ├── eval/              # --eval 모드 (v2.5.2)
 │   ├── core/
 │   │   ├── auth/          # SSO 인증 모듈
 │   │   ├── llm/           # LLM Client
 │   │   ├── config/        # 설정 관리
 │   │   └── nexus-setup.ts # Admin Server 모델 로드
 │   └── ui/                # React/Ink UI
-├── tests/                 # Python 테스트 (v2.5.1)
+├── tests/                 # Python 테스트 (v2.5.2)
 │   ├── test_eval.py
 │   └── conftest.py
 └── nexus-coder-admin/     # Admin Server
