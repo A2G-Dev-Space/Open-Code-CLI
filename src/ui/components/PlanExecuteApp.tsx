@@ -75,6 +75,7 @@ import {
 import { closeJsonStreamLogger } from '../../utils/json-stream-logger.js';
 import { configManager } from '../../core/config/config-manager.js';
 import { GitAutoUpdater, UpdateStatus } from '../../core/git-auto-updater.js';
+import { BinaryAutoUpdater, isRunningAsBinary, BinaryUpdateStatus } from '../../core/binary-auto-updater.js';
 import { authManager } from '../../core/auth/index.js';
 import { setupNexusModels } from '../../core/nexus-setup.js';
 import open from 'open';
@@ -94,12 +95,9 @@ import {
   setReasoningCallback,
   type ToolApprovalResult,
 } from '../../tools/llm/simple/file-tools.js';
-import { createRequire } from 'module';
+import { APP_VERSION } from '../../constants.js';
 
-// Get version from package.json
-const require = createRequire(import.meta.url);
-const pkg = require('../../../package.json') as { version: string };
-const VERSION = pkg.version;
+const VERSION = APP_VERSION;
 
 // Initialization steps for detailed progress display
 type InitStep = 'git_update' | 'login' | 'models' | 'health' | 'docs' | 'config' | 'done';
@@ -164,6 +162,8 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const [isInitializing, setIsInitializing] = useState(true);
   const [initStep, setInitStep] = useState<InitStep>('git_update');
   const [gitUpdateStatus, setGitUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [binaryUpdateStatus, setBinaryUpdateStatus] = useState<BinaryUpdateStatus | null>(null);
+  const [isBinaryMode] = useState(() => isRunningAsBinary());
   const [loginError, setLoginError] = useState<string | null>(null);
   const [ssoUrl, setSsoUrl] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<'checking' | 'healthy' | 'unhealthy' | 'unknown'>('checking');
@@ -595,13 +595,25 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       logger.startTimer('app-init');
 
       try {
-        // Step 1: Git auto-update (highest priority)
+        // Step 1: Auto-update (highest priority)
+        // Use binary updater if running as pkg binary, otherwise use git updater
         setInitStep('git_update');
-        logger.flow('Checking for git updates');
-        const updater = new GitAutoUpdater({
-          onStatus: setGitUpdateStatus,
-        });
-        const needsRestart = await updater.run();
+        let needsRestart = false;
+
+        if (isRunningAsBinary()) {
+          logger.flow('Running as binary - checking for binary updates');
+          const binaryUpdater = new BinaryAutoUpdater({
+            onStatus: setBinaryUpdateStatus,
+          });
+          needsRestart = await binaryUpdater.run();
+        } else {
+          logger.flow('Running in Node.js - checking for git updates');
+          const gitUpdater = new GitAutoUpdater({
+            onStatus: setGitUpdateStatus,
+          });
+          needsRestart = await gitUpdater.run();
+        }
+
         if (needsRestart) {
           // Exit immediately so user can restart with new version
           process.exit(0);
@@ -1274,8 +1286,32 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // Show loading screen with logo during initialization
   if (isInitializing) {
-    // Get git update status text
-    const getGitStatusText = (): string => {
+    // Get update status text (binary or git based on mode)
+    const getUpdateStatusText = (): string => {
+      // Binary mode
+      if (isBinaryMode) {
+        if (!binaryUpdateStatus) return 'Checking for updates...';
+        switch (binaryUpdateStatus.type) {
+          case 'checking':
+            return 'Checking for updates...';
+          case 'no_update':
+            return `Up to date (v${binaryUpdateStatus.currentVersion})`;
+          case 'downloading':
+            return `Downloading v${binaryUpdateStatus.version}... ${binaryUpdateStatus.progress}%`;
+          case 'installing':
+            return `Installing v${binaryUpdateStatus.version}...`;
+          case 'complete':
+            return `Updated to v${binaryUpdateStatus.version}`;
+          case 'error':
+            return binaryUpdateStatus.message;
+          case 'not_binary':
+            return 'Up to date';
+          default:
+            return 'Checking for updates...';
+        }
+      }
+
+      // Git mode
       if (!gitUpdateStatus) return 'Checking for updates...';
       switch (gitUpdateStatus.type) {
         case 'checking':
@@ -1308,7 +1344,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
     const getInitStepInfo = () => {
       switch (initStep) {
         case 'git_update':
-          return { icon: '🔄', text: getGitStatusText(), progress: 1 };
+          return { icon: '🔄', text: getUpdateStatusText(), progress: 1 };
         case 'login':
           return { icon: '🔐', text: getLoginStatusText(), progress: 2 };
         case 'models':

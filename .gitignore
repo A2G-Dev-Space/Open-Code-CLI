@@ -55,3 +55,7 @@ metrics/
 # Project docs (AI-generated, user-specific)
 CLAUDE.md
 OPEN_CLI.md
+
+# pkg output
+bin/
+bundle/

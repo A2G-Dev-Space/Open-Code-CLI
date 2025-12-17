@@ -9,10 +9,11 @@
 
 import { spawn } from 'child_process';
 import fs from 'fs';
-import { rm } from 'fs/promises';
+import { rm, copyFile, chmod } from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { logger } from '../utils/logger.js';
+import { isRunningAsBinary } from './binary-auto-updater.js';
 
 /**
  * Update status for UI display
@@ -148,15 +149,17 @@ export class GitAutoUpdater {
   }
 
   /**
-   * First run: Clone repository and setup npm link
+   * First run: Clone repository and setup
    */
   private async initialSetup(): Promise<boolean> {
     logger.enter('initialSetup', {
       repoDir: this.repoDir,
-      repoUrl: this.repoUrl
+      repoUrl: this.repoUrl,
+      isBinaryMode: isRunningAsBinary()
     });
 
-    const totalSteps = 4;
+    const isBinary = isRunningAsBinary();
+    const totalSteps = isBinary ? 2 : 4;
 
     try {
       // Step 1: Clone
@@ -169,20 +172,27 @@ export class GitAutoUpdater {
 
       await execAsync(`git clone ${this.repoUrl} ${this.repoDir}`);
 
-      // Step 2: Install dependencies
-      this.emitStatus({ type: 'first_run', step: 2, totalSteps, message: 'Installing dependencies...' });
-      await execAsync('npm install', { cwd: this.repoDir });
+      if (isBinary) {
+        // Binary mode: just copy pre-built binaries
+        this.emitStatus({ type: 'first_run', step: 2, totalSteps, message: 'Copying binaries...' });
+        return await this.copyBinaries();
+      } else {
+        // Node.js mode: install, build, link
+        // Step 2: Install dependencies
+        this.emitStatus({ type: 'first_run', step: 2, totalSteps, message: 'Installing dependencies...' });
+        await execAsync('npm install', { cwd: this.repoDir });
 
-      // Step 3: Build
-      this.emitStatus({ type: 'first_run', step: 3, totalSteps, message: 'Building project...' });
-      await execAsync('npm run build', { cwd: this.repoDir });
+        // Step 3: Build
+        this.emitStatus({ type: 'first_run', step: 3, totalSteps, message: 'Building project...' });
+        await execAsync('npm run build', { cwd: this.repoDir });
 
-      // Step 4: Link
-      this.emitStatus({ type: 'first_run', step: 4, totalSteps, message: 'Creating global link...' });
-      await execAsync('npm link', { cwd: this.repoDir });
+        // Step 4: Link
+        this.emitStatus({ type: 'first_run', step: 4, totalSteps, message: 'Creating global link...' });
+        await execAsync('npm link', { cwd: this.repoDir });
 
-      this.emitStatus({ type: 'complete', needsRestart: true, message: 'Setup complete! Please restart.' });
-      return true;
+        this.emitStatus({ type: 'complete', needsRestart: true, message: 'Setup complete! Please restart.' });
+        return true;
+      }
 
     } catch (error: unknown) {
       logger.error('Initial setup failed', error as Error);
@@ -220,8 +230,12 @@ export class GitAutoUpdater {
       logger.debug('Resetting to latest commit...', { from: currentCommit.slice(0, 7), to: latestCommit.slice(0, 7) });
       await execAsync('git reset --hard origin/nexus-coder', { cwd: this.repoDir });
 
-      // Changes detected - rebuild
-      return await this.rebuildAndLink();
+      // Changes detected - update based on mode
+      if (isRunningAsBinary()) {
+        return await this.copyBinaries();
+      } else {
+        return await this.rebuildAndLink();
+      }
 
     } catch (error: unknown) {
       logger.error('Pull/reset failed, attempting fresh clone', error as Error);
@@ -255,7 +269,7 @@ export class GitAutoUpdater {
   }
 
   /**
-   * Rebuild and link after update
+   * Rebuild and link after update (Node.js mode)
    */
   private async rebuildAndLink(): Promise<boolean> {
     const totalSteps = 3;
@@ -280,6 +294,67 @@ export class GitAutoUpdater {
       logger.error('Build/link failed', buildError as Error);
       const message = buildError instanceof Error ? buildError.message : 'Unknown error';
       this.emitStatus({ type: 'error', message: `Build failed: ${message}` });
+      return false;
+    }
+  }
+
+  /**
+   * Copy pre-built binaries (Binary mode)
+   * Copies bin/nexus and bin/yoga.wasm from repo to executable location
+   */
+  private async copyBinaries(): Promise<boolean> {
+    const totalSteps = 2;
+
+    try {
+      const execDir = path.dirname(process.execPath);
+      const repoBinDir = path.join(this.repoDir, 'bin');
+
+      const nexusSrc = path.join(repoBinDir, 'nexus');
+      const yogaSrc = path.join(repoBinDir, 'yoga.wasm');
+      const nexusDest = path.join(execDir, 'nexus');
+      const yogaDest = path.join(execDir, 'yoga.wasm');
+
+      // Check if source files exist
+      if (!fs.existsSync(nexusSrc)) {
+        this.emitStatus({ type: 'error', message: 'Binary not found in repository (bin/nexus)' });
+        return false;
+      }
+
+      // Step 1: Copy nexus binary
+      this.emitStatus({ type: 'updating', step: 1, totalSteps, message: 'Copying nexus binary...' });
+
+      // Backup current binary
+      const backupPath = nexusDest + '.backup';
+      if (fs.existsSync(nexusDest)) {
+        await copyFile(nexusDest, backupPath);
+      }
+
+      await copyFile(nexusSrc, nexusDest);
+      await chmod(nexusDest, 0o755);
+      logger.debug('Binary copied', { src: nexusSrc, dest: nexusDest });
+
+      // Step 2: Copy yoga.wasm
+      this.emitStatus({ type: 'updating', step: 2, totalSteps, message: 'Copying yoga.wasm...' });
+
+      if (fs.existsSync(yogaSrc)) {
+        await copyFile(yogaSrc, yogaDest);
+        logger.debug('yoga.wasm copied', { src: yogaSrc, dest: yogaDest });
+      } else {
+        logger.warn('yoga.wasm not found in repository, skipping');
+      }
+
+      // Clean up backup
+      if (fs.existsSync(backupPath)) {
+        fs.unlinkSync(backupPath);
+      }
+
+      this.emitStatus({ type: 'complete', needsRestart: true, message: 'Update complete! Please restart.' });
+      return true;
+
+    } catch (error: unknown) {
+      logger.error('Copy binaries failed', error as Error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.emitStatus({ type: 'error', message: `Binary copy failed: ${message}` });
       return false;
     }
   }

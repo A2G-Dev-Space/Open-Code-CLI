@@ -12,15 +12,11 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import React from 'react';
 import { render } from 'ink';
-import { createRequire } from 'module';
 import { configManager } from './core/config/config-manager.js';
 import { PlanExecuteApp } from './ui/components/PlanExecuteApp.js';
 import { setupLogging } from './utils/logger.js';
 import { runEvalMode } from './eval/index.js';
-
-// Read version from package.json (single source of truth)
-const require = createRequire(import.meta.url);
-const packageJson = require('../package.json') as { version: string };
+import { APP_VERSION } from './constants.js';
 
 const program = new Command();
 
@@ -30,7 +26,7 @@ const program = new Command();
 program
   .name('nexus')
   .description('Nexus Coder - Enterprise AI Coding Assistant')
-  .version(packageJson.version)
+  .version(APP_VERSION)
   .helpOption(false);  // -h, --help 비활성화 (/help 사용)
 
 /**

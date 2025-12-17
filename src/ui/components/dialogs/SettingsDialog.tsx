@@ -13,6 +13,7 @@ import { configManager } from '../../../core/config/config-manager.js';
 import { sessionManager } from '../../../core/session/session-manager.js';
 import { LLMClient } from '../../../core/llm/llm-client.js';
 import { EndpointConfig } from '../../../types/index.js';
+import { APP_VERSION } from '../../../constants.js';
 
 interface SettingsBrowserProps {
   currentPlanningMode: PlanningMode;
@@ -137,20 +138,7 @@ export const SettingsBrowser: React.FC<SettingsBrowserProps> = ({
         const model = configManager.getCurrentModel();
         const cwd = process.cwd();
 
-        // Read package.json for version
-        let version = '0.1.0';
-        try {
-          const { readFile } = await import('fs/promises');
-          const { fileURLToPath } = await import('url');
-          const { dirname, join } = await import('path');
-          const __filename = fileURLToPath(import.meta.url);
-          const __dirname = dirname(__filename);
-          const packageJsonPath = join(__dirname, '../../../package.json');
-          const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
-          version = packageJson.version;
-        } catch {
-          // Use default version
-        }
+        const version = APP_VERSION;
 
         setSystemStatus({
           version,
