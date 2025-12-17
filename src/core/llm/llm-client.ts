@@ -884,8 +884,13 @@ export class LLMClient {
           });
         }
 
-        // Tool call 후 다시 LLM 호출 (다음 iteration)
-        continue;
+        // Tool 실행 완료 - 외부 루프(plan-executor)가 TODO 상태를 확인하고 필요시 재호출
+        // Tool 결과와 함께 즉시 리턴하여 외부 루프가 TODO 완료 여부를 판단하도록 함
+        return {
+          message: assistantMessage,
+          toolCalls: toolCallHistory,
+          allMessages: workingMessages,
+        };
       } else {
         // Tool call 없음 - 최종 응답
         // Emit assistant response event for UI
