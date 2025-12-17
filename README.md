@@ -13,13 +13,38 @@
 
 ### 1. 바이너리 다운로드
 
+GitHub에서 두 파일을 다운로드합니다:
+
 ```bash
-# 바이너리 다운로드 (관리자에게 요청 또는 공유 폴더에서 복사)
-cp /path/to/nexus ~/nexus
-chmod +x ~/nexus
+# 다운로드 폴더 생성
+mkdir -p ~/nexus-download && cd ~/nexus-download
+
+# nexus.gz 다운로드 (39MB)
+wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz
+
+# yoga.wasm 다운로드 (87KB)
+wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm
 ```
 
-### 2. 첫 실행 (자동 설치)
+> **wget 대신 curl 사용:**
+> ```bash
+> curl -LO https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz
+> curl -LO https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm
+> ```
+
+### 2. 압축 해제 및 실행 권한 부여
+
+```bash
+# 압축 해제
+gunzip nexus.gz
+
+# 실행 권한 부여
+chmod +x nexus
+```
+
+### 3. 첫 실행 (자동 설치)
+
+**중요: nexus와 yoga.wasm이 같은 폴더에 있어야 합니다**
 
 ```bash
 ./nexus
@@ -31,7 +56,7 @@ chmod +x ~/nexus
 - `~/.bashrc` 또는 `~/.zshrc`에 PATH 추가
 - SSO 로그인 진행
 
-### 3. 설치 완료 후
+### 4. 설치 완료 후
 
 ```bash
 # 셸 설정 리로드
@@ -39,6 +64,9 @@ source ~/.bashrc   # 또는 source ~/.zshrc
 
 # 이후부터는 어디서든 실행 가능
 nexus
+
+# 다운로드 폴더 삭제 (선택)
+rm -rf ~/nexus-download
 ```
 
 ### 자동 업데이트
