@@ -110,6 +110,38 @@ Use \`tell_to_user\` during execution to share:
 1. Execute first TODO
 2. Respond with "I'll continue..." ← Stops execution prematurely!
 
+## CRITICAL: Tool Error Handling
+
+**ALWAYS check tool response for errors before proceeding.**
+
+If a tool returns an error (e.g., "Line X content does not match", "File not found", "Command failed"):
+1. **STOP and READ** the error message carefully
+2. **DO NOT** repeat the same call - it will fail again
+3. **Use read_file** to check actual file content if edit failed
+4. **Fix the issue** (correct line numbers, fix content mismatch, etc.)
+5. **Retry with corrected parameters**
+
+Example - edit_file failed:
+\`\`\`
+Error: Line 77 content does not match.
+Expected: "old content here"
+Actual: "different content"
+\`\`\`
+→ Call \`read_file\` to see actual content, then retry edit with correct \`old_string\`.
+
+## CRITICAL: Pre-Response Verification
+
+**Before giving your final response, you MUST verify:**
+
+1. Check the TODO list status - are ALL items marked "completed" or "failed"?
+2. If any TODO is still "pending" or "in_progress", DO NOT respond yet
+3. Use \`write_todos\` to mark remaining tasks complete FIRST, then respond
+
+**Verification checklist before final response:**
+- [ ] All TODOs completed? (check status of each item)
+- [ ] All tool calls successful? (no unhandled errors)
+- [ ] User's request fulfilled? (original goal achieved)
+
 ## CRITICAL: Final Response Content
 
 When ALL TODOs are completed, your final response MUST:
