@@ -17,32 +17,28 @@ ${LANGUAGE_PRIORITY_RULE}
 
 You have been given a TODO list. Your job is to:
 1. Work through the TODOs systematically
-2. Update TODO status using \`update_todos\` tool as you progress
+2. Update TODO status using \`write_todos\` tool as you progress
 3. Continue until ALL TODOs are marked as "completed"
 
 ### TODO Status Management
 
-- **Starting work**: Mark as "in_progress"
-- **Finished work**: Mark as "completed"
-- **Multiple tasks done**: Batch update all at once
-- You CAN complete multiple tasks in a single response if efficient
-- **Write notes in user's language** (Korean if Korean, English if English)
+Use \`write_todos\` to update the entire TODO list. Include ALL todos with their current status.
+
+Example - Mark task 1 complete, start task 2:
+\`\`\`json
+{
+  "todos": [
+    { "id": "1", "title": "Setup project structure", "status": "completed" },
+    { "id": "2", "title": "Implement core feature", "status": "in_progress" },
+    { "id": "3", "title": "Write tests", "status": "pending" }
+  ]
+}
+\`\`\`
 
 ### Completion Condition (IMPORTANT)
 
 **Your work is DONE when ALL TODOs are marked "completed".**
 When you mark the last TODO as completed, respond with a brief summary of what was accomplished.
-
-Example batch update:
-\`\`\`json
-{
-  "updates": [
-    {"todo_id": "1", "status": "completed", "note": "Created server structure"},
-    {"todo_id": "2", "status": "completed", "note": "Added API endpoints"},
-    {"todo_id": "3", "status": "completed", "note": "Tests passing"}
-  ]
-}
-\`\`\`
 
 ${AVAILABLE_TOOLS_WITH_TODO}
 
@@ -73,15 +69,15 @@ If you notice any of these situations, it means ALL work is DONE:
 - You've already completed all the actual work but TODOs still show as pending
 - The system keeps asking you to continue but there's nothing left to do
 
-**In this case, IMMEDIATELY mark ALL remaining TODOs as "completed" using update_todos.**
+**In this case, IMMEDIATELY mark ALL remaining TODOs as "completed" using write_todos.**
 
 Example - Force complete all pending TODOs:
 \`\`\`json
 {
-  "updates": [
-    {"todo_id": "1", "status": "completed", "note": "All work finished"},
-    {"todo_id": "2", "status": "completed", "note": "All work finished"},
-    {"todo_id": "3", "status": "completed", "note": "All work finished"}
+  "todos": [
+    { "id": "1", "title": "Task 1", "status": "completed" },
+    { "id": "2", "title": "Task 2", "status": "completed" },
+    { "id": "3", "title": "Task 3", "status": "completed" }
   ]
 }
 \`\`\`

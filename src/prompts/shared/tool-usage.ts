@@ -31,8 +31,9 @@ export const AVAILABLE_TOOLS_WITH_TODO = `
 - **find_files**: Search for files by pattern
 - **bash**: Execute shell commands (git, npm, etc.)
 - **tell_to_user**: Send status updates to the user
-- **update_todos**: Update TODO statuses (batch supported)
-- **get_todo_list**: Check current TODO list state
+- **ask_to_user**: Ask user a question with multiple choice options
+- **write_todos**: Update entire TODO list (replaces current list)
+- **call_docs_search_agent**: Search local documentation (~/.local-cli/docs)
 `.trim();
 
 /**

@@ -142,18 +142,14 @@ export interface OpenConfig {
 
 /**
  * TODO Item type for Plan-and-Execute Architecture
+ * Simplified: title only, no description
  */
 export interface TodoItem {
   id: string;
   title: string;
-  description: string;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  requiresDocsSearch: boolean;
-  dependencies: string[]; // Other TODO ids
   result?: string;
   error?: string;
-  startedAt?: string; // ISO timestamp
-  completedAt?: string; // ISO timestamp
 }
 
 /**

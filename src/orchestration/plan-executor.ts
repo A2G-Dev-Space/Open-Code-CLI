@@ -19,9 +19,9 @@ import {
 } from '../core/compact/index.js';
 import { configManager } from '../core/config/config-manager.js';
 import {
-  setTodoUpdateCallback,
-  setTodoListCallback,
+  setTodoWriteCallback,
   clearTodoCallbacks,
+  TodoInput,
 } from '../tools/llm/simple/todo-tools.js';
 import {
   setDocsSearchLLMClientGetter,
@@ -474,41 +474,44 @@ export class PlanExecutor {
 
   /**
    * TODO 콜백 설정 (내부 헬퍼)
+   * write_todos: 전체 목록 교체 방식
    */
   private setupTodoCallbacks(
     currentTodos: TodoItem[],
     callbacks: StateCallbacks,
     updateLocalTodos: (todos: TodoItem[]) => void
   ): void {
-    setTodoUpdateCallback(async (todoId, status, note) => {
-      const todo = currentTodos.find(t => t.id === todoId);
-      if (!todo) return false;
+    // write_todos callback: 전체 목록 교체
+    setTodoWriteCallback(async (newTodos: TodoInput[]) => {
+      // Find status changes for UI events
+      const oldStatusMap = new Map(currentTodos.map(t => [t.id, t.status]));
 
-      const todoTitle = todo.title;
-      const updatedTodos = currentTodos.map(t =>
-        t.id === todoId ? { ...t, status, result: note } : t
-      );
+      // Convert to TodoItem format
+      const updatedTodos: TodoItem[] = newTodos.map(t => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+      }));
+
+      // Emit events for status changes
+      for (const todo of updatedTodos) {
+        const oldStatus = oldStatusMap.get(todo.id);
+        if (oldStatus !== todo.status) {
+          if (todo.status === 'completed') {
+            emitTodoComplete(todo.title);
+          } else if (todo.status === 'failed') {
+            emitTodoFail(todo.title);
+          } else if (todo.status === 'in_progress') {
+            emitTodoStart(todo.title);
+          }
+        }
+      }
+
       updateLocalTodos(updatedTodos);
       callbacks.setTodos([...updatedTodos]);
 
-      // Emit events for UI
-      if (status === 'completed') {
-        emitTodoComplete(todoTitle);
-      } else if (status === 'failed') {
-        emitTodoFail(todoTitle);
-      } else if (status === 'in_progress') {
-        emitTodoStart(todoTitle);
-      }
-
       return true;
     });
-
-    setTodoListCallback(() => currentTodos.map(t => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      status: t.status,
-    })));
   }
 
   /**
