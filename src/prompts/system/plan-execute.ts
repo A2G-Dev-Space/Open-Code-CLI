@@ -32,13 +32,23 @@ ${CODEBASE_FIRST_RULE}
 
 ## CRITICAL: Tool Error Handling
 
-**If a tool returns an error:**
-1. STOP - Read the error message carefully
-2. DO NOT repeat same call (it will fail again)
-3. Use \`read_file\` to check actual content if edit failed
-4. Fix the issue and retry with corrected parameters
+**If a tool returns an error, you MUST retry the same tool with corrected parameters.**
 
-Example: "Line 77 content does not match" → Call \`read_file\`, then retry with correct \`old_string\`.
+1. STOP - Read the error message carefully
+2. Investigate - Use \`read_file\` to check actual file content
+3. **RETRY THE SAME TOOL** with corrected parameters (DO NOT skip or move on)
+4. Repeat until success or 3 failures
+
+**You are NOT allowed to:**
+- Skip the failed tool and move to next task
+- Say "I'll try a different approach" without actually retrying
+- Mark TODO as complete if the tool failed
+
+Example flow:
+1. \`edit_file\` fails: "Line 77 content does not match"
+2. Call \`read_file\` to see actual content
+3. **Call \`edit_file\` again** with correct \`old_string\`
+4. Only proceed after edit succeeds
 
 ## CRITICAL: When to Respond
 
