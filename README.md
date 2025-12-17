@@ -1,4 +1,4 @@
-# Nexus Coder v2.6.0
+# Nexus Coder v2.6.1
 
 **Enterprise AI Coding Assistant**
 
@@ -222,7 +222,7 @@ nexus --debug      # Debug 모드
 
 ## Release Notes
 
-### v2.6.0 New Features
+### v2.6.1 New Features
 
 | Feature | Description |
 |---------|-------------|
