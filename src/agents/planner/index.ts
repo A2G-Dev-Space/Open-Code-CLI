@@ -80,14 +80,11 @@ export class PlanningLLM {
 
       const planningData = JSON.parse(jsonMatch[0]);
 
-      // Create TodoItem array with proper status
+      // Create TodoItem array with proper status (simplified: title only)
       const todos: TodoItem[] = planningData.todos.map((todo: any, index: number) => ({
         id: todo.id || `todo-${Date.now()}-${index}`,
         title: todo.title,
-        description: todo.description,
         status: 'pending' as TodoStatus,
-        requiresDocsSearch: todo.requiresDocsSearch || false,
-        dependencies: todo.dependencies || [],
       }));
 
       return {
@@ -103,102 +100,13 @@ export class PlanningLLM {
         todos: [
           {
             id: `todo-${Date.now()}`,
-            title: 'Execute task',
-            description: userRequest,
+            title: userRequest.length > 100 ? userRequest.substring(0, 100) + '...' : userRequest,
             status: 'pending',
-            requiresDocsSearch: true,
-            dependencies: [],
           },
         ],
         complexity: 'simple',
       };
     }
-  }
-
-  /**
-   * Validate TODO dependencies
-   */
-  validateDependencies(todos: TodoItem[]): boolean {
-    const todoIds = new Set(todos.map(t => t.id));
-
-    for (const todo of todos) {
-      for (const depId of todo.dependencies) {
-        if (!todoIds.has(depId)) {
-          logger.warn(`Invalid dependency: TODO ${todo.id} depends on non-existent TODO ${depId}`);
-          return false;
-        }
-      }
-    }
-
-    // Check for circular dependencies
-    const visited = new Set<string>();
-    const recursionStack = new Set<string>();
-
-    const hasCycle = (todoId: string): boolean => {
-      visited.add(todoId);
-      recursionStack.add(todoId);
-
-      const todo = todos.find(t => t.id === todoId);
-      if (todo) {
-        for (const depId of todo.dependencies) {
-          if (!visited.has(depId) && hasCycle(depId)) {
-            return true;
-          } else if (recursionStack.has(depId)) {
-            return true;
-          }
-        }
-      }
-
-      recursionStack.delete(todoId);
-      return false;
-    };
-
-    for (const todo of todos) {
-      if (!visited.has(todo.id) && hasCycle(todo.id)) {
-        logger.warn('Circular dependency detected in TODOs');
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * Sort TODOs based on dependencies (topological sort)
-   */
-  sortByDependencies(todos: TodoItem[]): TodoItem[] {
-    const sorted: TodoItem[] = [];
-    const visiting = new Set<string>();
-    const visited = new Set<string>();
-
-    const visit = (todo: TodoItem) => {
-      if (visited.has(todo.id)) return;
-      if (visiting.has(todo.id)) {
-        throw new Error('Circular dependency detected');
-      }
-
-      visiting.add(todo.id);
-
-      // Visit dependencies first
-      for (const depId of todo.dependencies) {
-        const dep = todos.find(t => t.id === depId);
-        if (dep) {
-          visit(dep);
-        }
-      }
-
-      visiting.delete(todo.id);
-      visited.add(todo.id);
-      sorted.push(todo);
-    };
-
-    for (const todo of todos) {
-      if (!visited.has(todo.id)) {
-        visit(todo);
-      }
-    }
-
-    return sorted;
   }
 
   /**
@@ -227,26 +135,9 @@ export class PlanningLLM {
     if (docsSearchNeeded) {
       const docsSearchTodo: TodoItem = {
         id: `todo-docs-${Date.now()}`,
-        title: 'Search local documentation',
-        description: `Search ~/.local-cli/docs for relevant information about: ${userRequest.substring(0, 200)}${userRequest.length > 200 ? '...' : ''}
-
-Use call_docs_search_agent tool to search the documentation.
-The search results will help inform the subsequent tasks.`,
+        title: 'Search local documentation (use call_docs_search_agent)',
         status: 'pending' as TodoStatus,
-        requiresDocsSearch: true,
-        dependencies: [],
       };
-
-      // Update dependencies of original first TODO to depend on docs search
-      const updatedTodos = planningResult.todos.map((todo, index) => {
-        if (index === 0 && todo.dependencies.length === 0) {
-          return {
-            ...todo,
-            dependencies: [docsSearchTodo.id],
-          };
-        }
-        return todo;
-      });
 
       logger.flow('Prepended docs search TODO');
       logger.endTimer('parallel-planning');
@@ -254,7 +145,7 @@ The search results will help inform the subsequent tasks.`,
 
       return {
         ...planningResult,
-        todos: [docsSearchTodo, ...updatedTodos],
+        todos: [docsSearchTodo, ...planningResult.todos],
         docsSearchNeeded: true,
       };
     }

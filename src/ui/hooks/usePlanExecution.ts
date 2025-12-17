@@ -10,9 +10,9 @@ import { Message, TodoItem } from '../../types/index.js';
 import { LLMClient } from '../../core/llm/llm-client.js';
 import { logger } from '../../utils/logger.js';
 import {
-  setTodoUpdateCallback,
-  setTodoListCallback,
+  setTodoWriteCallback,
   clearTodoCallbacks,
+  TodoInput,
 } from '../../tools/llm/simple/todo-tools.js';
 import {
   setAskUserCallback,
@@ -87,59 +87,28 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
 
     logger.flow('Setting up TODO tool callbacks');
 
-    const updateCallback = async (
-      todoId: string,
-      status: 'in_progress' | 'completed' | 'failed',
-      note?: string
-    ): Promise<boolean> => {
-      logger.enter('todoUpdateCallback', { todoId, status, note });
+    // write_todos callback: 전체 목록 교체
+    const writeCallback = async (newTodos: TodoInput[]): Promise<boolean> => {
+      logger.enter('todoWriteCallback', { todoCount: newTodos.length });
 
-      setTodos(prev => {
-        const todoIndex = prev.findIndex(t => t.id === todoId);
-        if (todoIndex === -1) {
-          logger.warn('TODO not found', { todoId });
-          return prev;
-        }
+      // Convert to TodoItem format
+      const updatedTodos: TodoItem[] = newTodos.map(t => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+      }));
 
-        const existingTodo = prev[todoIndex];
-        if (!existingTodo) {
-          return prev;
-        }
+      setTodos(updatedTodos);
 
-        const updated = [...prev];
-        updated[todoIndex] = {
-          ...existingTodo,
-          status,
-          result: note || existingTodo.result,
-        };
+      // Update currentTodoId based on in_progress item
+      const inProgressTodo = updatedTodos.find(t => t.status === 'in_progress');
+      setCurrentTodoId(inProgressTodo?.id);
 
-        logger.state('TODO status', existingTodo.status, status);
-        return updated;
-      });
-
-      if (status === 'in_progress') {
-        setCurrentTodoId(todoId);
-      } else if (status === 'completed' || status === 'failed') {
-        setCurrentTodoId(prev => prev === todoId ? undefined : prev);
-      }
-
-      logger.exit('todoUpdateCallback', { success: true });
+      logger.exit('todoWriteCallback', { success: true });
       return true;
     };
 
-    // Use todosRef.current to get latest todos without causing effect re-runs
-    const listCallback = () => {
-      logger.flow('Getting TODO list for LLM');
-      return todosRef.current.map(t => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        status: t.status,
-      }));
-    };
-
-    setTodoUpdateCallback(updateCallback);
-    setTodoListCallback(listCallback);
+    setTodoWriteCallback(writeCallback);
 
     return () => {
       logger.flow('Cleaning up TODO tool callbacks');

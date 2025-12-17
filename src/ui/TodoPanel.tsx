@@ -77,29 +77,6 @@ const MiniMap: React.FC<{ todos: TodoItem[] }> = ({ todos }) => {
 };
 
 /**
- * Format duration from ISO timestamps
- */
-function formatDuration(startedAt?: string, completedAt?: string): string {
-  if (!startedAt) return '';
-
-  const start = new Date(startedAt).getTime();
-  const end = completedAt ? new Date(completedAt).getTime() : Date.now();
-  const duration = Math.floor((end - start) / 1000);
-
-  if (duration < 60) {
-    return `${duration}s`;
-  } else if (duration < 3600) {
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    return `${minutes}m ${seconds}s`;
-  } else {
-    const hours = Math.floor(duration / 3600);
-    const minutes = Math.floor((duration % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  }
-}
-
-/**
  * Format token count
  */
 function formatTokens(count: number): string {
@@ -216,7 +193,6 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
         {todos.map((todo, index) => {
           const config = STATUS_CONFIG[todo.status] || STATUS_CONFIG.pending;
           const isCurrent = todo.id === currentTodoId;
-          const duration = formatDuration(todo.startedAt, todo.completedAt);
           const isLast = index === todos.length - 1;
           const taskTokens = tokenUsage?.get(todo.id);
 
@@ -249,25 +225,11 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
                   {todo.title}
                 </Text>
 
-                {/* Duration */}
-                {duration && (
-                  <Text color="gray" dimColor> ({duration})</Text>
-                )}
-
                 {/* Token usage for this task */}
                 {taskTokens && (
                   <Text color="cyan" dimColor> [{formatTokens(taskTokens)}]</Text>
                 )}
               </Box>
-
-              {/* Description for in_progress */}
-              {showDetails && todo.description && todo.status === 'in_progress' && (
-                <Box marginLeft={5}>
-                  <Text color="gray" dimColor>
-                    └─ {todo.description}
-                  </Text>
-                </Box>
-              )}
 
               {/* Error message */}
               {showDetails && todo.error && (
