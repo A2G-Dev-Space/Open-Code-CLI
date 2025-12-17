@@ -5,7 +5,7 @@
  * Refactored to use modular hooks and components
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Box, Text, useInput, useApp, Static } from 'ink';
 import Spinner from 'ink-spinner';
 
@@ -196,6 +196,21 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
 
   // Pending user message queue (for messages entered during LLM processing)
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const pendingUserMessageRef = React.useRef<string | null>(null);
+
+  // Keep ref in sync with state for synchronous access in LLM loop
+  useEffect(() => {
+    pendingUserMessageRef.current = pendingUserMessage;
+  }, [pendingUserMessage]);
+
+  // Pending message callbacks for mid-execution injection
+  const pendingMessageCallbacks = useMemo(() => ({
+    getPendingMessage: () => pendingUserMessageRef.current,
+    clearPendingMessage: () => {
+      pendingUserMessageRef.current = null;
+      setPendingUserMessage(null);
+    },
+  }), []);
 
   // Ctrl+C double-tap tracking for exit
   const lastCtrlCTimeRef = React.useRef<number>(0);
@@ -221,7 +236,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // Use modular hooks
   const fileBrowserState = useFileBrowserState(input, isProcessing);
   const commandBrowserState = useCommandBrowserState(input, isProcessing);
-  const planExecutionState = usePlanExecution();
+  const planExecutionState = usePlanExecution(pendingMessageCallbacks);
 
   // Sync todos to session manager for auto-save (only in-progress/pending)
   useEffect(() => {
@@ -959,14 +974,14 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   }, []);
 
   const handleSubmit = useCallback(async (value: string) => {
-    // If processing and user submits a message, queue it for next LLM invoke
+    // If processing and user submits a message, queue it for injection at next LLM invoke
     if (isProcessing && value.trim()) {
-      const queuedMessage = `[Request interrupted by user]\n${value.trim()}`;
+      const queuedMessage = value.trim();
       setPendingUserMessage(queuedMessage);
-      logger.flow('User message queued during processing', { message: value.trim() });
+      logger.flow('User message queued for mid-execution injection', { message: queuedMessage });
       addLog({
         type: 'user_input',
-        content: `(대기 중) ${value.trim()}`,
+        content: `(→ 다음 호출에 전달) ${queuedMessage}`,
       });
       setInput('');
       return;
@@ -1152,23 +1167,25 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   ]);
 
   // Process pending user message after LLM processing completes
+  // This handles the edge case where execution finishes before the pending message could be injected
   useEffect(() => {
     if (!isProcessing && pendingUserMessage && llmClient) {
-      logger.flow('Processing queued user message');
+      logger.flow('Processing remaining pending user message after execution complete');
 
       // Clear the pending message
       const queuedMessage = pendingUserMessage;
       setPendingUserMessage(null);
+      pendingUserMessageRef.current = null;
 
       // Check if we have pending TODOs to resume
       const hasPendingTodos = planExecutionState.todos.some(
         t => t.status === 'pending' || t.status === 'in_progress'
       );
 
-      // Add to log (show original message)
+      // Add to log
       addLog({
         type: 'user_input',
-        content: queuedMessage.replace('[Request interrupted by user]\n', '📩 '),
+        content: `📩 ${queuedMessage}`,
       });
 
       // Process @file references and then execute

@@ -736,10 +736,20 @@ export class LLMClient {
    * Chat Completion with Tools (대화 히스토리 유지)
    * Interactive Mode에서 사용 - 전체 대화 히스토리와 함께 tool calling 지원
    * No iteration limit - continues until LLM stops calling tools
+   *
+   * @param messages - 대화 히스토리
+   * @param tools - 사용 가능한 도구들
+   * @param options - 추가 옵션
+   * @param options.getPendingMessage - 대기 중인 user message를 가져오는 콜백
+   * @param options.clearPendingMessage - 대기 중인 message를 처리 후 클리어하는 콜백
    */
   async chatCompletionWithTools(
     messages: Message[],
-    tools: import('../../types/index.js').ToolDefinition[]
+    tools: import('../../types/index.js').ToolDefinition[],
+    options?: {
+      getPendingMessage?: () => string | null;
+      clearPendingMessage?: () => void;
+    }
   ): Promise<{
     message: Message;
     toolCalls: Array<{ tool: string; args: unknown; result: string }>;
@@ -757,6 +767,16 @@ export class LLMClient {
       }
 
       iterations++;
+
+      // Check for pending user message and inject it
+      if (options?.getPendingMessage && options?.clearPendingMessage) {
+        const pendingMsg = options.getPendingMessage();
+        if (pendingMsg) {
+          logger.flow('Injecting pending user message into conversation');
+          workingMessages.push({ role: 'user' as const, content: pendingMsg });
+          options.clearPendingMessage();
+        }
+      }
 
       // LLM 호출 (tools 포함)
       const response = await this.chatCompletion({
@@ -884,13 +904,9 @@ export class LLMClient {
           });
         }
 
-        // Tool 실행 완료 - 외부 루프(plan-executor)가 TODO 상태를 확인하고 필요시 재호출
-        // Tool 결과와 함께 즉시 리턴하여 외부 루프가 TODO 완료 여부를 판단하도록 함
-        return {
-          message: assistantMessage,
-          toolCalls: toolCallHistory,
-          allMessages: workingMessages,
-        };
+        // Tool 실행 완료 - 계속해서 LLM 호출 (continue)
+        // LLM이 finish_reason: stop을 반환할 때까지 루프 계속
+        continue;
       } else {
         // Tool call 없음 - 최종 응답
         // Emit assistant response event for UI
