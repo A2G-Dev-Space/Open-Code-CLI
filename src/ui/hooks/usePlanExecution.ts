@@ -34,7 +34,15 @@ import {
 // Re-export types for backward compatibility
 export type { ExecutionPhase, PlanExecutionState, AskUserState, PlanExecutionActions };
 
-export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExecutionActions {
+/**
+ * External callbacks for pending message handling
+ */
+export interface PendingMessageCallbacks {
+  getPendingMessage?: () => string | null;
+  clearPendingMessage?: () => void;
+}
+
+export function usePlanExecution(pendingMessageCallbacks?: PendingMessageCallbacks): PlanExecutionState & AskUserState & PlanExecutionActions {
   logger.enter('usePlanExecution');
 
   // State
@@ -70,7 +78,10 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     setCurrentActivity,
     setMessages: () => {}, // Will be provided per-call
     setAskUserRequest,
-  }), []);
+    // Pending message callbacks for mid-execution user input injection
+    getPendingMessage: pendingMessageCallbacks?.getPendingMessage,
+    clearPendingMessage: pendingMessageCallbacks?.clearPendingMessage,
+  }), [pendingMessageCallbacks]);
 
   // Keep todosRef in sync with todos state
   useEffect(() => {

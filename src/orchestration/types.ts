@@ -62,6 +62,9 @@ export interface StateCallbacks {
   setCurrentActivity: (activity: string) => void;
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   setAskUserRequest: (request: AskUserRequest | null) => void;
+  // Pending user message callbacks (for injecting messages during execution)
+  getPendingMessage?: () => string | null;
+  clearPendingMessage?: () => void;
 }
 
 /**

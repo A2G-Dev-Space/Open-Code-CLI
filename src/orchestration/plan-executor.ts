@@ -39,30 +39,19 @@ import { PLAN_EXECUTE_SYSTEM_PROMPT as PLAN_PROMPT } from '../prompts/system/pla
 import { logger } from '../utils/logger.js';
 
 import type { StateCallbacks } from './types.js';
-import { formatErrorMessage, buildTodoContext, areAllTodosCompleted, findActiveTodo, getTodoStats } from './utils.js';
-
-/**
- * Plan Executor 설정
- */
-export interface PlanExecutorConfig {
-  maxIterations: number;
-}
-
-const DEFAULT_CONFIG: PlanExecutorConfig = {
-  maxIterations: 50,
-};
+import { formatErrorMessage, buildTodoContext, findActiveTodo, getTodoStats } from './utils.js';
 
 /**
  * Plan Executor
  *
  * 모든 요청을 Planning 기반으로 실행
+ * chatCompletionWithTools가 내부적으로 tool loop를 처리하므로 외부 루프 불필요
  */
 export class PlanExecutor {
-  private config: PlanExecutorConfig;
   private currentLLMClient: LLMClient | null = null;
 
-  constructor(config: Partial<PlanExecutorConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  constructor() {
+    // No configuration needed - chatCompletionWithTools handles the loop internally
   }
 
   /**
@@ -129,7 +118,7 @@ export class PlanExecutor {
         currentTodos = updated;
       });
 
-      // 3. Execute loop
+      // 3. Execute (single call - chatCompletionWithTools handles loop internally)
       callbacks.setExecutionPhase('executing');
       const tools = toolRegistry.getLLMToolDefinitions();
 
@@ -142,58 +131,52 @@ export class PlanExecutor {
         ];
       }
 
-      let iterations = 0;
-
-      while (!areAllTodosCompleted(currentTodos) && iterations < this.config.maxIterations) {
-        iterations++;
-
-        if (isInterruptedRef.current) {
-          throw new Error('INTERRUPTED');
-        }
-
-        // Update activity
-        const activeTodo = findActiveTodo(currentTodos);
-        callbacks.setCurrentActivity(activeTodo?.title || 'Working on tasks');
-
-        // Build TODO context
-        const todoContext = buildTodoContext(currentTodos);
-
-        // Create messages with TODO context
-        const lastUserMsgIndex = currentMessages.map(m => m.role).lastIndexOf('user');
-        const messagesForLLM = lastUserMsgIndex >= 0
-          ? currentMessages.map((m, i) =>
-              i === lastUserMsgIndex
-                ? { ...m, content: m.content + todoContext }
-                : m
-            )
-          : [...currentMessages, { role: 'user' as const, content: `Continue with the TODO list.${todoContext}` }];
-
-        // Call LLM
-        const result = await llmClient.chatCompletionWithTools(messagesForLLM, tools);
-
-        // Update messages (without TODO context)
-        const newMessages = result.allMessages.slice(currentMessages.length);
-        currentMessages = [...currentMessages, ...newMessages];
-        callbacks.setMessages([...currentMessages]);
-        sessionManager.autoSaveCurrentSession(currentMessages);
-
-        // Check for auto-compact
-        await this.checkAndPerformAutoCompact(
-          llmClient,
-          currentMessages,
-          currentTodos,
-          callbacks,
-          (updated) => { currentMessages = updated; }
-        );
+      if (isInterruptedRef.current) {
+        throw new Error('INTERRUPTED');
       }
+
+      // Update activity
+      const activeTodo = findActiveTodo(currentTodos);
+      callbacks.setCurrentActivity(activeTodo?.title || 'Working on tasks');
+
+      // Build TODO context and inject into last user message
+      const todoContext = buildTodoContext(currentTodos);
+      const lastUserMsgIndex = currentMessages.map(m => m.role).lastIndexOf('user');
+      const messagesForLLM = lastUserMsgIndex >= 0
+        ? currentMessages.map((m, i) =>
+            i === lastUserMsgIndex
+              ? { ...m, content: m.content + todoContext }
+              : m
+          )
+        : [...currentMessages, { role: 'user' as const, content: `Execute the TODO list.${todoContext}` }];
+
+      // Single LLM call - continues internally until finish_reason: stop
+      // Pass pending message callbacks for mid-execution user input injection
+      const result = await llmClient.chatCompletionWithTools(messagesForLLM, tools, {
+        getPendingMessage: callbacks.getPendingMessage,
+        clearPendingMessage: callbacks.clearPendingMessage,
+      });
+
+      // Update messages (without TODO context)
+      const newMessages = result.allMessages.slice(currentMessages.length);
+      currentMessages = [...currentMessages, ...newMessages];
+      callbacks.setMessages([...currentMessages]);
+      sessionManager.autoSaveCurrentSession(currentMessages);
+
+      // Check for auto-compact after completion
+      await this.checkAndPerformAutoCompact(
+        llmClient,
+        currentMessages,
+        currentTodos,
+        callbacks,
+        (updated) => { currentMessages = updated; }
+      );
 
       // 4. Completion
       const duration = Date.now() - startTime;
       const stats = getTodoStats(currentTodos);
 
-      const completionMessage = iterations >= this.config.maxIterations
-        ? `⚠️ Execution stopped (max iterations reached)\nTotal: ${stats.total} | Completed: ${stats.completed} | Failed: ${stats.failed}`
-        : `✅ Execution complete\nTotal: ${stats.total} | Completed: ${stats.completed} | Failed: ${stats.failed}\nDuration: ${(duration / 1000).toFixed(2)}s`;
+      const completionMessage = `✅ Execution complete\nTotal: ${stats.total} | Completed: ${stats.completed} | Failed: ${stats.failed}\nDuration: ${(duration / 1000).toFixed(2)}s`;
 
       const finalMessages: Message[] = [
         ...currentMessages,
@@ -202,7 +185,7 @@ export class PlanExecutor {
       callbacks.setMessages(finalMessages);
       sessionManager.autoSaveCurrentSession(finalMessages);
 
-      logger.exit('PlanExecutor.executePlanMode', { success: true, iterations, ...stats });
+      logger.exit('PlanExecutor.executePlanMode', { success: true, ...stats });
     } catch (error) {
       if (error instanceof Error && error.message === 'INTERRUPTED') {
         logger.flow('Plan mode interrupted by user');
@@ -286,49 +269,47 @@ export class PlanExecutor {
         ];
       }
 
-      let iterations = 0;
-
-      while (!areAllTodosCompleted(currentTodos) && iterations < this.config.maxIterations) {
-        iterations++;
-
-        if (isInterruptedRef.current) {
-          throw new Error('INTERRUPTED');
-        }
-
-        const activeTodo = findActiveTodo(currentTodos);
-        callbacks.setCurrentActivity(activeTodo?.title || 'Working on tasks');
-
-        // Build TODO context
-        const todoContext = buildTodoContext(currentTodos);
-
-        // Create messages with TODO context
-        const lastUserMsgIndex = currentMessages.map(m => m.role).lastIndexOf('user');
-        const messagesForLLM = lastUserMsgIndex >= 0
-          ? currentMessages.map((m, i) =>
-              i === lastUserMsgIndex
-                ? { ...m, content: m.content + todoContext }
-                : m
-            )
-          : [...currentMessages, { role: 'user' as const, content: `Continue with the TODO list.${todoContext}` }];
-
-        // Call LLM
-        const result = await llmClient.chatCompletionWithTools(messagesForLLM, tools);
-
-        // Update messages
-        const newMessages = result.allMessages.slice(currentMessages.length);
-        currentMessages = [...currentMessages, ...newMessages];
-        callbacks.setMessages([...currentMessages]);
-        sessionManager.autoSaveCurrentSession(currentMessages);
-
-        // Check for auto-compact
-        await this.checkAndPerformAutoCompact(
-          llmClient,
-          currentMessages,
-          currentTodos,
-          callbacks,
-          (updated) => { currentMessages = updated; }
-        );
+      if (isInterruptedRef.current) {
+        throw new Error('INTERRUPTED');
       }
+
+      const activeTodo = findActiveTodo(currentTodos);
+      callbacks.setCurrentActivity(activeTodo?.title || 'Working on tasks');
+
+      // Build TODO context
+      const todoContext = buildTodoContext(currentTodos);
+
+      // Create messages with TODO context
+      const lastUserMsgIndex = currentMessages.map(m => m.role).lastIndexOf('user');
+      const messagesForLLM = lastUserMsgIndex >= 0
+        ? currentMessages.map((m, i) =>
+            i === lastUserMsgIndex
+              ? { ...m, content: m.content + todoContext }
+              : m
+          )
+        : [...currentMessages, { role: 'user' as const, content: `Resume the TODO list.${todoContext}` }];
+
+      // Single LLM call - continues internally until finish_reason: stop
+      // Pass pending message callbacks for mid-execution user input injection
+      const result = await llmClient.chatCompletionWithTools(messagesForLLM, tools, {
+        getPendingMessage: callbacks.getPendingMessage,
+        clearPendingMessage: callbacks.clearPendingMessage,
+      });
+
+      // Update messages
+      const newMessages = result.allMessages.slice(currentMessages.length);
+      currentMessages = [...currentMessages, ...newMessages];
+      callbacks.setMessages([...currentMessages]);
+      sessionManager.autoSaveCurrentSession(currentMessages);
+
+      // Check for auto-compact
+      await this.checkAndPerformAutoCompact(
+        llmClient,
+        currentMessages,
+        currentTodos,
+        callbacks,
+        (updated) => { currentMessages = updated; }
+      );
 
       // Completion
       const stats = getTodoStats(currentTodos);
@@ -341,7 +322,7 @@ export class PlanExecutor {
       callbacks.setMessages(finalMessages);
       sessionManager.autoSaveCurrentSession(finalMessages);
 
-      logger.exit('PlanExecutor.resumeTodoExecution', { success: true, iterations });
+      logger.exit('PlanExecutor.resumeTodoExecution', { success: true });
     } catch (error) {
       if (error instanceof Error && error.message === 'INTERRUPTED') {
         logger.flow('Resume interrupted by user');
