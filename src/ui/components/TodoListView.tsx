@@ -139,15 +139,6 @@ export const TodoListView: React.FC<TodoListViewProps> = ({
               </Text>
             </Box>
 
-            {/* Description for in_progress items */}
-            {showDescription && todo.description && todo.status === 'in_progress' && (
-              <Box marginLeft={5}>
-                <Text color="gray" dimColor>
-                  └─ {todo.description}
-                </Text>
-              </Box>
-            )}
-
             {/* Error message */}
             {todo.error && (
               <Box marginLeft={5}>

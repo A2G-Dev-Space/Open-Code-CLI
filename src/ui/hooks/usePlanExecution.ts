@@ -10,9 +10,9 @@ import { Message, TodoItem } from '../../types/index.js';
 import { LLMClient } from '../../core/llm/llm-client.js';
 import { logger } from '../../utils/logger.js';
 import {
-  setTodoUpdateCallback,
-  setTodoListCallback,
+  setTodoWriteCallback,
   clearTodoCallbacks,
+  TodoInput,
 } from '../../tools/llm/simple/todo-tools.js';
 import {
   setAskUserCallback,
@@ -34,7 +34,15 @@ import {
 // Re-export types for backward compatibility
 export type { ExecutionPhase, PlanExecutionState, AskUserState, PlanExecutionActions };
 
-export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExecutionActions {
+/**
+ * External callbacks for pending message handling
+ */
+export interface PendingMessageCallbacks {
+  getPendingMessage?: () => string | null;
+  clearPendingMessage?: () => void;
+}
+
+export function usePlanExecution(pendingMessageCallbacks?: PendingMessageCallbacks): PlanExecutionState & AskUserState & PlanExecutionActions {
   logger.enter('usePlanExecution');
 
   // State
@@ -70,7 +78,10 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     setCurrentActivity,
     setMessages: () => {}, // Will be provided per-call
     setAskUserRequest,
-  }), []);
+    // Pending message callbacks for mid-execution user input injection
+    getPendingMessage: pendingMessageCallbacks?.getPendingMessage,
+    clearPendingMessage: pendingMessageCallbacks?.clearPendingMessage,
+  }), [pendingMessageCallbacks]);
 
   // Keep todosRef in sync with todos state
   useEffect(() => {
@@ -87,59 +98,28 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
 
     logger.flow('Setting up TODO tool callbacks');
 
-    const updateCallback = async (
-      todoId: string,
-      status: 'in_progress' | 'completed' | 'failed',
-      note?: string
-    ): Promise<boolean> => {
-      logger.enter('todoUpdateCallback', { todoId, status, note });
+    // write_todos callback: 전체 목록 교체
+    const writeCallback = async (newTodos: TodoInput[]): Promise<boolean> => {
+      logger.enter('todoWriteCallback', { todoCount: newTodos.length });
 
-      setTodos(prev => {
-        const todoIndex = prev.findIndex(t => t.id === todoId);
-        if (todoIndex === -1) {
-          logger.warn('TODO not found', { todoId });
-          return prev;
-        }
+      // Convert to TodoItem format
+      const updatedTodos: TodoItem[] = newTodos.map(t => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+      }));
 
-        const existingTodo = prev[todoIndex];
-        if (!existingTodo) {
-          return prev;
-        }
+      setTodos(updatedTodos);
 
-        const updated = [...prev];
-        updated[todoIndex] = {
-          ...existingTodo,
-          status,
-          result: note || existingTodo.result,
-        };
+      // Update currentTodoId based on in_progress item
+      const inProgressTodo = updatedTodos.find(t => t.status === 'in_progress');
+      setCurrentTodoId(inProgressTodo?.id);
 
-        logger.state('TODO status', existingTodo.status, status);
-        return updated;
-      });
-
-      if (status === 'in_progress') {
-        setCurrentTodoId(todoId);
-      } else if (status === 'completed' || status === 'failed') {
-        setCurrentTodoId(prev => prev === todoId ? undefined : prev);
-      }
-
-      logger.exit('todoUpdateCallback', { success: true });
+      logger.exit('todoWriteCallback', { success: true });
       return true;
     };
 
-    // Use todosRef.current to get latest todos without causing effect re-runs
-    const listCallback = () => {
-      logger.flow('Getting TODO list for LLM');
-      return todosRef.current.map(t => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        status: t.status,
-      }));
-    };
-
-    setTodoUpdateCallback(updateCallback);
-    setTodoListCallback(listCallback);
+    setTodoWriteCallback(writeCallback);
 
     return () => {
       logger.flow('Cleaning up TODO tool callbacks');
@@ -231,19 +211,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     return 'none';
   }, [executionPhase, isInterrupted, todos]);
 
-  // Execute Direct Mode
-  const executeDirectMode = useCallback(async (
-    userMessage: string,
-    llmClient: LLMClient,
-    messages: Message[],
-    setMessages: React.Dispatch<React.SetStateAction<Message[]>>
-  ) => {
-    const callbacks: StateCallbacks = {
-      ...stateCallbacks,
-      setMessages: setMessages as StateCallbacks['setMessages'],
-    };
-    await executor.executeDirectMode(userMessage, llmClient, messages, todos, isInterruptedRef, callbacks);
-  }, [executor, stateCallbacks, todos]);
+  // executeDirectMode removed - all requests now use Plan Mode
 
   // Execute Plan Mode
   const executePlanMode = useCallback(async (
@@ -355,7 +323,7 @@ export function usePlanExecution(): PlanExecutionState & AskUserState & PlanExec
     executeAutoMode,
     executePlanMode,
     resumeTodoExecution,
-    executeDirectMode,
+    // executeDirectMode removed - all requests now use Plan Mode
     performCompact,
     shouldAutoCompact,
     getContextRemainingPercent,

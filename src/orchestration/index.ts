@@ -28,4 +28,3 @@ export {
 
 // Plan Executor
 export { PlanExecutor, planExecutor } from './plan-executor.js';
-export type { PlanExecutorConfig } from './plan-executor.js';

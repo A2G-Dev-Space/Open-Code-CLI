@@ -2,12 +2,28 @@
  * Planning Agent
  *
  * Converts user requests into executable TODO lists
+ * Supports parallel docs search decision
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 import { LLMClient } from '../../core/llm/llm-client.js';
 import { Message, TodoItem, PlanningResult, TodoStatus } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
 import { PLANNING_SYSTEM_PROMPT } from '../../prompts/agents/planning.js';
+import {
+  buildDocsSearchDecisionPrompt,
+  parseDocsSearchDecision,
+  DOCS_SEARCH_DECISION_RETRY_PROMPT,
+} from '../../prompts/agents/docs-search-decision.js';
+
+/**
+ * Result of parallel planning with docs decision
+ */
+export interface PlanningWithDocsResult extends PlanningResult {
+  docsSearchNeeded: boolean;
+}
 
 /**
  * Planning LLM
@@ -64,14 +80,11 @@ export class PlanningLLM {
 
       const planningData = JSON.parse(jsonMatch[0]);
 
-      // Create TodoItem array with proper status
+      // Create TodoItem array with proper status (simplified: title only)
       const todos: TodoItem[] = planningData.todos.map((todo: any, index: number) => ({
         id: todo.id || `todo-${Date.now()}-${index}`,
         title: todo.title,
-        description: todo.description,
         status: 'pending' as TodoStatus,
-        requiresDocsSearch: todo.requiresDocsSearch || false,
-        dependencies: todo.dependencies || [],
       }));
 
       return {
@@ -87,11 +100,8 @@ export class PlanningLLM {
         todos: [
           {
             id: `todo-${Date.now()}`,
-            title: 'Execute task',
-            description: userRequest,
+            title: userRequest.length > 100 ? userRequest.substring(0, 100) + '...' : userRequest,
             status: 'pending',
-            requiresDocsSearch: true,
-            dependencies: [],
           },
         ],
         complexity: 'simple',
@@ -100,89 +110,164 @@ export class PlanningLLM {
   }
 
   /**
-   * Validate TODO dependencies
+   * Generate TODO list with parallel docs search decision
+   * Runs planning and docs decision in parallel, then injects docs search TODO if needed
    */
-  validateDependencies(todos: TodoItem[]): boolean {
-    const todoIds = new Set(todos.map(t => t.id));
+  async generateTODOListWithDocsDecision(
+    userRequest: string,
+    contextMessages?: Message[]
+  ): Promise<PlanningWithDocsResult> {
+    logger.enter('PlanningLLM.generateTODOListWithDocsDecision', { requestLength: userRequest.length });
+    logger.startTimer('parallel-planning');
 
-    for (const todo of todos) {
-      for (const depId of todo.dependencies) {
-        if (!todoIds.has(depId)) {
-          logger.warn(`Invalid dependency: TODO ${todo.id} depends on non-existent TODO ${depId}`);
-          return false;
-        }
-      }
+    // Run planning and docs decision in parallel
+    const [planningResult, docsSearchNeeded] = await Promise.all([
+      this.generateTODOList(userRequest, contextMessages),
+      this.shouldSearchDocs(userRequest),
+    ]);
+
+    logger.vars(
+      { name: 'todoCount', value: planningResult.todos.length },
+      { name: 'docsSearchNeeded', value: docsSearchNeeded }
+    );
+
+    // If docs search is needed, prepend a docs search TODO
+    if (docsSearchNeeded) {
+      const docsSearchTodo: TodoItem = {
+        id: `todo-docs-${Date.now()}`,
+        title: 'Search local documentation (use call_docs_search_agent)',
+        status: 'pending' as TodoStatus,
+      };
+
+      logger.flow('Prepended docs search TODO');
+      logger.endTimer('parallel-planning');
+      logger.exit('PlanningLLM.generateTODOListWithDocsDecision', { docsSearchNeeded: true });
+
+      return {
+        ...planningResult,
+        todos: [docsSearchTodo, ...planningResult.todos],
+        docsSearchNeeded: true,
+      };
     }
 
-    // Check for circular dependencies
-    const visited = new Set<string>();
-    const recursionStack = new Set<string>();
+    logger.endTimer('parallel-planning');
+    logger.exit('PlanningLLM.generateTODOListWithDocsDecision', { docsSearchNeeded: false });
 
-    const hasCycle = (todoId: string): boolean => {
-      visited.add(todoId);
-      recursionStack.add(todoId);
-
-      const todo = todos.find(t => t.id === todoId);
-      if (todo) {
-        for (const depId of todo.dependencies) {
-          if (!visited.has(depId) && hasCycle(depId)) {
-            return true;
-          } else if (recursionStack.has(depId)) {
-            return true;
-          }
-        }
-      }
-
-      recursionStack.delete(todoId);
-      return false;
+    return {
+      ...planningResult,
+      docsSearchNeeded: false,
     };
-
-    for (const todo of todos) {
-      if (!visited.has(todo.id) && hasCycle(todo.id)) {
-        logger.warn('Circular dependency detected in TODOs');
-        return false;
-      }
-    }
-
-    return true;
   }
 
   /**
-   * Sort TODOs based on dependencies (topological sort)
+   * Check if docs search is needed for the given request
+   * Based on available documentation structure
    */
-  sortByDependencies(todos: TodoItem[]): TodoItem[] {
-    const sorted: TodoItem[] = [];
-    const visiting = new Set<string>();
-    const visited = new Set<string>();
+  private async shouldSearchDocs(userMessage: string): Promise<boolean> {
+    logger.enter('PlanningLLM.shouldSearchDocs', { messageLength: userMessage.length });
 
-    const visit = (todo: TodoItem) => {
-      if (visited.has(todo.id)) return;
-      if (visiting.has(todo.id)) {
-        throw new Error('Circular dependency detected');
+    // Get folder structure
+    const folderStructure = await this.getDocsFolderStructure();
+
+    // If no docs available, skip search
+    if (
+      folderStructure.includes('empty') ||
+      folderStructure.includes('does not exist')
+    ) {
+      logger.flow('No docs available, skipping search decision');
+      logger.exit('PlanningLLM.shouldSearchDocs', { decision: false, reason: 'no-docs' });
+      return false;
+    }
+
+    // Build prompt
+    const prompt = buildDocsSearchDecisionPrompt(folderStructure, userMessage);
+
+    const messages: Message[] = [
+      { role: 'user', content: prompt },
+    ];
+
+    let retries = 0;
+    const maxRetries = 2;
+
+    while (retries <= maxRetries) {
+      logger.flow(`Asking LLM for docs search decision (attempt ${retries + 1})`);
+
+      const response = await this.llmClient.chatCompletion({
+        messages,
+        temperature: 0.1,
+        max_tokens: 10,
+      });
+
+      const content = response.choices[0]?.message?.content || '';
+      logger.debug('LLM decision response', { content });
+
+      const decision = parseDocsSearchDecision(content);
+
+      if (decision !== null) {
+        logger.exit('PlanningLLM.shouldSearchDocs', { decision, attempts: retries + 1 });
+        return decision;
       }
 
-      visiting.add(todo.id);
-
-      // Visit dependencies first
-      for (const depId of todo.dependencies) {
-        const dep = todos.find(t => t.id === depId);
-        if (dep) {
-          visit(dep);
-        }
-      }
-
-      visiting.delete(todo.id);
-      visited.add(todo.id);
-      sorted.push(todo);
-    };
-
-    for (const todo of todos) {
-      if (!visited.has(todo.id)) {
-        visit(todo);
+      // Invalid response, retry
+      retries++;
+      if (retries <= maxRetries) {
+        messages.push({ role: 'assistant', content });
+        messages.push({ role: 'user', content: DOCS_SEARCH_DECISION_RETRY_PROMPT });
+        logger.warn('Invalid decision response, retrying', { response: content });
       }
     }
 
-    return sorted;
+    // Default to false if all retries failed
+    logger.warn('All decision retries failed, defaulting to no search');
+    logger.exit('PlanningLLM.shouldSearchDocs', { decision: false, reason: 'retries-exhausted' });
+    return false;
+  }
+
+  /**
+   * Get folder structure of docs directory (depth 1 only: root + immediate subdirs)
+   */
+  private async getDocsFolderStructure(): Promise<string> {
+    const docsBasePath = path.join(os.homedir(), '.local-cli', 'docs');
+
+    try {
+      const entries = await fs.readdir(docsBasePath, { withFileTypes: true });
+
+      const lines: string[] = [];
+
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          // Depth 0: Show top-level directory
+          lines.push(`📁 ${entry.name}/`);
+
+          // Depth 1: Show only immediate subdirectory names
+          try {
+            const subPath = path.join(docsBasePath, entry.name);
+            const subEntries = await fs.readdir(subPath, { withFileTypes: true });
+            const subDirs = subEntries.filter(e => e.isDirectory());
+
+            if (subDirs.length > 0) {
+              const subDirNames = subDirs.map(d => d.name).join(', ');
+              lines.push(`   └── [${subDirNames}]`);
+            }
+          } catch {
+            // Ignore errors reading subdirectories
+          }
+        }
+        // Skip files at root level - only show directories
+      }
+
+      if (lines.length === 0) {
+        return '(empty - no documentation available)';
+      }
+
+      return lines.join('\n');
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code === 'ENOENT') {
+        return '(docs directory does not exist)';
+      }
+      return '(error reading docs directory)';
+    }
   }
 }
 

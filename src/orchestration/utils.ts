@@ -67,10 +67,7 @@ export function buildTodoContext(todos: TodoItem[]): string {
     const statusIcon = todo.status === 'completed' ? '✅' :
                        todo.status === 'in_progress' ? '🔄' :
                        todo.status === 'failed' ? '❌' : '⏳';
-    const detail = todo.status === 'in_progress' || todo.status === 'pending'
-      ? `\n   Description: ${todo.description || 'No description'}`
-      : '';
-    return `${idx + 1}. ${statusIcon} [${todo.status.toUpperCase()}] ${todo.title}${detail}`;
+    return `${idx + 1}. ${statusIcon} [${todo.status.toUpperCase()}] ${todo.title}`;
   }).join('\n');
 
   return `
@@ -80,7 +77,7 @@ export function buildTodoContext(todos: TodoItem[]): string {
 ${todoList}
 
 ${pendingCount > 0 || inProgressCount > 0
-  ? '**Continue working on the TODO list. Update status using update_todos tool.**'
+  ? '**Continue working on the TODO list. Update status using write_todos tool.**'
   : '**All TODOs are completed! Provide a brief summary of what was accomplished.**'}
 ---`;
 }

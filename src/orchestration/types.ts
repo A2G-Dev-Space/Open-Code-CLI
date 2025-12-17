@@ -10,8 +10,9 @@ import { CompactResult } from '../core/compact/index.js';
 
 /**
  * 실행 단계
+ * Note: 'classifying' phase removed - all requests now go through planning
  */
-export type ExecutionPhase = 'idle' | 'classifying' | 'planning' | 'executing' | 'compacting';
+export type ExecutionPhase = 'idle' | 'planning' | 'executing' | 'compacting';
 
 /**
  * Plan Execution 상태
@@ -61,6 +62,9 @@ export interface StateCallbacks {
   setCurrentActivity: (activity: string) => void;
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   setAskUserRequest: (request: AskUserRequest | null) => void;
+  // Pending user message callbacks (for injecting messages during execution)
+  getPendingMessage?: () => string | null;
+  clearPendingMessage?: () => void;
 }
 
 /**
@@ -109,12 +113,7 @@ export interface PlanExecutionActions {
     messages: Message[],
     setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void
   ) => Promise<void>;
-  executeDirectMode: (
-    userMessage: string,
-    llmClient: LLMClient,
-    messages: Message[],
-    setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void
-  ) => Promise<void>;
+  // executeDirectMode removed - all requests now use Plan Mode
   performCompact: (
     llmClient: LLMClient,
     messages: Message[],
