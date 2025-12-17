@@ -1,4 +1,4 @@
-# LOCAL-CLI v2.6.0
+# LOCAL-CLI v2.6.1
 
 [![GitHub release](https://img.shields.io/github/v/release/A2G-Dev-Space/Local-CLI)](https://github.com/A2G-Dev-Space/Local-CLI/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -103,7 +103,7 @@ Claude Code-style scrollable log history:
 
 ## Main Features
 
-### v2.6.0 New Features
+### v2.6.1 New Features
 
 | Feature | Description |
 |---------|-------------|
