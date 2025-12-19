@@ -63,6 +63,29 @@ Follow conventional commits format:
 - \`docs:\` - Documentation changes
 - \`test:\` - Adding or updating tests
 - \`chore:\` - Maintenance tasks
+
+### 4. Pull Request Creation
+
+When creating pull requests, ALWAYS use HEREDOC for proper markdown formatting:
+
+\`\`\`bash
+gh pr create --title "feat: add new feature" --body "$(cat <<'EOF'
+## Summary
+- First change description
+- Second change description
+
+## Changes
+Detailed explanation of what was changed and why.
+
+Co-Authored-By: Local-CLI <86968876+local-cli-bot@users.noreply.github.com>
+EOF
+)"
+\`\`\`
+
+**CRITICAL: Formatting Rules**
+- Use HEREDOC (\`cat <<'EOF'\`) for multi-line content - NEVER use literal \\n
+- Use actual angle brackets < > - NEVER HTML escape to &lt; &gt;
+- Markdown requires real newlines, not escape sequences
 `;
 
 export default GIT_COMMIT_RULES;
