@@ -1,25 +1,26 @@
 # LOCAL-CLI Roadmap
 
-> **문서 버전**: 6.0.0 (v1.2.3)
-> **최종 수정일**: 2025-12-12
+> **문서 버전**: 7.0.0 (v2.7.0)
+> **최종 수정일**: 2025-12-19
 > **작성자**: Development Team
 
 ## 목차
 
 1. [개요](#1-개요)
-2. [v1.0.0 완료 기능](#2-v100-완료-기능)
-3. [Phase 5: Supervised Mode (실행 모드)](#3-phase-5-supervised-mode-실행-모드)
-4. [Phase 5.5: Session Management (최우선)](#4-phase-55-session-management-최우선)
-5. [Phase 6: Codebase RAG](#5-phase-6-codebase-rag)
-6. [Phase 7: MCP 기능 지원](#6-phase-7-mcp-기능-지원)
-7. [Phase 8: Tool Selector](#7-phase-8-tool-selector)
-8. [우선순위 매트릭스](#8-우선순위-매트릭스)
+2. [v2.7.0 완료 기능](#2-v270-완료-기능)
+3. [v1.0.0 완료 기능](#3-v100-완료-기능)
+4. [Phase 5: Supervised Mode (실행 모드)](#4-phase-5-supervised-mode-실행-모드)
+5. [Phase 5.5: Session Management (최우선)](#5-phase-55-session-management-최우선)
+6. [Phase 6: Codebase RAG](#6-phase-6-codebase-rag)
+7. [Phase 7: MCP 기능 지원](#7-phase-7-mcp-기능-지원)
+8. [Phase 8: Tool Selector](#8-phase-8-tool-selector)
+9. [우선순위 매트릭스](#9-우선순위-매트릭스)
 
 ---
 
 ## 1. 개요
 
-### 1.1 현재 아키텍처 (v1.2.x)
+### 1.1 현재 아키텍처 (v2.7.0)
 
 | 항목 | 상태 |
 |------|------|
@@ -32,9 +33,56 @@
 
 ---
 
-## 2. v1.0.0 완료 기능
+## 2. v2.7.0 완료 기능 ✅
 
-### 2.1 Phase 1: Plan-Execute Auto Mode ✅
+> **목표**: TODO UI 개선 및 사용자 경험 향상
+> **상태**: ✅ 완료
+
+### 2.1 Notion-style TODO UI
+
+| 기능 | 설명 |
+|------|------|
+| **체크박스 아이콘** | ☐ (대기), ☑ (완료), ☒ (실패) |
+| **취소선** | 완료된 항목에 취소선 표시 |
+| **dots2 스피너** | 진행 중 항목에 ⣾ ⣽ ⣻ ⢿ 애니메이션 |
+| **프로그레스 바** | TODO 진행률 시각화 |
+
+### 2.2 상태바 개선
+
+| 기능 | 설명 |
+|------|------|
+| **star 스피너** | ✶ ✸ ✹ ✺ 애니메이션 |
+| **진행률 표시** | "2/5 tasks" 형식 |
+| **현재 도구명** | edit_file, read_file 등 실행 중인 도구 표시 |
+| **상태 메시지** | Thinking, Compacting, Generating response |
+
+### 2.3 로딩 애니메이션
+
+| 기능 | 설명 |
+|------|------|
+| **shark 스피너** | 초기 로딩 화면에 shark 애니메이션 |
+| **/compact 로딩** | Compact 실행 시 shark 스피너 표시 |
+
+### 2.4 Planning LLM 개선
+
+| 기능 | 설명 |
+|------|------|
+| **create_todos Tool** | TODO 생성 전용 도구 |
+| **대화 히스토리 유지** | Compact 후에도 맥락 전달 |
+| **TODO 상태 동기화** | 진행 상황과 TODO 상태 일치 강조 |
+
+### 2.5 버그 수정
+
+- [x] UI 빈 줄 렌더링 문제 수정
+- [x] 첫 번째 TODO 애니메이션 즉시 표시
+- [x] React Hooks 순서 오류 수정
+- [x] response_to_user 도구 제거 (단순화)
+
+---
+
+## 3. v1.0.0 완료 기능
+
+### 3.1 Phase 1: Plan-Execute Auto Mode ✅
 
 - ✅ 요청 분류 시스템 (simple_response / requires_todo)
 - ✅ `update-todo-list` LLM Tool
@@ -42,13 +90,13 @@
 - ✅ ESC 키 Human Interrupt
 - ✅ Plan 승인 제거 (자동 실행)
 
-### 2.2 Phase 2: ask-to-user Tool ✅
+### 3.2 Phase 2: ask-to-user Tool ✅
 
 - ✅ `ask-to-user` LLM Tool (2-4개 선택지 + "Other")
 - ✅ AskUserDialog UI 컴포넌트
 - ✅ LLM이 사용자에게 질문/확인 가능
 
-### 2.3 Phase 3: 사용량 추적 ✅
+### 3.3 Phase 3: 사용량 추적 ✅
 
 - ✅ `/usage` 명령어
 - ✅ 세션 레벨 토큰 취합
@@ -57,7 +105,7 @@
 - ✅ 일별/월별/전체 통계
 - ✅ `~/.local-cli/usage.json` 저장
 
-### 2.4 Phase 4: 문서 다운로드 내재화 ✅
+### 3.4 Phase 4: 문서 다운로드 내재화 ✅
 
 - ✅ `/docs` 명령어 (정보 표시)
 - ✅ `/docs download <source>` (agno, adk)
@@ -67,7 +115,7 @@
 
 ---
 
-## 3. Phase 5: Supervised Mode (실행 모드) ✅
+## 4. Phase 5: Supervised Mode (실행 모드) ✅
 
 > **목표**: 사용자가 AI의 파일 수정 Tool 실행을 승인/거부할 수 있는 모드
 > **우선순위**: 🔴 높음
@@ -152,7 +200,7 @@ AI가 피드백 반영하여 재시도
 
 ---
 
-## 4. Phase 5.5: Session Management (최우선) 🚨
+## 5. Phase 5.5: Session Management (최우선) 🚨
 
 > **목표**: 완벽한 세션 관리 및 사용자 제어 강화
 > **우선순위**: 🔴🔴 최우선 (Phase 6 이전 필수)
@@ -299,7 +347,7 @@ User가 메시지 입력: "잠깐, 그거 말고 다른 방법으로 해줘"
 
 ---
 
-## 5. Phase 6: Codebase RAG
+## 6. Phase 6: Codebase RAG
 
 > **목표**: 대규모 코드베이스를 LLM이 이해하기 쉽게 인덱싱
 > **우선순위**: 🟡 중간
@@ -345,7 +393,7 @@ interface CodebaseIndex {
 
 ---
 
-## 6. Phase 7: MCP 기능 지원
+## 7. Phase 7: MCP 기능 지원
 
 > **목표**: Model Context Protocol 통합
 > **우선순위**: 🟡 중간
@@ -375,7 +423,7 @@ interface CodebaseIndex {
 
 ---
 
-## 7. Phase 8: Tool Selector
+## 8. Phase 8: Tool Selector
 
 > **목표**: LLM Tool이 많아질 경우 성능 저하 방지
 > **우선순위**: 🟢 낮음 (Tool이 많아진 후 구현)
@@ -408,7 +456,7 @@ User 요청
 
 ---
 
-## 8. 우선순위 매트릭스
+## 9. 우선순위 매트릭스
 
 ### 8.1 구현 순서
 
