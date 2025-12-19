@@ -178,7 +178,7 @@ export function initializeToolRegistry(): void {
   // LLM Simple Tools - TODO management
   toolRegistry.registerAll(TODO_TOOLS);
 
-  // LLM Planning Tools - response_to_user, create_todos
+  // LLM Planning Tools - create_todos (for task planning)
   toolRegistry.registerAll(PLANNING_TOOLS);
 
   // LLM Simple Tools - Docs Search Agent (callable by main LLM)

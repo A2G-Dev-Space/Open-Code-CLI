@@ -2,51 +2,12 @@
  * Planning Tools
  *
  * Planning LLM 전용 tools
- * - response_to_user: 단순 응답 (planning 불필요)
- * - create_todos: TODO 리스트 생성 (planning 필요)
+ * - create_todos: TODO 리스트 생성 (planning 필요 시)
+ *
+ * 단순 응답의 경우 tool 없이 텍스트로 응답
  */
 
 import { LLMSimpleTool, ToolResult } from '../../types.js';
-
-/**
- * response_to_user tool
- * Planning 불필요한 단순 질문/응답에 사용
- */
-export const responseToUserTool: LLMSimpleTool = {
-  definition: {
-    type: 'function',
-    function: {
-      name: 'response_to_user',
-      description: `Use this tool when NO planning is needed - for simple questions or requests that can be answered directly.
-
-When to use:
-- Simple questions (e.g., "What is X?", "How does Y work?")
-- Greetings or casual conversation
-- Requests for explanations or clarifications
-- Questions that don't require code changes or file operations
-
-IMPORTANT: Write the response in the user's language.`,
-      parameters: {
-        type: 'object',
-        properties: {
-          response: {
-            type: 'string',
-            description: 'Your direct response to the user (in their language)',
-          },
-        },
-        required: ['response'],
-      },
-    },
-  },
-  execute: async (args: Record<string, unknown>): Promise<ToolResult> => {
-    const response = args['response'] as string;
-    return {
-      success: true,
-      result: response,
-    };
-  },
-  categories: ['llm-planning'],
-};
 
 /**
  * create_todos tool
@@ -57,13 +18,18 @@ export const createTodosTool: LLMSimpleTool = {
     type: 'function',
     function: {
       name: 'create_todos',
-      description: `Use this tool when planning IS needed - for tasks requiring code changes, file operations, or multi-step work.
+      description: `Use this tool ONLY when the task requires code changes, file operations, or multi-step implementation work.
 
 When to use:
 - Code implementation tasks
 - Bug fixes
 - File modifications
 - Multi-step operations
+
+DO NOT use for:
+- Simple questions or explanations
+- Greetings or casual conversation
+- Clarifications that don't require code changes
 
 Guidelines:
 - 3-5 TODOs maximum
@@ -118,6 +84,5 @@ IMPORTANT: Write TODO titles in the user's language.`,
  * All Planning tools
  */
 export const PLANNING_TOOLS: LLMSimpleTool[] = [
-  responseToUserTool,
   createTodosTool,
 ];
