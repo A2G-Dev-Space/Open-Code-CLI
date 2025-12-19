@@ -33,6 +33,7 @@ import {
   emitTodoComplete,
   emitTodoFail,
   emitCompact,
+  emitAssistantResponse,
 } from '../tools/llm/simple/file-tools.js';
 import { toolRegistry } from '../tools/registry.js';
 import { PLAN_EXECUTE_SYSTEM_PROMPT as PLAN_PROMPT } from '../prompts/system/plan-execute.js';
@@ -100,7 +101,9 @@ export class PlanExecutor {
           { role: 'user' as const, content: userMessage },
           { role: 'assistant' as const, content: planResult.directResponse }
         ];
-        // Use spread to create new array reference for React state update
+        // Emit to UI log
+        emitAssistantResponse(planResult.directResponse);
+        // Update messages state
         callbacks.setMessages([...updatedMessages]);
         sessionManager.autoSaveCurrentSession(updatedMessages);
         callbacks.setExecutionPhase('idle');
