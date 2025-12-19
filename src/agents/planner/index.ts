@@ -87,7 +87,14 @@ export class PlanningLLM {
       if (toolCalls && toolCalls.length > 0) {
         const toolCall = toolCalls[0]!;
         const toolName = toolCall.function?.name;
-        const toolArgs = JSON.parse(toolCall.function?.arguments || '{}');
+
+        let toolArgs;
+        try {
+          toolArgs = JSON.parse(toolCall.function?.arguments || '{}');
+        } catch (error) {
+          logger.error('Failed to parse tool arguments', { args: toolCall.function?.arguments, error });
+          throw new Error('Planning LLM returned invalid JSON for tool arguments.');
+        }
 
         if (toolName === 'create_todos') {
           logger.flow('TODO list created via create_todos tool');

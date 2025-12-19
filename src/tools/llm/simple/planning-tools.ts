@@ -69,6 +69,8 @@ IMPORTANT: Write TODO titles in the user's language.`,
       },
     },
   },
+  // NOTE: 이 execute 함수는 PlanningLLM에서 직접 tool_call을 처리하므로 호출되지 않습니다.
+  // 오직 tool definition 제공을 위해 존재합니다.
   execute: async (args: Record<string, unknown>): Promise<ToolResult> => {
     const todos = args['todos'] as Array<{ id: string; title: string }>;
     const complexity = args['complexity'] as string;
