@@ -1890,9 +1890,10 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
           // Claude Code style with pulsing star animation
           <>
             <Box>
-              <Text color="magenta"><Spinner type="dots" /></Text>
-              <Text>{'  '}</Text>
-              <Text color="white">
+              <Text color="magenta">
+                <Spinner type="dots" />
+              </Text>
+              <Text color="white">{' '}
                 {(() => {
                   const phase = planExecutionState.executionPhase;
                   const todos = planExecutionState.todos;
