@@ -121,6 +121,41 @@ function formatTokensCompact(count: number): string {
   return `${(count / 1000000).toFixed(2)}M`;
 }
 
+// Helper function for status bar text
+interface StatusTextParams {
+  phase: string;
+  todos: { status: string }[];
+  currentToolName: string | null;
+}
+
+function getStatusText({ phase, todos, currentToolName }: StatusTextParams): string {
+  const completedCount = todos.filter(t => t.status === 'completed').length;
+  const totalCount = todos.length;
+  const allTodosCompleted = totalCount > 0 && todos.every(t => t.status === 'completed' || t.status === 'failed');
+
+  // Build progress prefix (only show when tasks exist)
+  const progressPrefix = totalCount > 0 ? `${completedCount}/${totalCount} tasks · ` : '';
+
+  // Compacting
+  if (phase === 'compacting') {
+    return 'Compacting conversation';
+  }
+  // All TODOs completed, generating final response
+  if (phase === 'executing' && allTodosCompleted) {
+    return `${progressPrefix}Generating response`;
+  }
+  // Planning/Thinking
+  if (phase === 'planning') {
+    return 'Thinking';
+  }
+  // Tool is running - show tool name
+  if (currentToolName) {
+    return `${progressPrefix}${currentToolName}`;
+  }
+  // Default: processing
+  return `${progressPrefix}Processing`;
+}
+
 // Status bar uses ink-spinner for animation (avoids custom render issues)
 
 interface PlanExecuteAppProps {
@@ -1911,35 +1946,11 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
                   <Spinner type="star" />
                 </Text>
                 <Text color="white">{' '}
-                  {(() => {
-                    const phase = planExecutionState.executionPhase;
-                    const todos = planExecutionState.todos;
-                    const completedCount = todos.filter(t => t.status === 'completed').length;
-                    const totalCount = todos.length;
-                    const allTodosCompleted = totalCount > 0 && todos.every(t => t.status === 'completed' || t.status === 'failed');
-
-                    // Build progress prefix (only show when tasks exist)
-                    const progressPrefix = totalCount > 0 ? `${completedCount}/${totalCount} tasks · ` : '';
-
-                    // Compacting
-                    if (phase === 'compacting') {
-                      return 'Compacting conversation';
-                    }
-                    // All TODOs completed, generating final response
-                    if (phase === 'executing' && allTodosCompleted) {
-                      return `${progressPrefix}Generating response`;
-                    }
-                    // Planning/Thinking
-                    if (phase === 'planning') {
-                      return 'Thinking';
-                    }
-                    // Tool is running - show tool name
-                    if (currentToolName) {
-                      return `${progressPrefix}${currentToolName}`;
-                    }
-                    // Default: processing
-                    return `${progressPrefix}Processing`;
-                  })()}…
+                  {getStatusText({
+                    phase: planExecutionState.executionPhase,
+                    todos: planExecutionState.todos,
+                    currentToolName,
+                  })}…
                 </Text>
                 <Text color="gray">
                   {' '}(esc to interrupt · {formatElapsedTime(sessionElapsed)}

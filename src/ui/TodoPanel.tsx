@@ -129,7 +129,7 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
                 <Box width={2}>
                   {isInProgress ? (
                     <Text color="blueBright">
-                      <Spinner type="dots" />
+                      <Spinner type="dots2" />
                     </Text>
                   ) : (
                     <Text color={config.color}>{config.icon}</Text>
