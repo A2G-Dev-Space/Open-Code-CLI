@@ -229,11 +229,9 @@ export class GitAutoUpdater {
       if (currentCommit === latestCommit) {
         logger.debug('Repository up to date');
 
-        // In binary mode, always copy binaries to ensure consistency
-        if (isRunningAsBinary()) {
-          logger.debug('Ensuring binary is up to date...');
-          return await this.copyBinaries();
-        }
+        // Always copy binaries to ensure ~/.local/bin/nexus is up to date
+        logger.debug('Ensuring binary is up to date...');
+        await this.copyBinaries();
 
         this.emitStatus({ type: 'no_update' });
         return false;
@@ -243,12 +241,12 @@ export class GitAutoUpdater {
       logger.debug('Resetting to latest commit...', { from: currentCommit.slice(0, 7), to: latestCommit.slice(0, 7) });
       await execAsync('git reset --hard origin/nexus-coder', { cwd: this.repoDir });
 
-      // Changes detected - update based on mode
-      if (isRunningAsBinary()) {
-        return await this.copyBinaries();
-      } else {
+      // Always copy binaries, and rebuild if running in Node.js mode
+      await this.copyBinaries();
+      if (!isRunningAsBinary()) {
         return await this.rebuildAndLink();
       }
+      return true;
 
     } catch (error: unknown) {
       logger.error('Pull/reset failed, attempting fresh clone', error as Error);
