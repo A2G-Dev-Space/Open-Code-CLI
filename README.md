@@ -20,10 +20,10 @@ GitHub에서 두 파일을 다운로드합니다:
 mkdir -p ~/nexus-download && cd ~/nexus-download
 
 # nexus.gz 다운로드 (39MB)
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz
+wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz --no-check-certificat
 
 # yoga.wasm 다운로드 (87KB)
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm
+wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm --no-check-certificat
 ```
 
 > **wget 대신 curl 사용:**
