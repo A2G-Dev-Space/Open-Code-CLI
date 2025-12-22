@@ -63,10 +63,14 @@ export class PlanningLLM {
       messages.push(...systemMsgs, ...recentMsgs);
     }
 
-    messages.push({
-      role: 'user',
-      content: userRequest,
-    });
+    // Check if last message is already the same user request (avoid duplicate)
+    const lastMsg = messages[messages.length - 1];
+    if (!(lastMsg?.role === 'user' && lastMsg?.content === userRequest)) {
+      messages.push({
+        role: 'user',
+        content: userRequest,
+      });
+    }
 
     // Get Planning tool definitions (create_todos only)
     const planningTools = toolRegistry.getLLMPlanningToolDefinitions();
