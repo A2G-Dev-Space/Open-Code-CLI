@@ -1026,37 +1026,34 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   const handleModelSelect = useCallback(
     (endpointId: string, modelId: string) => {
       logger.enter('handleModelSelect', { endpointId, modelId });
-      const endpoint = configManager.getAllEndpoints().find((ep) => ep.id === endpointId);
-      const model = endpoint?.models.find((m) => m.id === modelId);
-
-      if (endpoint && model) {
-        logger.state('Current model', currentModelInfo.model, model.name);
-        setCurrentModelInfo({
-          model: model.name,
-          endpoint: endpoint.baseUrl,
-        });
-
-        // 새로운 LLMClient 생성 (configManager에 이미 저장되어 있으므로 새로 생성하면 됨)
-        try {
-          const newClient = createLLMClient();
-          setLlmClient(newClient);
-          logger.debug('LLMClient recreated with new model', { modelId, modelName: model.name });
-        } catch (error) {
-          logger.error('Failed to create new LLMClient', error as Error);
-        }
-      }
 
       setShowModelSelector(false);
 
-      // Add confirmation message
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant' as const,
-          content: `모델이 변경되었습니다: ${model?.name || modelId} (${endpoint?.name || endpointId})`,
-        },
-      ]);
-      logger.exit('handleModelSelect', { model: model?.name });
+      // 새로운 LLMClient 생성 (ModelSelector에서 이미 configManager에 저장됨)
+      // Single source of truth: client에서 model info 가져옴
+      try {
+        const newClient = createLLMClient();
+        const newModelInfo = newClient.getModelInfo();
+
+        logger.state('Current model', currentModelInfo.model, newModelInfo.model);
+        setLlmClient(newClient);
+        setCurrentModelInfo(newModelInfo);
+
+        // Add confirmation message
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant' as const,
+            content: `모델이 변경되었습니다: ${newModelInfo.model}`,
+          },
+        ]);
+
+        logger.debug('LLMClient recreated with new model', { modelId, modelName: newModelInfo.model });
+        logger.exit('handleModelSelect', { model: newModelInfo.model });
+      } catch (error) {
+        logger.error('Failed to create new LLMClient', error as Error);
+        logger.exit('handleModelSelect', { error: true });
+      }
     },
     [currentModelInfo.model]
   );

@@ -10,12 +10,16 @@ import { render } from 'ink';
 import { PlanExecuteApp } from './components/PlanExecuteApp.js';
 import { createLLMClient } from '../core/llm/llm-client.js';
 import { configManager } from '../core/config/config-manager.js';
+import { authManager } from '../core/auth/index.js';
 
 // Async 초기화
 (async () => {
   try {
     // ConfigManager 초기화
     await configManager.initialize();
+
+    // AuthManager 초기화 (LLMClient 생성 전에 auth headers 준비)
+    await authManager.initialize();
 
     // LLM Client 생성
     const llmClient = createLLMClient();
