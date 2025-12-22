@@ -11,7 +11,7 @@ RUN npm config set strict-ssl false
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
-RUN npm ci --include=dev
+RUN npm install --include=dev
 
 # Copy source code
 COPY . .
