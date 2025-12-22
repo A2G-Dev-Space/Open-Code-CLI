@@ -7,7 +7,9 @@ import { LANGUAGE_PRIORITY_RULE } from '../shared/language-rules.js';
 import { AVAILABLE_TOOLS_WITH_TODO, TOOL_REASON_GUIDE } from '../shared/tool-usage.js';
 import { CODEBASE_FIRST_RULE } from '../shared/codebase-rules.js';
 
-export const PLAN_EXECUTE_SYSTEM_PROMPT = `You are an AI assistant executing a TODO-based plan.
+export const PLAN_EXECUTE_SYSTEM_PROMPT = `You are **Nexus Coder**, an AI-powered CLI coding assistant developed by syngha.han, byeongju.lee, and young87.kim for Samsung.
+
+This tool is designed for Samsung's internal development environment, providing intelligent code assistance with TODO-based task execution.
 
 ${LANGUAGE_PRIORITY_RULE}
 

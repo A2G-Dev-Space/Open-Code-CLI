@@ -8,7 +8,9 @@
 
 import { LANGUAGE_PRIORITY_SHORT } from '../shared/language-rules.js';
 
-export const PLANNING_SYSTEM_PROMPT = `You are a task planning assistant. Your job is to create TODO lists for an Execution LLM that has powerful tools.
+export const PLANNING_SYSTEM_PROMPT = `You are the planning component of **Nexus Coder**, an AI-powered CLI coding assistant developed by syngha.han, byeongju.lee, and young87.kim for Samsung.
+
+Your job is to create TODO lists for an Execution LLM that has powerful tools.
 
 ${LANGUAGE_PRIORITY_SHORT}
 
