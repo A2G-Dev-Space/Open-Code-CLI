@@ -30,6 +30,19 @@ interface ChartDataItem {
   [userId: string]: string | number;
 }
 
+/**
+ * URL 인코딩된 사용자 이름을 디코딩
+ * DB에 한글이 URL 인코딩된 상태로 저장된 경우 처리
+ */
+function decodeUsername(name: string | undefined | null): string {
+  if (!name) return '';
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name; // 디코딩 실패 시 원본 반환
+  }
+}
+
 // Color palette for different users
 const USER_COLORS = [
   '#0c8ce6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -233,14 +246,14 @@ export default function UsersByModelChart() {
                   }}
                   formatter={(value: number, name: string) => {
                     const user = users.find((u) => u.id === name);
-                    return [formatYAxis(value), user?.username || user?.loginid || name];
+                    return [formatYAxis(value), decodeUsername(user?.username) || user?.loginid || name];
                   }}
                   labelFormatter={(label) => `날짜: ${label}`}
                 />
                 <Legend
                   formatter={(value: string) => {
                     const user = users.find((u) => u.id === value);
-                    return user?.username || user?.loginid || value;
+                    return decodeUsername(user?.username) || user?.loginid || value;
                   }}
                   wrapperStyle={{ fontSize: '11px' }}
                 />
@@ -276,7 +289,7 @@ export default function UsersByModelChart() {
                     {index + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-gray-900 truncate">{user.username}</p>
+                    <p className="text-xs font-medium text-gray-900 truncate">{decodeUsername(user.username)}</p>
                     <p className="text-xs text-gray-500">{formatYAxis(user.totalTokens)} tokens</p>
                   </div>
                 </div>

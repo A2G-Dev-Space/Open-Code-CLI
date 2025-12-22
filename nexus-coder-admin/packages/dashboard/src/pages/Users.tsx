@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react';
 import { User, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usersApi } from '../services/api';
 
+/**
+ * URL 인코딩된 사용자 이름을 디코딩
+ */
+function decodeUsername(name: string | undefined | null): string {
+  if (!name) return '';
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
+
 interface UserData {
   id: string;
   loginid: string;
@@ -127,7 +139,7 @@ export default function Users() {
                       <User className="w-5 h-5 text-samsung-blue" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{user.username}</p>
+                      <p className="font-medium text-gray-900">{decodeUsername(user.username)}</p>
                       <p className="text-sm text-gray-500">{user.loginid}</p>
                     </div>
                   </div>

@@ -161,7 +161,7 @@ adminRoutes.delete('/models/:id', async (req: AuthenticatedRequest, res) => {
 
 /**
  * GET /admin/users
- * Get all users with usage stats
+ * Get all users with usage stats (excluding anonymous)
  */
 adminRoutes.get('/users', async (req: AuthenticatedRequest, res) => {
   try {
@@ -171,6 +171,9 @@ adminRoutes.get('/users', async (req: AuthenticatedRequest, res) => {
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
+        where: {
+          loginid: { not: 'anonymous' },
+        },
         skip,
         take: limit,
         orderBy: { lastActive: 'desc' },
@@ -180,7 +183,11 @@ adminRoutes.get('/users', async (req: AuthenticatedRequest, res) => {
           },
         },
       }),
-      prisma.user.count(),
+      prisma.user.count({
+        where: {
+          loginid: { not: 'anonymous' },
+        },
+      }),
     ]);
 
     res.json({
@@ -360,7 +367,7 @@ adminRoutes.get('/stats/daily', async (req: AuthenticatedRequest, res) => {
 
 /**
  * GET /admin/stats/by-user
- * Get usage grouped by user
+ * Get usage grouped by user (excluding anonymous)
  */
 adminRoutes.get('/stats/by-user', async (req: AuthenticatedRequest, res) => {
   try {
@@ -372,6 +379,9 @@ adminRoutes.get('/stats/by-user', async (req: AuthenticatedRequest, res) => {
       by: ['userId'],
       where: {
         timestamp: { gte: startDate },
+        user: {
+          loginid: { not: 'anonymous' },
+        },
       },
       _sum: {
         inputTokens: true,
@@ -696,12 +706,15 @@ adminRoutes.get('/stats/model-user-trend', async (req: AuthenticatedRequest, res
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    // Get top N users by total usage for this model in the period
+    // Get top N users by total usage for this model in the period (excluding anonymous)
     const topUsers = await prisma.usageLog.groupBy({
       by: ['userId'],
       where: {
         modelId,
         timestamp: { gte: startDate },
+        user: {
+          loginid: { not: 'anonymous' },
+        },
       },
       _sum: {
         totalTokens: true,
