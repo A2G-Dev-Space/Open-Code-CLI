@@ -14,13 +14,13 @@ export function createRedisClient(): Redis {
 
   const client = new Redis(redisUrl, {
     maxRetriesPerRequest: 3,
-    retryStrategy(times) {
+    retryStrategy(times: number) {
       const delay = Math.min(times * 50, 2000);
       return delay;
     },
   });
 
-  client.on('error', (err) => {
+  client.on('error', (err: Error) => {
     console.error('Redis Client Error:', err);
   });
 
@@ -46,9 +46,9 @@ export async function getActiveUserCount(redis: Redis): Promise<number> {
 }
 
 /**
- * Record user activity
+ * Track active user (record user activity)
  */
-export async function recordUserActivity(redis: Redis, userId: string): Promise<void> {
+export async function trackActiveUser(redis: Redis, userId: string): Promise<void> {
   const key = 'active_users';
   await redis.zadd(key, Date.now(), userId);
 }
@@ -74,7 +74,41 @@ export async function getTodayUsage(redis: Redis): Promise<{
 }
 
 /**
- * Increment today's usage stats
+ * Increment usage stats (per user/model and daily total)
+ */
+export async function incrementUsage(
+  redis: Redis,
+  userId: string,
+  modelId: string,
+  inputTokens: number,
+  outputTokens: number
+): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  const dailyKey = `daily_usage:${today}`;
+  const userKey = `user_usage:${userId}:${today}`;
+  const modelKey = `model_usage:${modelId}:${today}`;
+
+  // Daily total
+  await redis.hincrby(dailyKey, 'requests', 1);
+  await redis.hincrby(dailyKey, 'inputTokens', inputTokens);
+  await redis.hincrby(dailyKey, 'outputTokens', outputTokens);
+  await redis.expire(dailyKey, 7 * 24 * 60 * 60);
+
+  // Per user
+  await redis.hincrby(userKey, 'requests', 1);
+  await redis.hincrby(userKey, 'inputTokens', inputTokens);
+  await redis.hincrby(userKey, 'outputTokens', outputTokens);
+  await redis.expire(userKey, 7 * 24 * 60 * 60);
+
+  // Per model
+  await redis.hincrby(modelKey, 'requests', 1);
+  await redis.hincrby(modelKey, 'inputTokens', inputTokens);
+  await redis.hincrby(modelKey, 'outputTokens', outputTokens);
+  await redis.expire(modelKey, 7 * 24 * 60 * 60);
+}
+
+/**
+ * Increment today's usage stats (legacy function for compatibility)
  */
 export async function incrementTodayUsage(
   redis: Redis,
