@@ -67,6 +67,24 @@ export default function ModelUsageChart() {
     }
   };
 
+  // 일별 데이터를 누적 데이터로 변환
+  const cumulativeChartData = useMemo(() => {
+    if (chartData.length === 0 || models.length === 0) return [];
+
+    const cumulative: Record<string, number> = {};
+    models.forEach((m) => (cumulative[m.id] = 0));
+
+    return chartData.map((item) => {
+      const newItem: ChartDataItem = { date: item.date };
+      models.forEach((model) => {
+        const dailyValue = (item[model.id] as number) || 0;
+        cumulative[model.id] = (cumulative[model.id] || 0) + dailyValue;
+        newItem[model.id] = cumulative[model.id];
+      });
+      return newItem;
+    });
+  }, [chartData, models]);
+
   const formatYAxis = (value: number): string => {
     if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
     if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
@@ -104,8 +122,8 @@ export default function ModelUsageChart() {
     <div className="bg-white rounded-2xl shadow-card p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">모델별 사용량 추이</h2>
-          <p className="text-sm text-gray-500 mt-1">전체 사용자의 모델별 토큰 사용량</p>
+          <h2 className="text-lg font-semibold text-gray-900">모델별 누적 사용량</h2>
+          <p className="text-sm text-gray-500 mt-1">전체 사용자의 모델별 누적 토큰 사용량</p>
         </div>
         <div className="flex items-center gap-2">
           {DATE_RANGE_OPTIONS.map((option) => (
@@ -124,14 +142,14 @@ export default function ModelUsageChart() {
         </div>
       </div>
 
-      {chartData.length === 0 || models.length === 0 ? (
+      {cumulativeChartData.length === 0 || models.length === 0 ? (
         <div className="h-80 flex items-center justify-center text-gray-400">
           데이터가 없습니다
         </div>
       ) : (
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <LineChart data={cumulativeChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="date"

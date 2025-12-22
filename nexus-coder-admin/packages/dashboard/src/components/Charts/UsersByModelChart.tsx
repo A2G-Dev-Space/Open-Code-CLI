@@ -111,6 +111,24 @@ export default function UsersByModelChart() {
     }
   };
 
+  // 일별 데이터를 누적 데이터로 변환
+  const cumulativeChartData = useMemo(() => {
+    if (chartData.length === 0 || users.length === 0) return [];
+
+    const cumulative: Record<string, number> = {};
+    users.forEach((u) => (cumulative[u.id] = 0));
+
+    return chartData.map((item) => {
+      const newItem: ChartDataItem = { date: item.date };
+      users.forEach((user) => {
+        const dailyValue = (item[user.id] as number) || 0;
+        cumulative[user.id] = (cumulative[user.id] || 0) + dailyValue;
+        newItem[user.id] = cumulative[user.id];
+      });
+      return newItem;
+    });
+  }, [chartData, users]);
+
   const formatYAxis = (value: number): string => {
     if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
     if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
@@ -147,9 +165,9 @@ export default function UsersByModelChart() {
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">모델별 사용자 사용량 추이</h2>
+            <h2 className="text-lg font-semibold text-gray-900">모델별 사용자 누적 사용량</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {selectedModel ? `${selectedModel.displayName} - Top ${topN} 사용자` : '모델을 선택하세요'}
+              {selectedModel ? `${selectedModel.displayName} - Top ${topN} 사용자 누적 토큰` : '모델을 선택하세요'}
             </p>
           </div>
         </div>
@@ -211,7 +229,7 @@ export default function UsersByModelChart() {
         <div className="h-96 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nexus-600"></div>
         </div>
-      ) : chartData.length === 0 || users.length === 0 ? (
+      ) : cumulativeChartData.length === 0 || users.length === 0 ? (
         <div className="h-96 flex items-center justify-center text-gray-400">
           데이터가 없습니다
         </div>
@@ -219,7 +237,7 @@ export default function UsersByModelChart() {
         <>
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <LineChart data={cumulativeChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="date"
