@@ -172,7 +172,7 @@ source ~/.zshrc    # zsh 사용자
 ### "Admin Server에서 모델을 가져올 수 없습니다"
 
 - 사내 네트워크 연결 확인
-- Admin Server 상태 확인: `curl http://a2g.samsungds.net:4090/v1/health`
+- Admin Server 상태 확인: `curl http://10.229.95.228:4090/v1/health`
 
 ### 업데이트 실패
 
@@ -245,7 +245,7 @@ gzip -c bin/nexus > bin/nexus.gz
 │                                              │                     │
 │                                              ▼                     │
 │   ┌────────────────────────────────────────────────────────────┐   │
-│   │               ADMIN SERVER (a2g.samsungds.net:4090)         │   │
+│   │               ADMIN SERVER (10.229.95.228:4090)             │   │
 │   │                                                             │   │
 │   │  ┌─────────────────────────────────────────────────────┐   │   │
 │   │  │                  Nginx (:4090)                       │   │   │
