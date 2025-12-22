@@ -62,7 +62,7 @@ usageRoutes.get('/by-model', async (req, res) => {
     const usage = await prisma.usageLog.groupBy({
       by: ['modelId'],
       where: {
-        createdAt: { gte: startDate },
+        timestamp: { gte: startDate },
       },
       _sum: {
         inputTokens: true,
@@ -85,9 +85,9 @@ usageRoutes.get('/by-model', async (req, res) => {
       modelId: u.modelId,
       modelName: modelMap.get(u.modelId) || u.modelId,
       requests: u._count,
-      inputTokens: u._sum.inputTokens || 0,
-      outputTokens: u._sum.outputTokens || 0,
-      totalTokens: u._sum.totalTokens || 0,
+      inputTokens: u._sum?.inputTokens ?? 0,
+      outputTokens: u._sum?.outputTokens ?? 0,
+      totalTokens: u._sum?.totalTokens ?? 0,
     }));
 
     res.json({ usage: result });
@@ -110,7 +110,7 @@ usageRoutes.get('/by-user', async (req, res) => {
     const usage = await prisma.usageLog.groupBy({
       by: ['userId'],
       where: {
-        createdAt: { gte: startDate },
+        timestamp: { gte: startDate },
       },
       _sum: {
         inputTokens: true,
@@ -134,9 +134,9 @@ usageRoutes.get('/by-user', async (req, res) => {
       username: userMap.get(u.userId)?.username || 'Unknown',
       loginid: userMap.get(u.userId)?.loginid || 'unknown',
       requests: u._count,
-      inputTokens: u._sum.inputTokens || 0,
-      outputTokens: u._sum.outputTokens || 0,
-      totalTokens: u._sum.totalTokens || 0,
+      inputTokens: u._sum?.inputTokens ?? 0,
+      outputTokens: u._sum?.outputTokens ?? 0,
+      totalTokens: u._sum?.totalTokens ?? 0,
     }));
 
     res.json({ usage: result });
@@ -156,7 +156,7 @@ usageRoutes.get('/logs', async (req, res) => {
     const offset = parseInt(req.query['offset'] as string) || 0;
 
     const logs = await prisma.usageLog.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { timestamp: 'desc' },
       take: limit,
       skip: offset,
       include: {

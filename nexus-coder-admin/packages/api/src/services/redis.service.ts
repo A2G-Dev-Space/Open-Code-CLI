@@ -6,10 +6,13 @@
 
 import Redis from 'ioredis';
 
+// Redis 클라이언트 타입
+type RedisClient = InstanceType<typeof Redis>;
+
 /**
  * Create Redis client with configuration
  */
-export function createRedisClient(): Redis {
+export function createRedisClient(): RedisClient {
   const redisUrl = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
   const client = new Redis(redisUrl, {
@@ -34,7 +37,7 @@ export function createRedisClient(): Redis {
 /**
  * Get active user count (users active in last 5 minutes)
  */
-export async function getActiveUserCount(redis: Redis): Promise<number> {
+export async function getActiveUserCount(redis: RedisClient): Promise<number> {
   const key = 'active_users';
   const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
@@ -48,7 +51,7 @@ export async function getActiveUserCount(redis: Redis): Promise<number> {
 /**
  * Track active user (record user activity)
  */
-export async function trackActiveUser(redis: Redis, userId: string): Promise<void> {
+export async function trackActiveUser(redis: RedisClient, userId: string): Promise<void> {
   const key = 'active_users';
   await redis.zadd(key, Date.now(), userId);
 }
@@ -56,7 +59,7 @@ export async function trackActiveUser(redis: Redis, userId: string): Promise<voi
 /**
  * Get today's usage stats
  */
-export async function getTodayUsage(redis: Redis): Promise<{
+export async function getTodayUsage(redis: RedisClient): Promise<{
   requests: number;
   inputTokens: number;
   outputTokens: number;
@@ -77,7 +80,7 @@ export async function getTodayUsage(redis: Redis): Promise<{
  * Increment usage stats (per user/model and daily total)
  */
 export async function incrementUsage(
-  redis: Redis,
+  redis: RedisClient,
   userId: string,
   modelId: string,
   inputTokens: number,
@@ -111,7 +114,7 @@ export async function incrementUsage(
  * Increment today's usage stats (legacy function for compatibility)
  */
 export async function incrementTodayUsage(
-  redis: Redis,
+  redis: RedisClient,
   inputTokens: number,
   outputTokens: number
 ): Promise<void> {
