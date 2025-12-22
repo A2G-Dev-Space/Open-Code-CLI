@@ -4,15 +4,12 @@
  * Handles Redis connection and caching operations
  */
 
-import Redis from 'ioredis';
-
-// Redis 클라이언트 타입
-type RedisClient = InstanceType<typeof Redis>;
+import { Redis } from 'ioredis';
 
 /**
  * Create Redis client with configuration
  */
-export function createRedisClient(): RedisClient {
+export function createRedisClient(): Redis {
   const redisUrl = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
   const client = new Redis(redisUrl, {
@@ -37,7 +34,7 @@ export function createRedisClient(): RedisClient {
 /**
  * Get active user count (users active in last 5 minutes)
  */
-export async function getActiveUserCount(redis: RedisClient): Promise<number> {
+export async function getActiveUserCount(redis: Redis): Promise<number> {
   const key = 'active_users';
   const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
@@ -51,7 +48,7 @@ export async function getActiveUserCount(redis: RedisClient): Promise<number> {
 /**
  * Track active user (record user activity)
  */
-export async function trackActiveUser(redis: RedisClient, userId: string): Promise<void> {
+export async function trackActiveUser(redis: Redis, userId: string): Promise<void> {
   const key = 'active_users';
   await redis.zadd(key, Date.now(), userId);
 }
@@ -59,7 +56,7 @@ export async function trackActiveUser(redis: RedisClient, userId: string): Promi
 /**
  * Get today's usage stats
  */
-export async function getTodayUsage(redis: RedisClient): Promise<{
+export async function getTodayUsage(redis: Redis): Promise<{
   requests: number;
   inputTokens: number;
   outputTokens: number;
@@ -80,7 +77,7 @@ export async function getTodayUsage(redis: RedisClient): Promise<{
  * Increment usage stats (per user/model and daily total)
  */
 export async function incrementUsage(
-  redis: RedisClient,
+  redis: Redis,
   userId: string,
   modelId: string,
   inputTokens: number,
@@ -114,7 +111,7 @@ export async function incrementUsage(
  * Increment today's usage stats (legacy function for compatibility)
  */
 export async function incrementTodayUsage(
-  redis: RedisClient,
+  redis: Redis,
   inputTokens: number,
   outputTokens: number
 ): Promise<void> {
