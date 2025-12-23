@@ -287,13 +287,19 @@ NEXUS CODER는 Node.js 없이 실행 가능한 독립 바이너리로 배포됩�
 ### 7.2 빌드 방법
 
 ```bash
-# 바이너리 빌드 (nexus + yoga.wasm)
+# 방법 1: bun:build 스크립트 사용 (main 브랜치)
 npm run bun:build
 
+# 방법 2: 수동 빌드 (nexus-coder 브랜치, 스크립트 없는 경우)
+npm run build
+bun build dist/cli.js --compile --outfile bin/nexus
+gzip -c bin/nexus > bin/nexus.gz
+cp node_modules/yoga-wasm-web/dist/yoga.wasm bin/
+
 # 결과물
-# - bin/nexus (102MB)
-# - bin/nexus.gz (39MB, 배포용)
-# - bin/yoga.wasm (87KB)
+# - bin/nexus (102MB) - .gitignore에 포함, 커밋 안 함
+# - bin/nexus.gz (39MB, 배포용) - 커밋 대상
+# - bin/yoga.wasm (87KB) - 커밋 대상
 ```
 
 ### 7.3 자동 업데이트 흐름
@@ -326,26 +332,62 @@ source ~/.bashrc && nexus
 nexus
 ```
 
-### 7.5 바이너리 배포 시 커밋 순서
+### 7.5 전체 배포 워크플로우 (실제 예시)
+
+main에서 기능 개발 후 nexus-coder에 반영하는 전체 과정:
 
 ```bash
-# 1. 코드 변경 후 빌드
-npm run bun:build
+# === 1. main에서 기능 개발 ===
+git checkout main
+git pull origin main
+git checkout -b feature/new-feature
 
-# 2. gzip 압축 (bun:build에 포함됨)
+# 코드 수정...
+git add .
+git commit -m "feat: Add new feature"
+
+# 버전 업데이트 (patch: 2.7.2 → 2.7.3)
+npm version patch --no-git-tag-version
+git add package.json
+git commit -m "chore: bump version to 2.7.3"
+
+# PR 생성 및 푸시
+git push -u origin feature/new-feature
+gh pr create --base main --title "feat: Add new feature"
+
+# === 2. nexus-coder에 cherry-pick ===
+git checkout nexus-coder
+git pull origin nexus-coder
+
+# 커밋들 cherry-pick (PR의 커밋 해시들)
+git cherry-pick <commit1> <commit2> <commit3>
+
+# package.json 충돌 시: main 버전(theirs) 사용
+git checkout --theirs package.json
+git add package.json
+git cherry-pick --continue
+
+# === 3. 버전 상수 수정 (중요!) ===
+# package.json과 constants.ts 버전 동기화 필요
+sed -i "s/APP_VERSION = '.*'/APP_VERSION = '2.7.3'/" src/constants.ts
+
+# === 4. 바이너리 빌드 ===
+npm run build
+bun build dist/cli.js --compile --outfile bin/nexus
 gzip -c bin/nexus > bin/nexus.gz
 
-# 3. 커밋 & 푸시
-git add bin/nexus.gz bin/yoga.wasm
-git commit -m "chore: Update binary"
+# === 5. 커밋 & 푸시 ===
+git add src/constants.ts bin/nexus.gz bin/yoga.wasm
+git commit -m "build: update binary to v2.7.3"
 git push origin nexus-coder
 ```
 
 ### 7.6 주의사항
 
-- `bin/nexus` (비압축)는 `.gitignore`에 포함되어 커밋되지 않음
+- `bin/nexus` (비압축, 102MB)는 `.gitignore`에 포함 → **절대 커밋하지 않음**
 - `bin/nexus.gz`와 `bin/yoga.wasm`만 레포지토리에 커밋
-- 바이너리 업데이트 시 반드시 `npm run bun:build` 후 커밋
+- **버전 동기화 필수**: `package.json`과 `src/constants.ts`의 `APP_VERSION` 일치시킬 것
+- GitHub 파일 크기 제한: 100MB → 반드시 gzip 압축 후 커밋
 
 ---
 
