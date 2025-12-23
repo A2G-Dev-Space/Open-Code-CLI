@@ -145,7 +145,7 @@ export default function Users() {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <p className="text-sm text-gray-600">{user.deptname}</p>
+                  <p className="text-sm text-gray-600">{decodeUsername(user.deptname)}</p>
                 </td>
                 <td className="px-6 py-4">
                   <p className="text-sm text-gray-600">{formatDate(user.firstSeen)}</p>
