@@ -1490,27 +1490,27 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
               <Text color="gray"> 명령어를 사용해보세요.</Text>
             </Box>
             <Box marginTop={1}>
-              <Text color="red" bold>⚠️  Warning: If no_proxy is not configured correctly, LLM usage may be restricted.</Text>
+              <Text color="red" dimColor>⚠️  Warning: If no_proxy is not configured correctly, LLM usage may be restricted.</Text>
             </Box>
             <Box>
-              <Text color="red">    Please ensure both </Text>
-              <Text color="yellow">no_proxy</Text>
-              <Text color="red"> and </Text>
-              <Text color="yellow">NO_PROXY</Text>
-              <Text color="red"> include </Text>
-              <Text color="yellow">10.229.95.228</Text>
+              <Text color="red" dimColor>    Please ensure both </Text>
+              <Text color="yellow" dimColor>no_proxy</Text>
+              <Text color="red" dimColor> and </Text>
+              <Text color="yellow" dimColor>NO_PROXY</Text>
+              <Text color="red" dimColor> include </Text>
+              <Text color="yellow" dimColor>10.229.95.228</Text>
             </Box>
             <Box>
-              <Text color="red" bold>⚠️  주의: no_proxy 설정이 올바르지 않으면 LLM 사용에 제한이 있을 수 있습니다.</Text>
+              <Text color="red" dimColor>⚠️  주의: no_proxy 설정이 올바르지 않으면 LLM 사용에 제한이 있을 수 있습니다.</Text>
             </Box>
             <Box>
-              <Text color="red">    </Text>
-              <Text color="yellow">no_proxy</Text>
-              <Text color="red">와 </Text>
-              <Text color="yellow">NO_PROXY</Text>
-              <Text color="red"> 모두 </Text>
-              <Text color="yellow">10.229.95.228</Text>
-              <Text color="red">이 포함되어 있는지 꼭 확인해주세요.</Text>
+              <Text color="red" dimColor>    </Text>
+              <Text color="yellow" dimColor>no_proxy</Text>
+              <Text color="red" dimColor>와 </Text>
+              <Text color="yellow" dimColor>NO_PROXY</Text>
+              <Text color="red" dimColor> 모두 </Text>
+              <Text color="yellow" dimColor>10.229.95.228</Text>
+              <Text color="red" dimColor>이 포함되어 있는지 꼭 확인해주세요.</Text>
             </Box>
           </Box>
         );
