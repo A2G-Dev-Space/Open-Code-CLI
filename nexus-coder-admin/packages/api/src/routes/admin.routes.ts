@@ -318,7 +318,7 @@ adminRoutes.get('/stats/overview', async (_req: AuthenticatedRequest, res) => {
     const [activeUsers, todayUsage, totalUsers, totalModels] = await Promise.all([
       getActiveUserCount(redis),
       getTodayUsage(redis),
-      prisma.user.count({ where: { isActive: true } }),
+      prisma.user.count({ where: { isActive: true, loginid: { not: 'anonymous' } } }),
       prisma.model.count({ where: { enabled: true } }),
     ]);
 
@@ -511,12 +511,14 @@ adminRoutes.get('/stats/daily-active-users', async (req: AuthenticatedRequest, r
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    // Get distinct users per day from usage logs (일별 활성 사용자)
+    // Get distinct users per day from usage logs (일별 활성 사용자, excluding anonymous)
     const dailyUsers = await prisma.$queryRaw<Array<{ date: Date | string; user_count: bigint }>>`
-      SELECT DATE(timestamp) as date, COUNT(DISTINCT user_id) as user_count
-      FROM usage_logs
-      WHERE timestamp >= ${startDate}
-      GROUP BY DATE(timestamp)
+      SELECT DATE(ul.timestamp) as date, COUNT(DISTINCT ul.user_id) as user_count
+      FROM usage_logs ul
+      INNER JOIN users u ON ul.user_id = u.id
+      WHERE ul.timestamp >= ${startDate}
+        AND u.loginid != 'anonymous'
+      GROUP BY DATE(ul.timestamp)
       ORDER BY date ASC
     `;
 
@@ -526,17 +528,18 @@ adminRoutes.get('/stats/daily-active-users', async (req: AuthenticatedRequest, r
       userCount: Number(item.user_count),
     }));
 
-    // Get total unique users in period
-    const totalUsers = await prisma.usageLog.groupBy({
-      by: ['userId'],
-      where: {
-        timestamp: { gte: startDate },
-      },
-    });
+    // Get total unique users in period (excluding anonymous)
+    const totalUsers = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(DISTINCT ul.user_id) as count
+      FROM usage_logs ul
+      INNER JOIN users u ON ul.user_id = u.id
+      WHERE ul.timestamp >= ${startDate}
+        AND u.loginid != 'anonymous'
+    `;
 
     res.json({
       chartData,
-      totalUniqueUsers: totalUsers.length,
+      totalUniqueUsers: Number(totalUsers[0]?.count || 0),
     });
   } catch (error) {
     console.error('Get daily active users error:', error);
@@ -557,24 +560,28 @@ adminRoutes.get('/stats/cumulative-users', async (req: AuthenticatedRequest, res
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    // Get the first usage date for each user
+    // Get the first usage date for each user (excluding anonymous)
     const userFirstUsage = await prisma.$queryRaw<Array<{ first_date: Date | string; new_users: bigint }>>`
       SELECT DATE(first_usage) as first_date, COUNT(*) as new_users
       FROM (
-        SELECT user_id, MIN(timestamp) as first_usage
-        FROM usage_logs
-        GROUP BY user_id
+        SELECT ul.user_id, MIN(ul.timestamp) as first_usage
+        FROM usage_logs ul
+        INNER JOIN users u ON ul.user_id = u.id
+        WHERE u.loginid != 'anonymous'
+        GROUP BY ul.user_id
       ) as user_first
       WHERE first_usage >= ${startDate}
       GROUP BY DATE(first_usage)
       ORDER BY first_date ASC
     `;
 
-    // Get users who joined before the start date (for initial count)
+    // Get users who joined before the start date (for initial count, excluding anonymous)
     const existingUsers = await prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(DISTINCT user_id) as count
-      FROM usage_logs
-      WHERE timestamp < ${startDate}
+      SELECT COUNT(DISTINCT ul.user_id) as count
+      FROM usage_logs ul
+      INNER JOIN users u ON ul.user_id = u.id
+      WHERE ul.timestamp < ${startDate}
+        AND u.loginid != 'anonymous'
     `;
 
     let cumulativeCount = Number(existingUsers[0]?.count || 0);
