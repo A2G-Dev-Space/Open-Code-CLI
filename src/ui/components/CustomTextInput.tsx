@@ -30,11 +30,15 @@ export const CustomTextInput: React.FC<CustomTextInputProps> = ({
   const [cursorPosition, setCursorPosition] = useState(value.length);
   const previousValueLength = useRef<number>(value.length);
 
+  // Track if we should show collapsed view (only after paste, cleared on any edit)
+  const [isCollapsedView, setIsCollapsedView] = useState(false);
+
   // Use refs to access latest values without recreating handleData
   const valueRef = useRef(value);
   const cursorPositionRef = useRef(cursorPosition);
   const onChangeRef = useRef(onChange);
   const onSubmitRef = useRef(onSubmit);
+  const setIsCollapsedViewRef = useRef(setIsCollapsedView);
 
   // Keep refs in sync
   useEffect(() => {
@@ -42,14 +46,16 @@ export const CustomTextInput: React.FC<CustomTextInputProps> = ({
     cursorPositionRef.current = cursorPosition;
     onChangeRef.current = onChange;
     onSubmitRef.current = onSubmit;
+    setIsCollapsedViewRef.current = setIsCollapsedView;
   });
 
   // Synchronize cursor position when value changes externally
   useEffect(() => {
-    // When value is cleared, reset cursor to start
+    // When value is cleared, reset cursor to start and clear collapsed view
     if (value.length === 0) {
       setCursorPosition(0);
       previousValueLength.current = 0;
+      setIsCollapsedView(false);
       return;
     }
 
@@ -198,14 +204,24 @@ export const CustomTextInput: React.FC<CustomTextInputProps> = ({
     if (isPaste) {
       // Paste detected - allow all characters including newlines
       // Filter out only truly problematic control characters (not newlines)
-      const sanitized = str.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      // Keep tab (\x09) and newline (\x0A, \x0D), remove other control characters
+      const sanitized = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
       if (sanitized.length > 0) {
         const newValue = currentValue.slice(0, currentCursor) + sanitized + currentValue.slice(currentCursor);
         onChangeRef.current(newValue);
         setCursorPosition(currentCursor + sanitized.length);
+
+        // Show collapsed view if pasted content has many lines
+        const lineCount = sanitized.split('\n').length;
+        if (lineCount > MULTILINE_COLLAPSE_THRESHOLD) {
+          setIsCollapsedViewRef.current(true);
+        }
       }
       return;
     }
+
+    // Any other edit clears collapsed view
+    setIsCollapsedViewRef.current(false);
 
     // Regular character input (printable characters including multi-byte UTF-8 like 한글)
     // Filter out control characters (0x00-0x1F and 0x7F) but allow everything else
@@ -270,8 +286,8 @@ export const CustomTextInput: React.FC<CustomTextInputProps> = ({
     const lines = value.split('\n');
     const lineCount = lines.length;
 
-    // If more than THRESHOLD lines, show collapsed view
-    if (lineCount > MULTILINE_COLLAPSE_THRESHOLD) {
+    // Show collapsed view only when isCollapsedView is true (set after paste, cleared on edit)
+    if (lineCount > MULTILINE_COLLAPSE_THRESHOLD && isCollapsedView) {
       const firstLine = lines[0] || '';
       const truncatedFirstLine = firstLine.length > 40 ? firstLine.slice(0, 40) + '...' : firstLine;
       return (
