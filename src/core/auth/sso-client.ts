@@ -81,7 +81,9 @@ export class SSOClient {
       }, 5 * 60 * 1000);
     });
 
-    const server = http.createServer((req, res) => {
+    // Increase maxHeaderSize to handle large SSO data in URL query params
+    // Default is 16KB, but SSO tokens can be larger
+    const server = http.createServer({ maxHeaderSize: 64 * 1024 }, (req, res) => {
       const url = new URL(req.url || '/', `http://localhost:${port}`);
 
       if (url.pathname === '/callback') {
