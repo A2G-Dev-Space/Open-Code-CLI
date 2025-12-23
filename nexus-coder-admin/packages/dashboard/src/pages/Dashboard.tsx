@@ -10,7 +10,7 @@ interface OverviewStats {
   todayUsage: {
     inputTokens: number;
     outputTokens: number;
-    requestCount: number;
+    requests: number;
   };
   totalUsers: number;
   totalModels: number;
@@ -76,7 +76,7 @@ export default function Dashboard() {
     },
     {
       label: '오늘 요청',
-      value: overview?.todayUsage.requestCount || 0,
+      value: overview?.todayUsage.requests || 0,
       icon: Zap,
       color: 'bg-amber-500',
       bgLight: 'bg-amber-50',
