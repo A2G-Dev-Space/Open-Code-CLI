@@ -30,7 +30,10 @@ async function getOrCreateUser(req: Request) {
 
   const user = await prisma.user.upsert({
     where: { loginid },
-    update: { lastActive: new Date() },
+    update: {
+      lastActive: new Date(),
+      deptname,  // 조직개편 시 자동 갱신
+    },
     create: {
       loginid,
       username,
