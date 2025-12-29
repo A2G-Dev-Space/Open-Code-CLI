@@ -106,6 +106,9 @@ model DailyUsageStat {
 enum FeedbackCategory {
   ISSUE           // 버그/문제 신고
   FEATURE         // 기능 제안
+  QUESTION        // 질문/도움
+  DOCS            // 문서 개선
+  PERFORMANCE     // 성능 이슈
   OTHER           // 기타
 }
 
@@ -124,6 +127,7 @@ model Feedback {
   category    FeedbackCategory
   title       String
   content     String
+  images      String[]         @default([])  // 이미지 데이터 (base64)
   status      FeedbackStatus   @default(OPEN)
   response    String?          // 관리자 답변
   respondedBy String?          @map("responded_by")  // 답변한 관리자 ID

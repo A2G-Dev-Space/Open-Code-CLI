@@ -149,7 +149,7 @@ feedbackRoutes.post('/', authenticateToken, async (req: AuthenticatedRequest, re
       return;
     }
 
-    const { category, title, content } = req.body;
+    const { category, title, content, images } = req.body;
 
     if (!category || !title || !content) {
       res.status(400).json({ error: 'category, title, and content are required' });
@@ -157,8 +157,9 @@ feedbackRoutes.post('/', authenticateToken, async (req: AuthenticatedRequest, re
     }
 
     // Validate category
-    if (!['ISSUE', 'FEATURE', 'OTHER'].includes(category)) {
-      res.status(400).json({ error: 'Invalid category. Must be ISSUE, FEATURE, or OTHER' });
+    const validCategories = ['ISSUE', 'FEATURE', 'QUESTION', 'DOCS', 'PERFORMANCE', 'OTHER'];
+    if (!validCategories.includes(category)) {
+      res.status(400).json({ error: `Invalid category. Must be one of: ${validCategories.join(', ')}` });
       return;
     }
 
@@ -179,6 +180,7 @@ feedbackRoutes.post('/', authenticateToken, async (req: AuthenticatedRequest, re
         category: category as FeedbackCategory,
         title,
         content,
+        images: images || [],
       },
       include: {
         user: {
@@ -206,7 +208,7 @@ feedbackRoutes.put('/:id', authenticateToken, async (req: AuthenticatedRequest, 
     }
 
     const { id } = req.params;
-    const { category, title, content } = req.body;
+    const { category, title, content, images } = req.body;
 
     // Get user
     const user = await prisma.user.findUnique({
@@ -242,7 +244,8 @@ feedbackRoutes.put('/:id', authenticateToken, async (req: AuthenticatedRequest, 
 
     const updateData: any = {};
     if (category) {
-      if (!['ISSUE', 'FEATURE', 'OTHER'].includes(category)) {
+      const validCategories = ['ISSUE', 'FEATURE', 'QUESTION', 'DOCS', 'PERFORMANCE', 'OTHER'];
+      if (!validCategories.includes(category)) {
         res.status(400).json({ error: 'Invalid category' });
         return;
       }
@@ -250,6 +253,7 @@ feedbackRoutes.put('/:id', authenticateToken, async (req: AuthenticatedRequest, 
     }
     if (title) updateData.title = title;
     if (content) updateData.content = content;
+    if (images !== undefined) updateData.images = images;
 
     const feedback = await prisma.feedback.update({
       where: { id },
