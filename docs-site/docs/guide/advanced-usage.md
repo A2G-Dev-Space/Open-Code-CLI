@@ -2,16 +2,13 @@
 
 ## 세션 관리
 
-```bash
-# 세션 목록
-nexus sessions list
+대화 히스토리는 자동으로 저장됩니다. 이전 세션을 불러오려면:
 
-# 세션 불러오기
-nexus sessions load <session-id>
-
-# 세션 삭제
-nexus sessions delete <session-id>
 ```
+/load
+```
+
+세션 목록이 표시되고 원하는 세션을 선택할 수 있습니다.
 
 ## 컨텍스트 관리
 
@@ -22,19 +19,16 @@ nexus sessions delete <session-id>
 /compact
 ```
 
-<!-- video placeholder
--->
-
 ## 로그 모드
 
 디버깅을 위한 상세 로그:
 
 ```bash
 # 상세 로그 활성화
-nexus --log-level verbose
+nexus --verbose
 
-# LLM 요청/응답 로그
-nexus --llm-log
+# 디버그 모드
+nexus --debug
 ```
 
 ## 도구 사용 통계
