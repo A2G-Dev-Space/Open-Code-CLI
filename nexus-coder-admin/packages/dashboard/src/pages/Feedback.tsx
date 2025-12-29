@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Plus, Bug, Lightbulb, HelpCircle, Send, Edit2, Trash2, MessageSquare,
+  Plus, Bug, Lightbulb, HelpCircle, Send, Trash2, MessageSquare,
   CheckCircle, Clock, AlertCircle, X, ChevronDown
 } from 'lucide-react';
 import { feedbackApi } from '../services/api';
