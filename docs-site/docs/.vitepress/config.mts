@@ -1,0 +1,105 @@
+import { defineConfig } from 'vitepress'
+
+export default defineConfig({
+  title: 'Nexus Coder',
+  description: 'Enterprise AI Coding Assistant Documentation',
+
+  // /docs 경로에서 서빙되므로 base 설정 필수
+  base: '/docs/',
+
+  // 폐쇄망용: 외부 리소스 비활성화
+  head: [
+    ['link', { rel: 'icon', href: '/images/favicon.ico' }],
+    // 외부 리소스 차단 - CSP 설정
+    ['meta', {
+      'http-equiv': 'Content-Security-Policy',
+      content: "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data:; font-src 'self' data:;"
+    }],
+  ],
+
+  // Google Fonts 비활성화
+  appearance: true,
+
+  // 정적 빌드 설정 (docker-compose에서 docs/.vitepress/dist 마운트)
+  // config.mts 위치 기준 상대경로
+  outDir: './../.vitepress/dist',
+
+  themeConfig: {
+    logo: '/images/logo.svg',
+
+    nav: [
+      { text: 'Home', link: '/' },
+      { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Features', link: '/features/overview' },
+      { text: 'API', link: '/api/tools' },
+    ],
+
+    sidebar: {
+      '/guide/': [
+        {
+          text: 'Introduction',
+          items: [
+            { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Installation', link: '/guide/installation' },
+            { text: 'Configuration', link: '/guide/configuration' },
+          ]
+        },
+        {
+          text: 'Usage',
+          items: [
+            { text: 'Basic Usage', link: '/guide/basic-usage' },
+            { text: 'Advanced Usage', link: '/guide/advanced-usage' },
+          ]
+        }
+      ],
+      '/features/': [
+        {
+          text: 'Features',
+          items: [
+            { text: 'Overview', link: '/features/overview' },
+            { text: 'Planning Mode', link: '/features/planning' },
+            { text: 'Tools', link: '/features/tools' },
+            { text: 'Compact', link: '/features/compact' },
+          ]
+        }
+      ],
+      '/api/': [
+        {
+          text: 'API Reference',
+          items: [
+            { text: 'Tools', link: '/api/tools' },
+            { text: 'Configuration', link: '/api/configuration' },
+          ]
+        }
+      ]
+    },
+
+    socialLinks: [
+      // 폐쇄망이므로 외부 링크 제거 또는 내부 링크로 변경
+    ],
+
+    footer: {
+      message: 'Nexus Coder - Enterprise AI Coding Assistant',
+      copyright: 'Internal Use Only'
+    },
+
+    search: {
+      provider: 'local'  // 로컬 검색 (외부 Algolia 대신)
+    }
+  },
+
+  // Markdown 설정
+  markdown: {
+    lineNumbers: true
+  },
+
+  // Vite 설정 (폐쇄망 최적화)
+  vite: {
+    // 외부 리소스 차단
+    build: {
+      rollupOptions: {
+        external: []
+      }
+    }
+  }
+})
