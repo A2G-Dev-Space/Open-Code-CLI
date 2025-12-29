@@ -17,8 +17,9 @@ model User {
   lastActive DateTime @default(now())
   isActive   Boolean  @default(true)
 
-  usageLogs      UsageLog[]
+  usageLogs       UsageLog[]
   dailyUsageStats DailyUsageStat[]
+  feedbacks       Feedback[]
 
   @@map("users")
 }
@@ -49,7 +50,8 @@ model Admin {
   role      AdminRole @default(ADMIN)
   createdAt DateTime @default(now())
 
-  models Model[]
+  models    Model[]
+  responses Feedback[]  // 답변한 피드백들
 
   @@map("admins")
 }
@@ -98,4 +100,43 @@ model DailyUsageStat {
   @@index([userId])
   @@index([modelId])
   @@map("daily_usage_stats")
+}
+
+// 피드백 카테고리
+enum FeedbackCategory {
+  ISSUE           // 버그/문제 신고
+  FEATURE         // 기능 제안
+  OTHER           // 기타
+}
+
+// 피드백 상태
+enum FeedbackStatus {
+  OPEN            // 새 피드백
+  IN_PROGRESS     // 검토 중
+  RESOLVED        // 해결됨
+  CLOSED          // 종료
+}
+
+// 피드백
+model Feedback {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  category    FeedbackCategory
+  title       String
+  content     String
+  status      FeedbackStatus   @default(OPEN)
+  response    String?          // 관리자 답변
+  respondedBy String?          @map("responded_by")  // 답변한 관리자 ID
+  respondedAt DateTime?        @map("responded_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  user      User   @relation(fields: [userId], references: [id])
+  responder Admin? @relation(fields: [respondedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+  @@map("feedbacks")
 }

@@ -2,12 +2,14 @@
  * Admin Routes
  *
  * Protected endpoints for admin dashboard
+ * - DEVELOPERS 환경변수의 사용자는 SUPER_ADMIN으로 표시
+ * - DB admins 테이블의 사용자는 해당 역할로 표시
  */
 
 import { Router, RequestHandler } from 'express';
 import { prisma } from '../index.js';
 import { redis } from '../index.js';
-import { authenticateToken, requireAdmin, requireSuperAdmin, AuthenticatedRequest } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, requireSuperAdmin, AuthenticatedRequest, isDeveloper } from '../middleware/auth.js';
 import { getActiveUserCount, getTodayUsage } from '../services/redis.service.js';
 import { z } from 'zod';
 
@@ -796,5 +798,155 @@ adminRoutes.get('/stats/model-user-trend', async (req: AuthenticatedRequest, res
   } catch (error) {
     console.error('Get model user trend error:', error);
     res.status(500).json({ error: 'Failed to get model user trend' });
+  }
+});
+
+// ==================== User Promotion ====================
+
+/**
+ * GET /admin/users/:id/admin-status
+ * 사용자의 admin 상태 조회
+ */
+adminRoutes.get('/users/:id/admin-status', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { loginid: true, username: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // 환경변수 개발자 체크
+    const isEnvDeveloper = isDeveloper(user.loginid);
+    if (isEnvDeveloper) {
+      res.json({
+        isAdmin: true,
+        adminRole: 'SUPER_ADMIN',
+        isDeveloper: true,
+        canModify: false, // 환경변수 개발자는 UI에서 수정 불가
+      });
+      return;
+    }
+
+    // DB admin 체크
+    const admin = await prisma.admin.findUnique({
+      where: { loginid: user.loginid },
+    });
+
+    res.json({
+      isAdmin: !!admin,
+      adminRole: admin?.role || null,
+      isDeveloper: false,
+      canModify: true, // DB admin은 UI에서 수정 가능
+    });
+  } catch (error) {
+    console.error('Get user admin status error:', error);
+    res.status(500).json({ error: 'Failed to get admin status' });
+  }
+});
+
+/**
+ * POST /admin/users/:id/promote
+ * 사용자를 Admin으로 승격 (SUPER_ADMIN만)
+ */
+adminRoutes.post('/users/:id/promote', requireSuperAdmin as RequestHandler, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!role || !['ADMIN', 'VIEWER'].includes(role)) {
+      res.status(400).json({ error: 'role must be ADMIN or VIEWER' });
+      return;
+    }
+
+    // Get user
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { loginid: true, username: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // 환경변수 개발자는 승격 불가 (이미 SUPER_ADMIN)
+    if (isDeveloper(user.loginid)) {
+      res.status(400).json({ error: 'Environment developers are already SUPER_ADMIN' });
+      return;
+    }
+
+    // Upsert admin record
+    const admin = await prisma.admin.upsert({
+      where: { loginid: user.loginid },
+      update: { role },
+      create: {
+        loginid: user.loginid,
+        role,
+      },
+    });
+
+    res.json({
+      success: true,
+      admin,
+      message: `${user.username} promoted to ${role}`,
+    });
+  } catch (error) {
+    console.error('Promote user error:', error);
+    res.status(500).json({ error: 'Failed to promote user' });
+  }
+});
+
+/**
+ * DELETE /admin/users/:id/demote
+ * Admin 권한 해제 (SUPER_ADMIN만)
+ */
+adminRoutes.delete('/users/:id/demote', requireSuperAdmin as RequestHandler, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get user
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { loginid: true, username: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // 환경변수 개발자는 해제 불가
+    if (isDeveloper(user.loginid)) {
+      res.status(400).json({ error: 'Cannot demote environment developers' });
+      return;
+    }
+
+    // Delete admin record if exists
+    const admin = await prisma.admin.findUnique({
+      where: { loginid: user.loginid },
+    });
+
+    if (!admin) {
+      res.status(400).json({ error: 'User is not an admin' });
+      return;
+    }
+
+    await prisma.admin.delete({
+      where: { loginid: user.loginid },
+    });
+
+    res.json({
+      success: true,
+      message: `${user.username} demoted from admin`,
+    });
+  } catch (error) {
+    console.error('Demote user error:', error);
+    res.status(500).json({ error: 'Failed to demote user' });
   }
 });

@@ -2,6 +2,8 @@
  * Authentication Middleware
  *
  * Verifies JWT tokens and checks admin permissions
+ * - DEVELOPERS 환경변수: 쉼표로 구분된 개발자 loginid 목록 (SUPER_ADMIN 권한)
+ * - DB admins 테이블: 동적으로 관리되는 관리자 목록
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -18,11 +20,29 @@ export interface JWTPayload {
 
 export interface AuthenticatedRequest extends Request {
   user?: JWTPayload;
+  userId?: string;        // DB User ID
   isAdmin?: boolean;
   adminRole?: 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER';
+  isDeveloper?: boolean;  // 환경변수 개발자 여부
 }
 
 const JWT_SECRET = process.env['JWT_SECRET'] || 'your-jwt-secret-change-in-production';
+
+/**
+ * 환경변수에서 개발자 목록 가져오기
+ */
+function getDevelopers(): string[] {
+  const developers = process.env['DEVELOPERS'] || '';
+  return developers.split(',').map(d => d.trim()).filter(Boolean);
+}
+
+/**
+ * 개발자인지 확인 (환경변수 기반)
+ */
+export function isDeveloper(loginid: string): boolean {
+  const developers = getDevelopers();
+  return developers.includes(loginid);
+}
 
 /**
  * Verify JWT token and attach user to request
@@ -63,6 +83,8 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
 
 /**
  * Check if user is an admin
+ * 1. 환경변수 DEVELOPERS에 있으면 → SUPER_ADMIN
+ * 2. DB admins 테이블에 있으면 → 해당 역할
  */
 export async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   if (!req.user) {
@@ -71,16 +93,16 @@ export async function requireAdmin(req: AuthenticatedRequest, res: Response, nex
   }
 
   try {
-    // Check if system admin (from environment variables)
-    const adminUsername = process.env['ADMIN_USERNAME'] || 'admin';
-    if (req.user.loginid === adminUsername) {
+    // 1. 환경변수 개발자 체크 (SUPER_ADMIN)
+    if (isDeveloper(req.user.loginid)) {
       req.isAdmin = true;
+      req.isDeveloper = true;
       req.adminRole = 'SUPER_ADMIN';
       next();
       return;
     }
 
-    // Check database admin
+    // 2. DB admin 체크
     const admin = await prisma.admin.findUnique({
       where: { loginid: req.user.loginid },
     });
@@ -91,6 +113,7 @@ export async function requireAdmin(req: AuthenticatedRequest, res: Response, nex
     }
 
     req.isAdmin = true;
+    req.isDeveloper = false;
     req.adminRole = admin.role;
     next();
   } catch (error) {
@@ -101,6 +124,7 @@ export async function requireAdmin(req: AuthenticatedRequest, res: Response, nex
 
 /**
  * Check if user is a super admin
+ * 환경변수 개발자 또는 DB SUPER_ADMIN만 허용
  */
 export async function requireSuperAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   if (!req.user) {
@@ -109,16 +133,16 @@ export async function requireSuperAdmin(req: AuthenticatedRequest, res: Response
   }
 
   try {
-    // Check if system admin (from environment variables)
-    const adminUsername = process.env['ADMIN_USERNAME'] || 'admin';
-    if (req.user.loginid === adminUsername) {
+    // 1. 환경변수 개발자 체크 (항상 SUPER_ADMIN)
+    if (isDeveloper(req.user.loginid)) {
       req.isAdmin = true;
+      req.isDeveloper = true;
       req.adminRole = 'SUPER_ADMIN';
       next();
       return;
     }
 
-    // Check database admin
+    // 2. DB admin 체크 (SUPER_ADMIN만)
     const admin = await prisma.admin.findUnique({
       where: { loginid: req.user.loginid },
     });
@@ -129,6 +153,7 @@ export async function requireSuperAdmin(req: AuthenticatedRequest, res: Response
     }
 
     req.isAdmin = true;
+    req.isDeveloper = false;
     req.adminRole = admin.role;
     next();
   } catch (error) {

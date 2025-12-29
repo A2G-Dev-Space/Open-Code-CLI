@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, Server, Users, LogOut, Terminal, Menu, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Server, Users, LogOut, Terminal, Menu, X, ChevronRight, MessageSquare, Shield } from 'lucide-react';
 
 interface User {
   id: string;
@@ -9,23 +9,40 @@ interface User {
   deptname: string;
 }
 
+type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER' | null;
+
 interface LayoutProps {
   children: React.ReactNode;
   user: User;
+  isAdmin: boolean;
+  adminRole: AdminRole;
   onLogout: () => void;
 }
 
-const navItems = [
+// Admin 전용 메뉴
+const adminNavItems = [
   { path: '/', label: '대시보드', icon: LayoutDashboard },
   { path: '/models', label: '모델 관리', icon: Server },
   { path: '/users', label: '사용자', icon: Users },
 ];
 
-export default function Layout({ children, user, onLogout }: LayoutProps) {
+// 모든 사용자 메뉴
+const userNavItems = [
+  { path: '/feedback', label: '피드백', icon: MessageSquare },
+];
+
+export default function Layout({ children, user, isAdmin, adminRole, onLogout }: LayoutProps) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Admin이면 전체 메뉴, 아니면 사용자 메뉴만
+  const navItems = isAdmin ? [...adminNavItems, ...userNavItems] : userNavItems;
   const currentPage = navItems.find((item) => item.path === location.pathname);
+
+  // 역할 표시 텍스트
+  const roleLabel = adminRole === 'SUPER_ADMIN' ? '개발자' :
+                    adminRole === 'ADMIN' ? '관리자' :
+                    adminRole === 'VIEWER' ? '뷰어' : '사용자';
 
   return (
     <div className="min-h-screen bg-samsung-gray-light">
@@ -51,7 +68,9 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
             </div>
             <div>
               <h1 className="font-bold text-lg tracking-tight">Nexus Coder</h1>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Admin</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">
+                {isAdmin ? 'Admin' : 'Portal'}
+              </p>
             </div>
           </div>
           <button
@@ -64,32 +83,74 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
 
         {/* Navigation */}
         <nav className="mt-6 px-3">
-          {navItems.map(({ path, label, icon: Icon }) => {
-            const isActive = location.pathname === path;
-            return (
-              <Link
-                key={path}
-                to={path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl mb-1 transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-samsung-blue text-white shadow-lg shadow-samsung-blue/30'
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
-                <span className="font-medium">{label}</span>
-                {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-              </Link>
-            );
-          })}
+          {/* Admin 섹션 */}
+          {isAdmin && (
+            <div className="mb-4">
+              <p className="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                관리
+              </p>
+              {adminNavItems.map(({ path, label, icon: Icon }) => {
+                const isActive = location.pathname === path;
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl mb-1 transition-all duration-200 group ${
+                      isActive
+                        ? 'bg-samsung-blue text-white shadow-lg shadow-samsung-blue/30'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
+                    <span className="font-medium">{label}</span>
+                    {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 일반 섹션 */}
+          <div>
+            <p className="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              {isAdmin ? '커뮤니티' : '메뉴'}
+            </p>
+            {userNavItems.map(({ path, label, icon: Icon }) => {
+              const isActive = location.pathname === path;
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl mb-1 transition-all duration-200 group ${
+                    isActive
+                      ? 'bg-samsung-blue text-white shadow-lg shadow-samsung-blue/30'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
+                  <span className="font-medium">{label}</span>
+                  {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* User info */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{user.username}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium truncate">{user.username}</p>
+                {isAdmin && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-samsung-blue/20 text-samsung-blue rounded">
+                    <Shield className="w-2.5 h-2.5" />
+                    {roleLabel}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-gray-500 truncate">{user.deptname}</p>
             </div>
             <button
@@ -117,7 +178,7 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
               </button>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                  {currentPage?.label || 'Dashboard'}
+                  {currentPage?.label || '피드백'}
                 </h2>
               </div>
             </div>

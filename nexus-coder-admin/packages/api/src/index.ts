@@ -16,6 +16,7 @@ import { modelsRoutes } from './routes/models.routes.js';
 import { usageRoutes } from './routes/usage.routes.js';
 import { adminRoutes } from './routes/admin.routes.js';
 import { proxyRoutes } from './routes/proxy.routes.js';
+import { feedbackRoutes } from './routes/feedback.routes.js';
 
 // Load environment variables
 import 'dotenv/config';
@@ -56,6 +57,7 @@ app.use('/auth', authRoutes);
 app.use('/models', modelsRoutes);
 app.use('/usage', usageRoutes);
 app.use('/admin', adminRoutes);
+app.use('/feedback', feedbackRoutes);
 
 // LLM Proxy Routes (OpenAI-compatible)
 app.use('/v1', proxyRoutes);

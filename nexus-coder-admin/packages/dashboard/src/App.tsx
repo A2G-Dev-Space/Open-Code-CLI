@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Models from './pages/Models';
 import Users from './pages/Users';
+import Feedback from './pages/Feedback';
 import Login from './pages/Login';
 import { authApi } from './services/api';
 
@@ -14,9 +15,12 @@ interface User {
   deptname: string;
 }
 
+type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER' | null;
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminRole, setAdminRole] = useState<AdminRole>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,9 +35,10 @@ function App() {
         return;
       }
 
-      const response = await authApi.adminCheck();
+      const response = await authApi.check();
       setUser(response.data.user);
       setIsAdmin(response.data.isAdmin);
+      setAdminRole(response.data.adminRole);
     } catch {
       localStorage.removeItem('nexus_token');
     } finally {
@@ -41,16 +46,18 @@ function App() {
     }
   };
 
-  const handleLogin = (userData: User, token: string, admin: boolean) => {
+  const handleLogin = (userData: User, token: string, admin: boolean, role: string | null) => {
     localStorage.setItem('nexus_token', token);
     setUser(userData);
     setIsAdmin(admin);
+    setAdminRole(role as AdminRole);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('nexus_token');
     setUser(null);
     setIsAdmin(false);
+    setAdminRole(null);
   };
 
   if (loading) {
@@ -64,17 +71,33 @@ function App() {
     );
   }
 
-  if (!user || !isAdmin) {
+  // 로그인 필요
+  if (!user) {
     return <Login onLogin={handleLogin} />;
   }
 
+  // 일반 사용자: Feedback만 접근 가능
+  // Admin: 전체 접근 가능
   return (
-    <Layout user={user} onLogout={handleLogout}>
+    <Layout user={user} isAdmin={isAdmin} adminRole={adminRole} onLogout={handleLogout}>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/models" element={<Models />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 모든 사용자 접근 가능 */}
+        <Route path="/feedback" element={<Feedback isAdmin={isAdmin} />} />
+
+        {/* Admin만 접근 가능 */}
+        {isAdmin && (
+          <>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/models" element={<Models />} />
+            <Route path="/users" element={<Users />} />
+          </>
+        )}
+
+        {/* 기본 리다이렉트 */}
+        <Route
+          path="*"
+          element={<Navigate to={isAdmin ? '/' : '/feedback'} replace />}
+        />
       </Routes>
     </Layout>
   );

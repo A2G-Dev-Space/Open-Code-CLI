@@ -36,9 +36,12 @@ export const authApi = {
   callback: (token: string) => api.post('/auth/callback', {}, {
     headers: { Authorization: `Bearer ${token}` }
   }),
-  adminLogin: (username: string, password: string) =>
-    api.post('/auth/admin-login', { username, password }),
-  adminCheck: () => api.get('/auth/admin-check'),
+  // SSO 기반 로그인 (토큰으로 인증)
+  login: (token: string) => api.post('/auth/login', {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // 현재 세션 체크 (admin 아니어도 OK)
+  check: () => api.get('/auth/check'),
 };
 
 export const modelsApi = {
@@ -51,6 +54,25 @@ export const modelsApi = {
 export const usersApi = {
   list: (page = 1, limit = 50) => api.get(`/admin/users?page=${page}&limit=${limit}`),
   get: (id: string) => api.get(`/admin/users/${id}`),
+  getAdminStatus: (id: string) => api.get(`/admin/users/${id}/admin-status`),
+  promote: (id: string, role: 'ADMIN' | 'VIEWER') => api.post(`/admin/users/${id}/promote`, { role }),
+  demote: (id: string) => api.delete(`/admin/users/${id}/demote`),
+};
+
+export const feedbackApi = {
+  list: (params?: { status?: string; category?: string; page?: number; limit?: number }) =>
+    api.get('/feedback', { params }),
+  get: (id: string) => api.get(`/feedback/${id}`),
+  create: (data: { category: string; title: string; content: string }) =>
+    api.post('/feedback', data),
+  update: (id: string, data: { category?: string; title?: string; content?: string }) =>
+    api.put(`/feedback/${id}`, data),
+  delete: (id: string) => api.delete(`/feedback/${id}`),
+  respond: (id: string, data: { response: string; status?: string }) =>
+    api.post(`/feedback/${id}/respond`, data),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/feedback/${id}/status`, { status }),
+  stats: () => api.get('/feedback/stats/overview'),
 };
 
 export const statsApi = {

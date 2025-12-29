@@ -1,12 +1,14 @@
 /**
  * Auth Routes
  *
- * Public endpoints for CLI authentication
+ * SSO 기반 인증 엔드포인트
+ * - CLI와 동일한 방식으로 인증
+ * - 환경변수 DEVELOPERS 또는 DB admins로 권한 체크
  */
 
 import { Router } from 'express';
 import { prisma } from '../index.js';
-import { authenticateToken, AuthenticatedRequest, signToken } from '../middleware/auth.js';
+import { authenticateToken, AuthenticatedRequest, signToken, isDeveloper } from '../middleware/auth.js';
 import { trackActiveUser } from '../services/redis.service.js';
 import { redis } from '../index.js';
 
@@ -141,101 +143,131 @@ authRoutes.post('/refresh', authenticateToken, async (req: AuthenticatedRequest,
 });
 
 /**
- * POST /auth/admin-login
- * Admin dashboard login with username/password
+ * POST /auth/login
+ * Dashboard SSO 로그인 (CLI와 동일한 방식)
+ * SSO 토큰으로 사용자 정보 가져와서 세션 토큰 발급
  */
-authRoutes.post('/admin-login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      res.status(400).json({ error: 'Username and password required' });
-      return;
-    }
-
-    // Check against environment variables
-    const adminUsername = process.env['ADMIN_USERNAME'] || 'admin';
-    const adminPassword = process.env['ADMIN_PASSWORD'] || 'aidivn';
-
-    if (username !== adminUsername || password !== adminPassword) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    // Issue admin session token
-    const sessionToken = signToken({
-      loginid: adminUsername,
-      deptname: 'System',
-      username: 'Administrator',
-    });
-
-    res.json({
-      success: true,
-      user: {
-        id: 'system-admin',
-        loginid: adminUsername,
-        deptname: 'System',
-        username: 'Administrator',
-      },
-      sessionToken,
-      isAdmin: true,
-      adminRole: 'SUPER_ADMIN',
-    });
-  } catch (error) {
-    console.error('Admin login error:', error);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-/**
- * GET /auth/admin-check
- * Check if request has valid admin session
- */
-authRoutes.get('/admin-check', authenticateToken, async (req: AuthenticatedRequest, res) => {
+authRoutes.post('/login', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
-    // Check if system admin
-    const adminUsername = process.env['ADMIN_USERNAME'] || 'admin';
-    if (req.user.loginid === adminUsername) {
-      res.json({
-        user: {
-          id: 'system-admin',
-          loginid: adminUsername,
-          deptname: 'System',
-          username: 'Administrator',
-        },
-        isAdmin: true,
-        adminRole: 'SUPER_ADMIN',
+    const { loginid, deptname, username } = req.user;
+
+    // Upsert user in database
+    const user = await prisma.user.upsert({
+      where: { loginid },
+      update: {
+        deptname,
+        username,
+        lastActive: new Date(),
+      },
+      create: {
+        loginid,
+        deptname,
+        username,
+      },
+    });
+
+    // Track active user in Redis
+    await trackActiveUser(redis, loginid);
+
+    // 권한 체크: 환경변수 개발자 → DB admin → 일반 사용자
+    let isAdmin = false;
+    let adminRole: 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER' | null = null;
+    const isEnvDeveloper = isDeveloper(loginid);
+
+    if (isEnvDeveloper) {
+      isAdmin = true;
+      adminRole = 'SUPER_ADMIN';
+    } else {
+      const admin = await prisma.admin.findUnique({
+        where: { loginid },
       });
+      if (admin) {
+        isAdmin = true;
+        adminRole = admin.role;
+      }
+    }
+
+    // Issue session token
+    const sessionToken = signToken({ loginid, deptname, username });
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        loginid: user.loginid,
+        deptname: user.deptname,
+        username: user.username,
+      },
+      sessionToken,
+      isAdmin,
+      adminRole,
+      isDeveloper: isEnvDeveloper,
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+/**
+ * GET /auth/check
+ * 현재 세션의 권한 정보 반환 (admin 아니어도 OK)
+ */
+authRoutes.get('/check', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
-    // Check database admin
-    const admin = await prisma.admin.findUnique({
-      where: { loginid: req.user.loginid },
+    const { loginid, deptname, username } = req.user;
+
+    // Get user from DB
+    const user = await prisma.user.findUnique({
+      where: { loginid },
     });
 
-    if (!admin) {
-      res.status(403).json({ error: 'Admin access required' });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
       return;
+    }
+
+    // 권한 체크
+    let isAdmin = false;
+    let adminRole: 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER' | null = null;
+    const isEnvDeveloper = isDeveloper(loginid);
+
+    if (isEnvDeveloper) {
+      isAdmin = true;
+      adminRole = 'SUPER_ADMIN';
+    } else {
+      const admin = await prisma.admin.findUnique({
+        where: { loginid },
+      });
+      if (admin) {
+        isAdmin = true;
+        adminRole = admin.role;
+      }
     }
 
     res.json({
       user: {
-        id: admin.id,
-        loginid: admin.loginid,
-        deptname: req.user.deptname,
-        username: req.user.username,
+        id: user.id,
+        loginid: user.loginid,
+        deptname: user.deptname || deptname,
+        username: user.username || username,
       },
-      isAdmin: true,
-      adminRole: admin.role,
+      isAdmin,
+      adminRole,
+      isDeveloper: isEnvDeveloper,
     });
   } catch (error) {
-    console.error('Admin check error:', error);
-    res.status(500).json({ error: 'Failed to check admin status' });
+    console.error('Auth check error:', error);
+    res.status(500).json({ error: 'Failed to check auth status' });
   }
 });
