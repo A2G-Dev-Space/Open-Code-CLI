@@ -1,5 +1,11 @@
 # Installation
 
+::: danger 지원 환경
+**PowerShell 및 VWP(Windows)는 지원되지 않습니다.**
+
+Linux 또는 WSL(Windows Subsystem for Linux) 환경에서 사용해주세요.
+:::
+
 ## Quick Start (바이너리 설치)
 
 **Node.js, npm 설치 불필요** - 바이너리만 다운로드하여 바로 사용
@@ -117,6 +123,12 @@ nexus
 
 ## 시스템 요구사항
 
-- **OS**: Linux (x64)
+- **OS**: Linux (x64) 또는 WSL
 - **네트워크**: 사내망 접속 가능
 - **기타**: Node.js 설치 불필요
+
+::: warning 미지원 환경
+- PowerShell (Windows)
+- VWP (Virtual Windows Platform)
+:::
+
