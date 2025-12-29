@@ -35,8 +35,8 @@ Node.js 설치 없이 바이너리로 바로 실행:
 ```bash
 # 1. 다운로드
 mkdir -p ~/nexus-download && cd ~/nexus-download
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz --no-check-certificate
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm --no-check-certificate
+wget https://github.samsungds.net/syngha-han/nexus-coder/raw/main/nexus.gz --no-check-certificate
+wget https://github.samsungds.net/syngha-han/nexus-coder/raw/main/yoga.wasm --no-check-certificate
 
 # 2. 압축 해제 및 실행
 gunzip nexus.gz && chmod +x nexus

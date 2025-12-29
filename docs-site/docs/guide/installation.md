@@ -19,16 +19,16 @@ GitHub에서 두 파일을 다운로드합니다:
 mkdir -p ~/nexus-download && cd ~/nexus-download
 
 # nexus.gz 다운로드 (39MB)
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz --no-check-certificate
+wget https://github.samsungds.net/syngha-han/nexus-coder/raw/main/nexus.gz --no-check-certificate
 
 # yoga.wasm 다운로드 (87KB)
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm --no-check-certificate
+wget https://github.samsungds.net/syngha-han/nexus-coder/raw/main/yoga.wasm --no-check-certificate
 ```
 
 ::: tip wget 대신 curl 사용
 ```bash
-curl -kLO https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz
-curl -kLO https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm
+curl -kLO https://github.samsungds.net/syngha-han/nexus-coder/raw/main/nexus.gz
+curl -kLO https://github.samsungds.net/syngha-han/nexus-coder/raw/main/yoga.wasm
 ```
 :::
 
@@ -107,9 +107,8 @@ Node.js 환경에서 직접 개발하려는 경우:
 
 ```bash
 # 저장소 클론
-git clone https://github.com/A2G-Dev-Space/Local-CLI.git
-cd Local-CLI
-git checkout nexus-coder
+git clone https://github.samsungds.net/syngha-han/nexus-coder.git
+cd nexus-coder
 
 # 설치 및 빌드
 npm install && npm run build

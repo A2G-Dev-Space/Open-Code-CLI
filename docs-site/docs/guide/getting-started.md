@@ -17,10 +17,10 @@ Nexus Coder를 시작하는 방법을 안내합니다.
 mkdir -p ~/nexus-download && cd ~/nexus-download
 
 # nexus.gz 다운로드 (39MB)
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz --no-check-certificate
+wget https://github.samsungds.net/syngha-han/nexus-coder/raw/main/nexus.gz --no-check-certificate
 
 # yoga.wasm 다운로드 (87KB)
-wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm --no-check-certificate
+wget https://github.samsungds.net/syngha-han/nexus-coder/raw/main/yoga.wasm --no-check-certificate
 ```
 
 ### 2. 압축 해제 및 실행
