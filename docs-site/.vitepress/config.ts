@@ -4,6 +4,9 @@ export default defineConfig({
   title: 'Nexus Coder',
   description: 'Enterprise AI Coding Assistant Documentation',
 
+  // /docs 경로에서 서빙되므로 base 설정 필수
+  base: '/docs/',
+
   // 폐쇄망용: 외부 리소스 비활성화
   head: [
     ['link', { rel: 'icon', href: '/images/favicon.ico' }],
@@ -17,8 +20,8 @@ export default defineConfig({
   // Google Fonts 비활성화
   appearance: true,
 
-  // 정적 빌드 설정
-  outDir: '../dist',
+  // 정적 빌드 설정 (docker-compose에서 docs/.vitepress/dist 마운트)
+  outDir: './docs/.vitepress/dist',
 
   themeConfig: {
     logo: '/images/logo.svg',
