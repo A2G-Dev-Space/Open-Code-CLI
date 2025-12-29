@@ -31,6 +31,7 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Demos', link: '/demos/' },
+      { text: 'Feedback', link: '/feedback', target: '_self' },
     ],
 
     sidebar: {
