@@ -45,12 +45,14 @@ export default function Login({ onLogin }: LoginProps) {
 
       // Generate a temporary token from SSO data for backend verification
       // Backend will decode this and create a proper session
-      const ssoToken = btoa(JSON.stringify({
+      // Use encodeURIComponent + unescape for Unicode-safe base64 encoding
+      const jsonData = JSON.stringify({
         loginid: ssoData.loginid,
         username: ssoData.username,
         deptname: ssoData.deptname || '',
         timestamp: Date.now(),
-      }));
+      });
+      const ssoToken = btoa(unescape(encodeURIComponent(jsonData)));
 
       // Exchange SSO data for session token
       const response = await authApi.login(`sso.${ssoToken}`);

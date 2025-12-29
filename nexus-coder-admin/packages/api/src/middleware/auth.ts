@@ -65,6 +65,16 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
       return;
     }
 
+    // Check for SSO token format (sso.base64EncodedData)
+    if (token.startsWith('sso.')) {
+      const ssoData = decodeSSOToken(token.substring(4));
+      if (ssoData && ssoData.loginid) {
+        req.user = ssoData;
+        next();
+        return;
+      }
+    }
+
     // If not internal token, try decoding as SSO token (base64 decode)
     const decoded = decodeJWT(token);
 
@@ -159,6 +169,34 @@ export async function requireSuperAdmin(req: AuthenticatedRequest, res: Response
   } catch (error) {
     console.error('Super admin check error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Decode SSO token (Unicode-safe base64 decode)
+ * Frontend encodes: btoa(unescape(encodeURIComponent(json)))
+ * Backend decodes: decodeURIComponent(escape(base64Decode))
+ */
+function decodeSSOToken(base64Token: string): JWTPayload | null {
+  try {
+    // Decode base64 to binary string
+    const binaryString = Buffer.from(base64Token, 'base64').toString('binary');
+    // Convert binary string to UTF-8 (reverse of unescape(encodeURIComponent()))
+    const jsonString = decodeURIComponent(
+      binaryString.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    );
+    const payload = JSON.parse(jsonString);
+
+    console.log('SSO token payload:', JSON.stringify(payload, null, 2));
+
+    return {
+      loginid: payload.loginid || '',
+      deptname: payload.deptname || '',
+      username: payload.username || '',
+    };
+  } catch (error) {
+    console.error('SSO token decode error:', error);
+    return null;
   }
 }
 
