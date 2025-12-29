@@ -173,6 +173,22 @@ export async function requireSuperAdmin(req: AuthenticatedRequest, res: Response
 }
 
 /**
+ * Safely decode URL-encoded string
+ */
+function safeDecodeURIComponent(str: string): string {
+  if (!str) return '';
+  try {
+    // Check if string contains URL-encoded characters
+    if (str.includes('%')) {
+      return decodeURIComponent(str);
+    }
+    return str;
+  } catch {
+    return str;
+  }
+}
+
+/**
  * Decode SSO token (Unicode-safe base64 decode)
  * Frontend encodes: btoa(unescape(encodeURIComponent(json)))
  * Backend decodes: decodeURIComponent(escape(base64Decode))
@@ -190,9 +206,9 @@ function decodeSSOToken(base64Token: string): JWTPayload | null {
     console.log('SSO token payload:', JSON.stringify(payload, null, 2));
 
     return {
-      loginid: payload.loginid || '',
-      deptname: payload.deptname || '',
-      username: payload.username || '',
+      loginid: safeDecodeURIComponent(payload.loginid || ''),
+      deptname: safeDecodeURIComponent(payload.deptname || ''),
+      username: safeDecodeURIComponent(payload.username || ''),
     };
   } catch (error) {
     console.error('SSO token decode error:', error);
@@ -218,10 +234,14 @@ function decodeJWT(token: string): JWTPayload | null {
     console.log('JWT payload fields:', Object.keys(payload));
     console.log('JWT payload:', JSON.stringify(payload, null, 2));
 
+    const loginid = payload.loginid || payload.sub || payload.user_id || payload.userId || payload.id || '';
+    const deptname = payload.deptname || payload.department || payload.dept || payload.deptName || '';
+    const username = payload.username || payload.name || payload.display_name || payload.userName || payload.displayName || '';
+
     return {
-      loginid: payload.loginid || payload.sub || payload.user_id || payload.userId || payload.id || '',
-      deptname: payload.deptname || payload.department || payload.dept || payload.deptName || '',
-      username: payload.username || payload.name || payload.display_name || payload.userName || payload.displayName || '',
+      loginid: safeDecodeURIComponent(loginid),
+      deptname: safeDecodeURIComponent(deptname),
+      username: safeDecodeURIComponent(username),
       iat: payload.iat,
       exp: payload.exp,
     };
