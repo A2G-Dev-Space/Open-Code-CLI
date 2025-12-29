@@ -274,7 +274,7 @@ feedbackRoutes.put('/:id', authenticateToken, async (req: AuthenticatedRequest, 
 
 /**
  * DELETE /feedback/:id
- * 피드백 삭제 (본인만)
+ * 피드백 삭제 (본인 또는 Admin)
  */
 feedbackRoutes.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
@@ -305,8 +305,10 @@ feedbackRoutes.delete('/:id', authenticateToken, async (req: AuthenticatedReques
       return;
     }
 
-    // 본인만 삭제 가능 (Admin도 삭제 불가 - 기록 보존)
-    if (existing.userId !== user.id) {
+    // 권한 체크: 본인 피드백이거나 Admin인 경우 삭제 가능
+    const isAdmin = isDeveloper(req.user.loginid) || await checkIsAdmin(req.user.loginid);
+
+    if (existing.userId !== user.id && !isAdmin) {
       res.status(403).json({ error: 'You can only delete your own feedback' });
       return;
     }

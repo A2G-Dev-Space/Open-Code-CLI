@@ -448,8 +448,8 @@ function FeedbackDetailModal({
     }
   };
 
-  // 본인 피드백인지 확인 (삭제 가능 여부) - 답변이 없으면 삭제 가능
-  const canDelete = !feedback.response;
+  // 삭제 가능 여부: Admin은 모두 삭제 가능, 일반 사용자는 답변 없는 본인 피드백만
+  const canDelete = isAdmin || !feedback.response;
 
   return (
     <>
