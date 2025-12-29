@@ -57,6 +57,9 @@ export default defineConfig({
           text: 'Demos',
           items: [
             { text: 'Overview', link: '/demos/' },
+            { text: 'Understanding Codebase', link: '/demos/understanding-codebase' },
+            { text: 'Finding and Fixing Issues', link: '/demos/fixing-issues' },
+            { text: 'Writing Documentation', link: '/demos/writing-docs' },
           ]
         }
       ]
