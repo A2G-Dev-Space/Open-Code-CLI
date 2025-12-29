@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, Server, Users, LogOut, Terminal, Menu, X, ChevronRight, MessageSquare, Shield } from 'lucide-react';
+import { LayoutDashboard, Server, Users, LogOut, Menu, X, ChevronRight, MessageSquare, Shield, BookOpen } from 'lucide-react';
 
 interface User {
   id: string;
@@ -63,14 +63,10 @@ export default function Layout({ children, user, isAdmin, adminRole, onLogout }:
         {/* Logo */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-samsung-blue rounded-xl flex items-center justify-center">
-              <Terminal className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.png" alt="Nexus Coder" className="w-10 h-10 rounded-xl" />
             <div>
               <h1 className="font-bold text-lg tracking-tight">Nexus Coder</h1>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">
-                {isAdmin ? 'Admin' : 'Portal'}
-              </p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Portal</p>
             </div>
           </div>
           <button
@@ -135,6 +131,21 @@ export default function Layout({ children, user, isAdmin, adminRole, onLogout }:
                 </Link>
               );
             })}
+          </div>
+
+          {/* 리소스 섹션 */}
+          <div className="mt-4">
+            <p className="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              리소스
+            </p>
+            <a
+              href="/docs/"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl mb-1 transition-all duration-200 group text-gray-400 hover:bg-white/5 hover:text-white"
+            >
+              <BookOpen className="w-5 h-5 text-gray-500 group-hover:text-white" />
+              <span className="font-medium">문서</span>
+            </a>
           </div>
         </nav>
 

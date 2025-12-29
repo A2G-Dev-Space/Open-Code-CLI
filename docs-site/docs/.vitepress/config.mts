@@ -9,7 +9,7 @@ export default defineConfig({
 
   // 폐쇄망용: 외부 리소스 비활성화
   head: [
-    ['link', { rel: 'icon', type: 'image/png', href: '/images/logo.png' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/docs/images/logo.png' }],
     // 외부 리소스 차단 - CSP 설정
     ['meta', {
       'http-equiv': 'Content-Security-Policy',
@@ -31,7 +31,7 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Demos', link: '/demos/' },
-      { text: 'Feedback', link: '/feedback' },
+      { text: 'Feedback', link: '/feedback', target: '_self' },
     ],
 
     sidebar: {
