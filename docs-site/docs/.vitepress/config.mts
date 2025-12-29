@@ -67,8 +67,8 @@ export default defineConfig({
     ],
 
     footer: {
-      message: 'Nexus Coder - Enterprise AI Coding Assistant',
-      copyright: 'Internal Use Only'
+      message: 'Developed by syngha.han, byeongju.lee, young87.kim',
+      copyright: 'Nexus Coder - Internal Use Only'
     },
 
     search: {
