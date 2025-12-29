@@ -10,8 +10,8 @@ hero:
       text: 시작하기
       link: /guide/getting-started
     - theme: alt
-      text: 기능 살펴보기
-      link: /features/overview
+      text: 데모 보기
+      link: /demos/
 
 features:
   - icon: 🎯
@@ -28,23 +28,22 @@ features:
     details: 긴 대화도 자동 압축으로 컨텍스트를 효율적으로 관리합니다.
 ---
 
-## 데모 영상
-
-<!-- 데모 영상 추가 예정 -->
-<!--
-<!-- video placeholder
--->
--->
-
 ## 빠른 시작
 
+Node.js 설치 없이 바이너리로 바로 실행:
+
 ```bash
-# 설치
-npm install -g nexus-coder
+# 1. 다운로드
+mkdir -p ~/nexus-download && cd ~/nexus-download
+wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/nexus.gz --no-check-certificate
+wget https://github.com/A2G-Dev-Space/Local-CLI/raw/nexus-coder/bin/yoga.wasm --no-check-certificate
 
-# 설정
-nexus config init
+# 2. 압축 해제 및 실행
+gunzip nexus.gz && chmod +x nexus
+./nexus
 
-# 실행
-nexus
+# 3. 셸 리로드 후 어디서든 실행
+source ~/.bashrc && nexus
 ```
+
+자세한 설치 방법은 [Installation](/guide/installation)을 참조하세요.
