@@ -249,6 +249,11 @@ export class CDPClient {
       '--disable-translate',
       '--metrics-recording-only',
       '--safebrowsing-disable-auto-update',
+      // GPU/rendering fixes for WSL environment
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--disable-dev-shm-usage',
+      '--no-sandbox',
     ];
 
     // For Windows Chrome accessed from WSL, bind to all interfaces
