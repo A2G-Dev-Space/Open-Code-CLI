@@ -55,9 +55,13 @@ metrics/
 # Project docs (AI-generated, user-specific)
 CLAUDE.md
 OPEN_CLI.md
-
 # pkg output
 bin/*
 !bin/nexus.gz
 !bin/yoga.wasm
+!bin/office-server.exe
 bundle/
+
+# Office server build artifacts
+office-server/__pycache__/
+office-server/*.spec
