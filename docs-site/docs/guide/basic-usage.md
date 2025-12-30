@@ -32,6 +32,7 @@ nexus --debug
 | `/compact` | 대화 압축 (컨텍스트 절약) |
 | `/load` | 저장된 세션 불러오기 |
 | `/model` | LLM 모델 전환 |
+| `/tool` | Optional Tools 활성화/비활성화 (Browser 등) |
 | `/settings` | 설정 메뉴 |
 | `/usage` | 토큰 사용량 통계 |
 | `/docs` | 문서 관리 |
