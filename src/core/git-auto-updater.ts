@@ -450,17 +450,17 @@ export class GitAutoUpdater {
       return;
     }
 
-    this.emitStatus({ type: 'updating', step: 4, totalSteps: 4, message: 'Installing Chrome for browser tools...' });
-
     const tempDir = os.tmpdir();
     const debPath = path.join(tempDir, 'google-chrome.deb');
     const chromeUrl = 'https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb';
 
     try {
-      // Download Chrome .deb
-      await execAsync(`wget -O "${debPath}" "${chromeUrl}" --no-check-certificate`);
+      // Step 1: Download
+      this.emitStatus({ type: 'updating', step: 4, totalSteps: 5, message: 'Downloading Chrome (~113MB)...' });
+      await execAsync(`wget -q -O "${debPath}" "${chromeUrl}" --no-check-certificate`);
 
-      // Install with dpkg (may have missing dependencies)
+      // Step 2: Install (requires sudo - may prompt for password)
+      this.emitStatus({ type: 'updating', step: 5, totalSteps: 5, message: 'Installing Chrome (sudo required)...' });
       try {
         await execAsync(`sudo dpkg -i "${debPath}"`);
       } catch {
