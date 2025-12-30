@@ -9,6 +9,7 @@ import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import SelectInput from 'ink-select-input';
 import { execSync } from 'child_process';
+import Spinner from 'ink-spinner';
 import { toolRegistry, OptionalToolGroup } from '../../tools/registry.js';
 
 const BROWSER_TOOLS_GUIDE_URL = 'http://a2g.samsungds.net:4090/docs/guide/browser-tools.html';
@@ -52,6 +53,7 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ onClose }) => {
   );
   const [chromeWarning, setChromeWarning] = useState<string | null>(null);
   const [isToggling, setIsToggling] = useState(false);
+  const [togglingGroup, setTogglingGroup] = useState<{ name: string; enabling: boolean } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Handle keyboard input
@@ -72,6 +74,8 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ onClose }) => {
 
       const groupId = item.value;
       const group = toolGroups.find(g => g.id === groupId);
+      const groupName = group?.name || groupId;
+      const isEnabling = !group?.enabled;
 
       // Check Chrome installation when enabling browser tools
       if (groupId === 'browser' && group && !group.enabled) {
@@ -84,6 +88,7 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ onClose }) => {
 
       setChromeWarning(null);
       setIsToggling(true);
+      setTogglingGroup({ name: groupName, enabling: isEnabling });
       setErrorMessage(null);
 
       try {
@@ -96,6 +101,7 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ onClose }) => {
         }
       } finally {
         setIsToggling(false);
+        setTogglingGroup(null);
       }
     },
     [toolGroups, isToggling]
@@ -188,10 +194,18 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ onClose }) => {
         </Box>
       )}
 
-      {/* Loading indicator */}
-      {isToggling && (
+      {/* Loading indicator with spinner */}
+      {isToggling && togglingGroup && (
         <Box marginTop={1} paddingX={1}>
-          <Text color="yellow">Processing...</Text>
+          <Text color="cyan">
+            <Spinner type="dots" />
+          </Text>
+          <Text color="yellow">
+            {' '}
+            {togglingGroup.enabling
+              ? `Starting ${togglingGroup.name}...`
+              : `Stopping ${togglingGroup.name}...`}
+          </Text>
         </Box>
       )}
 
