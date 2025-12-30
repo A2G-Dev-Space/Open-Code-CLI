@@ -100,12 +100,12 @@ export const Logo: React.FC<LogoProps> = ({
             </Text>
           )}
           {modelName && (
-            <Text color="gray" dimColor>
+            <Text color="yellow">
               {modelName}
             </Text>
           )}
           {workingDirectory && (
-            <Text color="cyan" dimColor>
+            <Text color="cyan">
               {workingDirectory}
             </Text>
           )}
