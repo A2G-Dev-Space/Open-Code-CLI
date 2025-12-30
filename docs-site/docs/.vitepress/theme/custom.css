@@ -56,3 +56,13 @@ pre,
 .VPDoc h6 {
   word-break: keep-all;
 }
+
+/* Hero 텍스트 줄바꿈 방지 */
+.VPHero .text {
+  white-space: nowrap;
+  font-size: 2.5rem !important;
+}
+
+.VPHero .tagline {
+  white-space: nowrap;
+}
