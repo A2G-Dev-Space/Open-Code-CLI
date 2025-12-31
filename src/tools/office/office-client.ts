@@ -471,7 +471,7 @@ class OfficeClient {
   }
 
   async wordAddTable(rows: number, cols: number, data?: string[][]): Promise<OfficeResponse> {
-    return this.request('POST', '/word/add_table', { rows, cols, data });
+    return this.request('POST', '/word/add_table', { rows, cols, values: data });
   }
 
   async wordAddImage(imagePath: string, width?: number, height?: number): Promise<OfficeResponse> {

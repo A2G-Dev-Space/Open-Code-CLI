@@ -197,7 +197,6 @@ def capture_window_screenshot(hwnd: int) -> Optional[str]:
         # Fallback: pyautogui
         try:
             import pyautogui
-            screen_width, screen_height = pyautogui.size()
             cap_left = max(0, left)
             cap_top = max(0, top)
             cap_width = min(width, screen_width - cap_left)
@@ -346,43 +345,18 @@ def word_create():
         return jsonify(get_error_response('Failed to create document', str(e)))
 
 
-def normalize_text(text: str) -> str:
-    """Normalize text by converting escape sequences and HTML entities"""
-    import html
-    # Convert literal \n, \t to actual characters
-    text = text.replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-    # Decode HTML entities (&#10; -> newline, &amp; -> &, etc.)
-    text = html.unescape(text)
-    return text
-
-
 @app.route('/word/write', methods=['POST'])
 def word_write():
-    """Write text to the active Word document with optional font settings"""
+    """Write text to the active Word document"""
     try:
         data = request.json or {}
-        text = normalize_text(data.get('text', ''))
-        font_name = data.get('font_name')
-        font_size = data.get('font_size')
-        bold = data.get('bold')
-        italic = data.get('italic')
+        text = data.get('text', '')
 
         word = get_or_create_word()
         if word.Documents.Count == 0:
             return jsonify(get_error_response('No active Word document'))
 
         selection = word.Selection
-
-        # Apply font settings BEFORE writing text (so new text inherits them)
-        if font_name:
-            selection.Font.Name = font_name
-        if font_size:
-            selection.Font.Size = int(font_size)
-        if bold is not None:
-            selection.Font.Bold = -1 if bold else 0
-        if italic is not None:
-            selection.Font.Italic = -1 if italic else 0
-
         selection.TypeText(text)
 
         return jsonify(get_success_response('Text written successfully'))
@@ -646,7 +620,7 @@ def word_add_table():
         rows = data.get('rows', 3)
         cols = data.get('cols', 3)
         values = data.get('values')  # Optional 2D array of cell values
-        style = data.get('style')  # Optional table style name
+        style = data.get('style', 'Table Grid')  # Default to Table Grid for visible borders
 
         word = get_or_create_word()
         if word.Documents.Count == 0:
@@ -658,12 +632,26 @@ def word_add_table():
         # Create table
         table = doc.Tables.Add(selection.Range, rows, cols)
 
-        # Apply style if specified
+        # Apply style (default: Table Grid for visible borders)
+        style_applied = False
         if style:
             try:
                 table.Style = style
+                style_applied = True
             except:
-                pass  # Style not found, use default
+                pass  # Style not found
+
+        # If style failed, manually set borders
+        if not style_applied:
+            try:
+                # wdLineStyleSingle = 1, wdBorderTop/Bottom/Left/Right = -1/-3/-2/-4
+                for border_id in [-1, -2, -3, -4, -5, -6]:  # All borders including inside
+                    try:
+                        table.Borders(border_id).LineStyle = 1  # wdLineStyleSingle
+                    except:
+                        pass
+            except:
+                pass
 
         # Fill in values if provided
         if values:
@@ -673,11 +661,13 @@ def word_add_table():
                 for j, cell_value in enumerate(row_data):
                     if j >= cols:
                         break
-                    table.Cell(i + 1, j + 1).Range.Text = normalize_text(str(cell_value))
+                    cell = table.Cell(i + 1, j + 1)
+                    cell.Range.Text = str(cell_value)
 
         return jsonify(get_success_response('Table added', {
             'rows': rows,
-            'cols': cols
+            'cols': cols,
+            'style': style if style_applied else 'manual borders'
         }))
     except Exception as e:
         return jsonify(get_error_response('Failed to add table', str(e)))
@@ -968,16 +958,12 @@ def excel_create():
 
 @app.route('/excel/write_cell', methods=['POST'])
 def excel_write_cell():
-    """Write value to a cell with optional font settings"""
+    """Write value to a cell"""
     try:
         data = request.json or {}
         cell = data.get('cell', 'A1')
         value = data.get('value', '')
         sheet = data.get('sheet', None)
-        font_name = data.get('font_name')
-        font_size = data.get('font_size')
-        bold = data.get('bold')
-        italic = data.get('italic')
 
         excel = get_or_create_excel()
         if excel.Workbooks.Count == 0:
@@ -985,20 +971,7 @@ def excel_write_cell():
 
         wb = excel.ActiveWorkbook
         ws = wb.Sheets(sheet) if sheet else wb.ActiveSheet
-        cell_range = ws.Range(cell)
-        cell_range.Value = value
-
-        # Apply font settings if provided
-        if font_name or font_size or bold is not None or italic is not None:
-            font = cell_range.Font
-            if font_name:
-                font.Name = font_name
-            if font_size:
-                font.Size = int(font_size)
-            if bold is not None:
-                font.Bold = -1 if bold else 0
-            if italic is not None:
-                font.Italic = -1 if italic else 0
+        ws.Range(cell).Value = value
 
         return jsonify(get_success_response(f'Value written to {cell}'))
     except Exception as e:
@@ -1897,16 +1870,12 @@ def powerpoint_add_slide():
 
 @app.route('/powerpoint/write_text', methods=['POST'])
 def powerpoint_write_text():
-    """Write text to a slide with optional font settings"""
+    """Write text to a slide"""
     try:
         data = request.json or {}
         slide_number = data.get('slide', 1)
         shape_index = data.get('shape', 1)
-        text = normalize_text(data.get('text', ''))
-        font_name = data.get('font_name')
-        font_size = data.get('font_size')
-        bold = data.get('bold')
-        italic = data.get('italic')
+        text = data.get('text', '')
 
         ppt = get_or_create_powerpoint()
         if ppt.Presentations.Count == 0:
@@ -1922,20 +1891,7 @@ def powerpoint_write_text():
 
         shape = slide.Shapes(shape_index)
         if shape.HasTextFrame:
-            text_range = shape.TextFrame.TextRange
-            text_range.Text = text
-
-            # Apply font settings if provided
-            if font_name or font_size or bold is not None or italic is not None:
-                font = text_range.Font
-                if font_name:
-                    font.Name = font_name
-                if font_size:
-                    font.Size = int(font_size)
-                if bold is not None:
-                    font.Bold = -1 if bold else 0
-                if italic is not None:
-                    font.Italic = -1 if italic else 0
+            shape.TextFrame.TextRange.Text = text
 
         return jsonify(get_success_response('Text written to slide'))
     except Exception as e:
@@ -1996,7 +1952,7 @@ def powerpoint_read_slide():
 
 @app.route('/powerpoint/add_textbox', methods=['POST'])
 def powerpoint_add_textbox():
-    """Add a textbox to a slide with optional font settings"""
+    """Add a textbox to a slide"""
     try:
         data = request.json or {}
         slide_number = data.get('slide', 1)
@@ -2004,11 +1960,7 @@ def powerpoint_add_textbox():
         top = data.get('top', 100)
         width = data.get('width', 300)
         height = data.get('height', 50)
-        text = normalize_text(data.get('text', ''))
-        font_name = data.get('font_name')
-        font_size = data.get('font_size')
-        bold = data.get('bold')
-        italic = data.get('italic')
+        text = data.get('text', '')
 
         ppt = get_or_create_powerpoint()
         if ppt.Presentations.Count == 0:
@@ -2021,20 +1973,7 @@ def powerpoint_add_textbox():
         slide = pres.Slides(slide_number)
         # msoTextBox = 17
         textbox = slide.Shapes.AddTextbox(1, left, top, width, height)
-        text_range = textbox.TextFrame.TextRange
-        text_range.Text = text
-
-        # Apply font settings if provided
-        if font_name or font_size or bold is not None or italic is not None:
-            font = text_range.Font
-            if font_name:
-                font.Name = font_name
-            if font_size:
-                font.Size = int(font_size)
-            if bold is not None:
-                font.Bold = -1 if bold else 0
-            if italic is not None:
-                font.Italic = -1 if italic else 0
+        textbox.TextFrame.TextRange.Text = text
 
         return jsonify(get_success_response('Textbox added', {
             'slide_number': slide_number,
