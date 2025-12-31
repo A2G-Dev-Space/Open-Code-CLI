@@ -8,6 +8,10 @@ Nexus Coder를 시작하는 방법을 안내합니다.
 - **네트워크**: 사내망 접속 가능
 - **기타**: Node.js 설치 불필요 (단일 바이너리 실행)
 
+::: tip WSL 설정 가이드
+Windows에서 WSL을 처음 설정하는 경우 [WSL 설정 가이드](https://dsdn.samsungds.net/question/1501114335554965504?history=true)를 참조하세요.
+:::
+
 ## 설치
 
 ### 1. 바이너리 다운로드
