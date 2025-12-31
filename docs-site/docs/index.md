@@ -20,6 +20,12 @@ features:
   - icon: 🛠️
     title: Powerful Tools
     details: 파일 편집, 명령 실행, 코드 검색 등 다양한 도구를 제공합니다.
+  - icon: 🌐
+    title: Browser Automation
+    details: Chrome 브라우저를 직접 제어하여 Frontend 개발을 완벽하게 자동화합니다.
+  - icon: 📄
+    title: Office Automation
+    details: Word, Excel, PowerPoint를 AI가 직접 조작하여 문서화까지 한 번에 처리합니다.
   - icon: 🔒
     title: Air-Gapped Ready
     details: 폐쇄망 환경에서 완벽하게 동작하도록 설계되었습니다.

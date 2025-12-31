@@ -55,6 +55,7 @@ export default defineConfig({
           text: 'Tools',
           items: [
             { text: 'Browser Tools', link: '/guide/browser-tools' },
+            { text: 'Office Tools', link: '/guide/office-tools' },
           ]
         }
       ],
