@@ -132,9 +132,11 @@ class OfficeClient {
     const possiblePaths = [
       // Environment variable (highest priority - user override)
       process.env['OFFICE_SERVER_PATH'] || '',
-      // In ~/.local/bin/ (where nexus is typically installed)
+      // In ~/.nexus-coder/repo/bin/ (auto-update location)
+      path.join(homeDir, '.nexus-coder', 'repo', 'bin', 'office-server.exe'),
+      // In ~/.local/bin/ (manual installation)
       path.join(homeDir, '.local', 'bin', 'office-server.exe'),
-      // In bin folder (relative to project)
+      // In bin folder (relative to cwd - for development)
       path.resolve(process.cwd(), 'bin', 'office-server.exe'),
       // In dist folder (build output for development)
       path.resolve(process.cwd(), 'office-server', 'dist', 'office-server.exe'),
