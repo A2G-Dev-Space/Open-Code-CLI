@@ -102,10 +102,6 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ onClose }) => {
         // Show error if validation failed
         if (!result.success && result.error) {
           setErrorMessage({ message: result.error, groupId });
-          // Open guide URL for Office tools
-          if (OFFICE_TOOL_GROUPS.includes(groupId)) {
-            openUrl(OFFICE_TOOLS_GUIDE_URL);
-          }
         }
       } finally {
         setIsToggling(false);
