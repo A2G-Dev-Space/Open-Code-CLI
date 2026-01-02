@@ -179,6 +179,8 @@ def browser_launch():
         headless = data.get('headless', False)
         preferred_browser = data.get('browser', 'chrome')  # 'chrome' or 'edge'
 
+        print(f"[launch] Starting browser launch: preferred={preferred_browser}, headless={headless}")
+
         # Close existing browser if any
         if browser:
             try:
@@ -189,6 +191,7 @@ def browser_launch():
 
         # Try Chrome first, then Edge
         if preferred_browser == 'chrome' and find_chrome_path():
+            print("[launch] Chrome found, setting up options...")
             options = ChromeOptions()
             if headless:
                 options.add_argument('--headless=new')
@@ -207,9 +210,19 @@ def browser_launch():
                 'browser': 'ALL'
             })
 
-            service = ChromeService(ChromeDriverManager().install())
+            print("[launch] Installing ChromeDriver via webdriver_manager...")
+            try:
+                driver_path = ChromeDriverManager().install()
+                print(f"[launch] ChromeDriver installed at: {driver_path}")
+            except Exception as dm_err:
+                print(f"[launch] ChromeDriverManager error: {dm_err}")
+                raise
+
+            service = ChromeService(driver_path)
+            print("[launch] Starting Chrome browser...")
             browser = webdriver.Chrome(service=service, options=options)
             browser_type = 'chrome'
+            print("[launch] Chrome started successfully!")
 
         elif find_edge_path():
             options = EdgeOptions()
