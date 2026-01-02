@@ -173,8 +173,8 @@ class BrowserClient {
     const possiblePaths = [
       // Environment variable (highest priority)
       process.env['BROWSER_SERVER_PATH'] || '',
-      // In ~/.local-cli/repo/bin/ (auto-update location)
-      path.join(homeDir, '.local-cli', 'repo', 'bin', 'browser-server.exe'),
+      // In ~/.local-cli/bin/ (standard location)
+      path.join(homeDir, '.local-cli', 'bin', 'browser-server.exe'),
       // In ~/.local/bin/ (manual installation)
       path.join(homeDir, '.local', 'bin', 'browser-server.exe'),
       // In bin folder (development)
