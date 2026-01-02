@@ -295,7 +295,7 @@ def bring_window_to_front(window_title_contains: str) -> bool:
             # Bring to front
             win32gui.SetForegroundWindow(hwnd)
             return True
-        except:
+        except Exception:
             pass
     return False
 

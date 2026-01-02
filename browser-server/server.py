@@ -118,7 +118,7 @@ def bring_window_to_front(window_title_contains: str) -> bool:
             # Bring to front
             win32gui.SetForegroundWindow(hwnd)
             return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -152,7 +152,7 @@ def shutdown():
         if browser:
             browser.quit()
             browser = None
-    except:
+    except Exception:
         pass
 
     # Shutdown Flask
@@ -180,7 +180,7 @@ def browser_launch():
         if browser:
             try:
                 browser.quit()
-            except:
+            except Exception:
                 pass
             browser = None
 
@@ -515,7 +515,7 @@ def browser_get_console():
                     'message': entry.get('message', ''),
                     'timestamp': entry.get('timestamp', 0)
                 })
-        except:
+        except Exception:
             # Edge or other browsers may not support get_log
             pass
 
@@ -600,7 +600,7 @@ def browser_get_network():
                                 'timestamp': entry.get('timestamp', 0),
                                 'requestId': params.get('requestId', '')
                             })
-                except:
+                except (json.JSONDecodeError, KeyError):
                     continue
         except Exception as e:
             return jsonify(get_error_response('Failed to get performance logs', str(e)))

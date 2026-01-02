@@ -54,7 +54,9 @@ GET  /browser/get_info      # Get page info (URL, title)
 GET  /browser/get_html      # Get page HTML source
 POST /browser/execute_script# Run JS: {"script": "return document.title"}
 GET  /browser/get_console   # Get console logs
+GET  /browser/get_network   # Get network request logs
 POST /browser/wait_for      # Wait for element: {"selector": "#loaded", "timeout": 10}
+POST /browser/focus         # Bring browser window to foreground
 ```
 
 ## Example Usage

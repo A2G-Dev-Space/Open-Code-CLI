@@ -24,6 +24,8 @@ def main():
         '--hidden-import', 'webdriver_manager',
         '--hidden-import', 'flask',
         '--hidden-import', 'flask_cors',
+        '--hidden-import', 'win32gui',
+        '--hidden-import', 'win32con',
         '--clean',
         'server.py'
     ]
