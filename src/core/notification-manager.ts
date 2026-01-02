@@ -114,7 +114,7 @@ class NotificationManager {
    */
   async submitRating(modelName: string, rating: number): Promise<boolean> {
     try {
-      const response = await fetch(`${ADMIN_SERVER_URL}/rating`, {
+      const response = await fetch(`${ADMIN_SERVER_URL}/api/rating`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
