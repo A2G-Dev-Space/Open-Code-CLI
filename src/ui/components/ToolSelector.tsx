@@ -9,6 +9,9 @@ import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import SelectInput from 'ink-select-input';
 import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import Spinner from 'ink-spinner';
 import { toolRegistry, OptionalToolGroup } from '../../tools/registry.js';
 
@@ -23,15 +26,18 @@ const OFFICE_TOOL_GROUPS = ['word', 'excel', 'powerpoint'];
  * browser-server.exe runs on Windows and handles Chrome/Edge detection there
  */
 function isChromeInstalled(): boolean {
-  // If browser-server.exe exists, skip Linux Chrome check
-  // (browser-server handles Chrome/Edge detection on Windows)
-  try {
-    const { browserClient } = require('../tools/browser/browser-client.js');
-    if (browserClient.getServerExePath()) {
+  // Check if browser-server.exe exists (handles Chrome/Edge on Windows)
+  const homeDir = os.homedir();
+  const browserServerPaths = [
+    path.join(homeDir, '.nexus-coder', 'repo', 'bin', 'browser-server.exe'),
+    path.join(homeDir, '.local-cli', 'repo', 'bin', 'browser-server.exe'),
+    path.join(homeDir, '.local', 'bin', 'browser-server.exe'),
+  ];
+
+  for (const p of browserServerPaths) {
+    if (fs.existsSync(p)) {
       return true;
     }
-  } catch {
-    // Ignore import errors
   }
 
   // Fallback: check Linux Chrome installation
