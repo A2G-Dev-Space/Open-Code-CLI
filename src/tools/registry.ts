@@ -69,7 +69,7 @@ async function validateBrowserTools(): Promise<EnableResult> {
       error: `browser-server.exe를 찾을 수 없습니다.
 
 위치 확인:
-  - ~/.local-cli/repo/bin/browser-server.exe (auto-update)
+  - ~/.nexus-coder/repo/bin/browser-server.exe (auto-update)
   - ./bin/browser-server.exe (development)
   - BROWSER_SERVER_PATH 환경변수
 

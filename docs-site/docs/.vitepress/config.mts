@@ -56,6 +56,7 @@ export default defineConfig({
           items: [
             { text: 'Browser Tools', link: '/guide/browser-tools' },
             { text: 'Office Tools', link: '/guide/office-tools' },
+            { text: 'WSL Setup', link: '/guide/wsl-setup' },
           ]
         }
       ],

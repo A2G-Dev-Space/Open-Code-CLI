@@ -328,7 +328,7 @@ DO NOT return an empty response. The user is waiting for your response.`,
    * Get folder structure of docs directory (depth 1 only: root + immediate subdirs)
    */
   private async getDocsFolderStructure(): Promise<string> {
-    const docsBasePath = path.join(os.homedir(), '.local-cli', 'docs');
+    const docsBasePath = path.join(os.homedir(), '.nexus-coder', 'docs');
 
     try {
       const entries = await fs.readdir(docsBasePath, { withFileTypes: true });

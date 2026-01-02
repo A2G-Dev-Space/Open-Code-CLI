@@ -166,7 +166,7 @@ const BROWSER_SCREENSHOT_DEFINITION: ToolDefinition = {
     name: 'browser_screenshot',
     description: `Take a screenshot of the current browser page.
 Returns a base64-encoded PNG image that you can analyze to understand the page state.
-Screenshots are also saved to ~/.local-cli/screenshots/browser/
+Screenshots are also saved to ~/.nexus-coder/screenshots/browser/
 Use this to verify that pages loaded correctly or to check UI elements.`,
     parameters: {
       type: 'object',
