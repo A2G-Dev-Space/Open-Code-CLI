@@ -444,11 +444,9 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
   // Setup notification callbacks (rating dialog & star message)
   useEffect(() => {
     // Rating notification - shows dialog
+    // Note: checkNotifications() is only called in finally block after processing
     notificationManager.setRatingCallback((notification) => {
-      // Only show if not currently processing
-      if (!isProcessing) {
-        setPendingRatingNotification(notification);
-      }
+      setPendingRatingNotification(notification);
     });
 
     // Star message - adds to log (scrolls naturally)
@@ -463,7 +461,7 @@ export const PlanExecuteApp: React.FC<PlanExecuteAppProps> = ({ llmClient: initi
       notificationManager.setRatingCallback(null);
       notificationManager.setStarMessageCallback(null);
     };
-  }, [addLog, isProcessing]);
+  }, [addLog]);
 
   // Setup tool approval callback (Supervised Mode)
   useEffect(() => {
