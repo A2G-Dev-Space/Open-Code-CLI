@@ -120,6 +120,20 @@ class UsageTrackerClass {
       if (fs.existsSync(USAGE_FILE)) {
         const content = fs.readFileSync(USAGE_FILE, 'utf-8');
         const data = JSON.parse(content) as UsageData;
+
+        // Migration: ensure totalRequests exists (added for notification feature)
+        if (typeof data.totalRequests !== 'number') {
+          // Calculate from dailyStats if available
+          let totalRequests = 0;
+          if (data.dailyStats) {
+            for (const day of Object.values(data.dailyStats)) {
+              totalRequests += day.requestCount || 0;
+            }
+          }
+          data.totalRequests = totalRequests;
+          logger.debug('Migrated totalRequests from dailyStats', { totalRequests });
+        }
+
         logger.vars({ name: 'recordCount', value: data.records.length });
         logger.exit('UsageTracker.loadData', { loaded: true });
         return data;
